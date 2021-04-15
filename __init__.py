@@ -43,7 +43,8 @@ class TOOLS_PT_thieftools_debug(Panel):
         box = row.box()
         box.label(text="Foo")
         row = box.row(align=True)
-        row.operator("object.tt_debug_import_mission", text="Import (debug)")
+        op = row.operator("object.tt_debug_import_mission", text="Import (debug)")
+        op.filename = "e:\\dev\\thief\\blender\\data\\miss1.mis"
 
 
 #---------------------------------------------------------------------------#
