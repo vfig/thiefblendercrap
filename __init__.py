@@ -9,10 +9,12 @@ bl_info = {
 
 if "bpy" in locals():
     import importlib as imp
-    imp.reload(mission)
+    imp.reload(brushes)
+    #imp.reload(mission)
     print("thieftools: reloaded.");
 else:
-    from . import mission
+    from . import brushes
+    #from . import mission
     print("thieftools: loaded.");
 
 
@@ -42,21 +44,29 @@ class TOOLS_PT_thieftools_debug(Panel):
         row = layout.row(align=True)
         box = row.box()
         box.label(text="Foo")
-        row = box.row(align=True)
-        op = row.operator("object.tt_debug_import_mission", text="Import (debug)")
-        op.filename = "e:\\dev\\thief\\blender\\data\\miss1.mis"
+        #row = box.row(align=True)
+        #op = row.operator("object.tt_debug_import_mission", text="Import (debug)")
+        #op.filename = "e:\\dev\\thief\\blender\\data\\miss1.mis"
 
+        op = layout.operator("object.tt_brushes_to_booleans")
+        op.filename = "e:\\dev\\thief\\dump\\brushes_skull.json"
+
+        op = layout.operator("object.tt_delete_all_brushes")
 
 #---------------------------------------------------------------------------#
 # Register and unregister
 
 def register():
-    bpy.utils.register_class(mission.TTDebugImportMissionOperator)
+    bpy.utils.register_class(brushes.TTDebugBrushesToBooleansOperator)
+    bpy.utils.register_class(brushes.TTDebugDeleteAllBrushesOperator)
+    #bpy.utils.register_class(mission.TTDebugImportMissionOperator)
     bpy.utils.register_class(TOOLS_PT_thieftools_debug)
     print("thieftools: registered.");
 
 
 def unregister():
     bpy.utils.unregister_class(TOOLS_PT_thieftools_debug)
-    bpy.utils.unregister_class(mission.DebugImportMissionOperator)
+    #bpy.utils.unregister_class(mission.DebugImportMissionOperator)
+    bpy.utils.unregister_class(brushes.TTDebugDeleteAllBrushesOperator)
+    bpy.utils.unregister_class(brushes.TTDebugBrushesToBooleansOperator)
     print("thieftools: unregistered.");
