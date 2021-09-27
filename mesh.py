@@ -2,6 +2,7 @@ import bpy
 import bmesh
 import math
 import mathutils
+import os, os.path
 import random
 import struct
 import zlib
@@ -14,111 +15,120 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 from typing import NewType, get_type_hints
 
-int8 = NewType('int8', int)
-int16 = NewType('int16', int)
-int32 = NewType('int32', int)
-uint8 = NewType('uint8', int)
-uint16 = NewType('uint16', int)
-uint32 = NewType('uint32', int)
-float32 = NewType('float32', float)
-bytes4 = NewType('bytes4', bytes)
-bytes16 = NewType('bytes16', bytes)
+class PrimitiveTypeMixin:
+    _format_string = ''
+    _name = ''
+    @classmethod
+    def size(cls):
+        return struct.calcsize(cls._format_string)
+    @classmethod
+    def read(cls, view, offset=0):
+        values = struct.unpack_from(cls._format_string, view, offset=offset)
+        return cls(values[0])
+    def __repr__(self):
+        return f"<PrimitiveType {self._name}>"
 
-TYPE_FORMAT_STRINGS = {
-    int8: 'b',
-    int16: 'h',
-    int32: 'l',
-    uint8: 'B',
-    uint16: 'H',
-    uint32: 'L',
-    float32: 'f',
-    bytes4: '4s',
-    bytes16: '16s',
-    }
+def make_primitive_type(name_, base_type, format_string):
+    class _PrimitiveType(PrimitiveTypeMixin, base_type):
+        _format_string = format_string
+        _name = name_
+    _PrimitiveType.__name__ = name_
+    return _PrimitiveType
 
-class Array:
-    def __init__(self, typeref, count):
-        self.typeref = typeref
-        self.count = count
+int8 = make_primitive_type('int8', int, 'b')
+int16 = make_primitive_type('int16', int, 'h')
+int32 = make_primitive_type('int32', int, 'l')
+uint8 = make_primitive_type('uint8', int, 'B')
+uint16 = make_primitive_type('uint16', int, 'H')
+uint32 = make_primitive_type('uint32', int, 'L')
+float32 = make_primitive_type('float32', float, 'f')
+bytes4 = make_primitive_type('bytes4', bytes, '4s')
+bytes16 = make_primitive_type('bytes16', bytes, '16s')
+
+class ArrayInstance:
+    typeref = None
+    count = 0
+    def __init__(self, values):
+        if len(values) != self.count:
+            raise ValueError(f"Expected {self.count} values, got {values!r}")
+        self.values = [self.typeref(v) for v in values]
+    def __getitem__(self, i):
+        return self.values[i]
+    def __len__(self):
+        return self.count
+    def __repr__(self):
+        return f"<ArrayInstance of {self.count} x {self.typeref.__name__}>"
+
+def Array(typeref_, count_):
+    class TypedArrayInstance(ArrayInstance):
+        typeref = typeref_
+        count = count_
+        @classmethod
+        def size(cls):
+            return cls.count*cls.typeref.size()
+        @classmethod
+        def read(cls, view, offset=0):
+            values = []
+            stride = cls.typeref.size()
+            for i in range(cls.count):
+                value = cls.typeref.read(view, offset=offset)
+                offset += stride
+                values.append(value)
+            return cls(values)
+    TypedArrayInstance.__name__ = f"{typeref_.__name__}x{count_}"
+    return TypedArrayInstance
 
 # TODO: can i turn Struct into a decorate that uses @dataclass and adds the
 # read/write/size methods??
 # TODO: also rename this because it clashes with struct.Struct haha
 class Struct:
-    def __init__(self, **kw):
+    def __init__(self, values):
         if self.__class__==Struct:
             raise TypeError("Cannot instantiate Struct itself, only subclasses")
         hints = get_type_hints(self.__class__)
         if len(hints)==0:
             raise TypeError(f"{self.__class__.__name__} has no fields defined")
-        for name, typeref in hints.items():
-            if name not in kw:
-                raise KeyError(name)
-            # default = typeref.__supertype__()
-            # setattr(self, name, default)
-        for name, value in kw.items():
-            if name not in hints:
-                raise KeyError(name)
+        if len(values)!=len(hints):
+            raise ValueError(f"Expected {len(self.hints)} values")
+        for (name, typeref), value in zip(hints.items(), values):
             setattr(self, name, typeref(value))
 
-    @classmethod
-    def format_string(cls):
-        fmt = ['@']
-        hints = get_type_hints(cls)
-        for name, typeref_or_arr in hints.items():
-            if isinstance(typeref_or_arr, Array):
-                arr = typeref_or_arr
-                fmt.append(str(arr.count))
-                ch = TYPE_FORMAT_STRINGS[arr.typeref]
-                fmt.append(ch)
-            else:
-                typeref = typeref_or_arr
-                ch = TYPE_FORMAT_STRINGS[typeref]
-                fmt.append(ch)
-        return ''.join(fmt)
+    # @classmethod
+    # def format_string(cls):
+    #     fmt = []
+    #     hints = get_type_hints(cls)
+    #     for name, typeref in hints.items():
+    #         fmt.append(typeref.format_string())
+    #     return ''.join(fmt)
+
+    # @classmethod
+    # def size(cls):
+    #     return struct.calcsize(cls.format_string())
 
     @classmethod
     def size(cls):
-        fmt = cls.format_string()
-        return struct.calcsize(fmt)
+        size = 0
+        # TODO: this ignores padding and alignment!
+        hints = get_type_hints(cls)
+        for name, typeref in hints.items():
+            size += typeref.size()
+        return size
 
     @classmethod
     def read(cls, data, offset=0):
-        fmt = cls.format_string()
         hints = get_type_hints(cls)
-        values = struct.unpack_from(fmt, data, offset=offset)
-        i = 0
-        args = {}
-        for name, typeref_or_arr in hints.items():
-            if isinstance(typeref_or_arr, Array):
-                arr = typeref_or_arr
-                args[name] = values[i:i+arr.count]
-                i += arr.count
-            else:
-                args[name] = values[i]
-                i += 1
-        return cls(**args)
-
-    def write(self):
-        fmt = self.format_string()
-        hints = get_type_hints(self)
-        values = (getattr(self, name) for name in hints.keys())
-        return struct.pack(fmt, *values)
+        values = []
+        for name, typeref in hints.items():
+            value = typeref.read(data, offset=offset)
+            offset += typeref.size()
+            values.append(value)
+        return cls(values)
 
 class StructView:
-    def __init__(self, view, struct_cls, *, offset=0, count=0, size=0):
-        if struct_cls is None: raise ValueError("wtf?")
+    def __init__(self, view, typeref, *, offset=0, count=0, size=0):
         self.view = view
-        if isinstance(struct_cls, type) and issubclass(struct_cls, Struct):
-            self.typeref = None
-            self.struct_cls = struct_cls
-            self.format_string = struct_cls.format_string()
-            self.stride = struct_cls.size()
-        else:
-            self.typeref = struct_cls
-            self.struct_cls = None
-            self.format_string = TYPE_FORMAT_STRINGS[self.typeref]
-            self.stride = struct.calcsize(self.format_string)
+        self.typeref = typeref
+        self.stride = typeref.size()
         self.offset = offset
         if count and size:
             raise ValueError("Must provide either count, or size, or neither (to use entire view)")
@@ -145,27 +155,27 @@ class StructView:
                 count = min(self.count, i.stop)
             else:
                 count = min(self.count, self.count+i.stop)
-            return self.__class__(self.view, (self.struct_cls or self.typeref),
+            return self.__class__(self.view, self.typeref,
                 offset=offset, count=count)
         else:
             if not (0<=i<self.count):
                 raise IndexError(i)
             offset = self.offset+i*self.stride
-            if self.struct_cls:
-                return self.struct_cls.read(self.view, offset=offset)
-            else:
-                return self.typeref(struct.unpack_from(self.format_string, self.view, offset=offset)[0])
+            return self.typeref.read(self.view, offset=offset)
+
+    def size(self):
+        return self.count*self.stride
 
 class LGVector(Struct):
     x: float32
     y: float32
     z: float32
-
     def __len__(self):
         return 3
-
     def __getitem__(self, i):
         return getattr(self, ['x','y','z'][i])
+    def __str__(self):
+        return f"({self.x},{self.y},{self.z})"
 
 class LGMMHeader(Struct):
     magic: bytes4       # 'LGMM'
@@ -273,16 +283,16 @@ class LGCALTorso(Struct):
     joint: int32
     parent: int32
     fixed_points: int32
-    joint_id: Array(int32, 4)
-    pts: Array(LGVector, 4)
+    joint_id: Array(int32, 16)
+    pts: Array(LGVector, 16)
 
 class LGCALLimb(Struct):
     torso_id: int32
     bend: int32
     segments: int32
-    joint_id: Array(int16, 5)
-    seg: Array(LGVector, 4)
-    seg_len: Array(float32, 4)
+    joint_id: Array(int16, 17)
+    seg: Array(LGVector, 16)
+    seg_len: Array(float32, 16)
 
 class LGCALFooter(Struct):
     scale: float32
@@ -293,11 +303,22 @@ ID_COLOR_TABLE = [random_color() for i in range(1024)]
 def id_color(id):
     return ID_COLOR_TABLE[abs(id)%len(ID_COLOR_TABLE)]
 
-def do_import_mesh(context, filename):
-    with open(filename, 'rb') as f:
-        data = f.read()
-    view = memoryview(data)
-    header = LGMMHeader.read(view)
+def do_import_mesh(context, bin_filename):
+    cal_filename = os.path.splitext(bin_filename)[0]+'.cal'
+    with open(bin_filename, 'rb') as f:
+        bin_data = f.read()
+    with open(cal_filename, 'rb') as f:
+        cal_data = f.read()
+
+    # Parse the .bin file
+    bin_view = memoryview(bin_data)
+    header = LGMMHeader.read(bin_view)
+    if header.magic != b'LGMM':
+        raise ValueError("File is not a .bin mesh (LGMM)")
+    if header.version not in (1, 2):
+        raise ValueError("Only version 1 and 2 .bin files are supported")
+    if header.layout!=0:
+        raise ValueError("Only material-layout (layout=0) meshes are supported")
     print(f"magic: {header.magic}")
     print(f"version: {header.version}")
     print(f"radius: {header.radius:f}")
@@ -324,19 +345,63 @@ def do_import_mesh(context, filename):
     # TODO: does this match number of segs? smatrs? anything?
     map_count = header.seg_off-header.map_off
     print(f"maps: {map_count}")
-    p_maps = StructView(view, uint8, offset=header.map_off, count=map_count)
-    p_segs = StructView(view, LGMMSegment, offset=header.seg_off, count=header.segs)
-    p_smatrs = StructView(view, (LGMMSMatrV2 if header.version==2 else LGMMSMatrV1),
+    p_maps = StructView(bin_view, uint8, offset=header.map_off, count=map_count)
+    p_segs = StructView(bin_view, LGMMSegment, offset=header.seg_off, count=header.segs)
+    p_smatrs = StructView(bin_view, (LGMMSMatrV2 if header.version==2 else LGMMSMatrV1),
         offset=header.smatr_off, count=header.smatrs)
-    p_smatsegs = StructView(view, LGMMSmatSeg, offset=header.smatseg_off, count=header.smatsegs)
-    p_pgons = StructView(view, LGMMPolygon, offset=header.pgon_off, count=header.pgons)
-    p_norms = StructView(view, LGVector, offset=header.norm_off, count=header.pgons) # TODO: is count correct??
-    p_verts = StructView(view, LGVector, offset=header.vert_vec_off, count=header.verts)
-    p_uvnorms = StructView(view, LGMMUVNorm, offset=header.vert_uvn_off, count=header.verts)
-    p_weights = StructView(view, float32, offset=header.weight_off, count=header.verts)
+    p_smatsegs = StructView(bin_view, LGMMSmatSeg, offset=header.smatseg_off, count=header.smatsegs)
+    p_pgons = StructView(bin_view, LGMMPolygon, offset=header.pgon_off, count=header.pgons)
+    p_norms = StructView(bin_view, LGVector, offset=header.norm_off, count=header.pgons) # TODO: is count correct??
+    p_verts = StructView(bin_view, LGVector, offset=header.vert_vec_off, count=header.verts)
+    p_uvnorms = StructView(bin_view, LGMMUVNorm, offset=header.vert_uvn_off, count=header.verts)
+    p_weights = StructView(bin_view, float32, offset=header.weight_off, count=header.verts)
 
-    if header.layout!=0:
-        raise NotImplementedError("Not implemented segment-ordered (layout=1) meshes!")
+    # Parse the .cal file
+    cal_view = memoryview(cal_data)
+    offset = 0
+    cal_header = LGCALHeader.read(cal_view, offset=offset)
+    if cal_header.version not in (1,):
+        raise ValueError("Only version 1 .cal files are supported")
+    offset += LGCALHeader.size()
+    p_torsos = StructView(cal_view, LGCALTorso, offset=offset, count=cal_header.torsos)
+    offset += p_torsos.size()
+    p_limbs = StructView(cal_view, LGCALLimb, offset=offset, count=cal_header.limbs)
+    offset += p_limbs.size()
+    cal_footer = LGCALFooter.read(cal_view, offset=offset)
+
+    print("CAL:")
+    print(f"  version: {cal_header.version}")
+    print(f"  torsos: {cal_header.torsos}")
+    print(f"  limbs: {cal_header.limbs}")
+    for i, torso in enumerate(p_torsos):
+        print(f"torso {i}:")
+        print(f"  joint: {torso.joint}")
+        print(f"  parent: {torso.parent}")
+        print(f"  fixed_points: {torso.fixed_points}")
+        print(f"  joint_id:")
+        k = torso.fixed_points
+        for joint_id in torso.joint_id[:k]:
+            print(f"    {joint_id}")
+        print(f"  pts:")
+        for pt in torso.pts[:k]:
+            print(f"    {pt.x}, {pt.y}, {pt.z}")
+    for i, limb in enumerate(p_limbs):
+        print(f"limb {i}:")
+        print(f"  torso_id: {limb.torso_id}")
+        print(f"  bend: {limb.bend}")
+        print(f"  segments: {limb.segments}")
+        print(f"  joint_id:")
+        k = limb.segments
+        for joint_id in limb.joint_id[:k+1]:
+            print(f"    {joint_id}")
+        print(f"  seg:")
+        for seg in limb.seg[:k]:
+            print(f"    {seg}")
+        print(f"  seg_len:")
+        for seg_len in limb.seg_len[:k]:
+            print(f"    {seg_len}")
+    print(f"scale: {cal_footer.scale}")
+    print()
 
     # Build segment/material/joint tables for later lookup
     segment_by_vert_id = {}
