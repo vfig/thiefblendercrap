@@ -2,6 +2,7 @@ import bpy
 import bmesh
 import math
 import mathutils
+import random
 import struct
 import zlib
 
@@ -32,7 +33,13 @@ TYPE_FORMAT_STRINGS = {
     uint32: 'L',
     float32: 'f',
     bytes4: '4s',
+    bytes16: '16s',
     }
+
+class Array:
+    def __init__(self, typeref, count):
+        self.typeref = typeref
+        self.count = count
 
 # TODO: can i turn Struct into a decorate that uses @dataclass and adds the
 # read/write/size methods??
@@ -58,9 +65,16 @@ class Struct:
     def format_string(cls):
         fmt = ['@']
         hints = get_type_hints(cls)
-        for name, typeref in hints.items():
-            ch = TYPE_FORMAT_STRINGS[typeref]
-            fmt.append(ch)
+        for name, typeref_or_arr in hints.items():
+            if isinstance(typeref_or_arr, Array):
+                arr = typeref_or_arr
+                fmt.append(str(arr.count))
+                ch = TYPE_FORMAT_STRINGS[arr.typeref]
+                fmt.append(ch)
+            else:
+                typeref = typeref_or_arr
+                ch = TYPE_FORMAT_STRINGS[typeref]
+                fmt.append(ch)
         return ''.join(fmt)
 
     @classmethod
@@ -73,7 +87,16 @@ class Struct:
         fmt = cls.format_string()
         hints = get_type_hints(cls)
         values = struct.unpack_from(fmt, data, offset=offset)
-        args = dict(zip(hints.keys(), values))
+        i = 0
+        args = {}
+        for name, typeref_or_arr in hints.items():
+            if isinstance(typeref_or_arr, Array):
+                arr = typeref_or_arr
+                args[name] = values[i:i+arr.count]
+                i += arr.count
+            else:
+                args[name] = values[i]
+                i += 1
         return cls(**args)
 
     def write(self):
@@ -84,10 +107,18 @@ class Struct:
 
 class StructView:
     def __init__(self, view, struct_cls, *, offset=0, count=0, size=0):
+        if struct_cls is None: raise ValueError("wtf?")
         self.view = view
-        self.struct_cls = struct_cls
-        self.format_string = struct_cls.format_string()
-        self.stride = struct_cls.size()
+        if isinstance(struct_cls, type) and issubclass(struct_cls, Struct):
+            self.typeref = None
+            self.struct_cls = struct_cls
+            self.format_string = struct_cls.format_string()
+            self.stride = struct_cls.size()
+        else:
+            self.typeref = struct_cls
+            self.struct_cls = None
+            self.format_string = TYPE_FORMAT_STRINGS[self.typeref]
+            self.stride = struct.calcsize(self.format_string)
         self.offset = offset
         if count and size:
             raise ValueError("Must provide either count, or size, or neither (to use entire view)")
@@ -102,15 +133,39 @@ class StructView:
         return self.count
 
     def __getitem__(self, i):
-        if not (0<=i<self.count):
-            raise IndexError(i)
-        offset = self.offset+i*self.stride
-        return self.struct_cls.read(self.view, offset=offset)
+        if isinstance(i, slice):
+            if i.step is not None and i.step != 1:
+                raise ValueError("Slices with step size other than 1 are not supported.")
+            if i.start >= 0:
+                start = min(max(0, i.start), self.count-1)
+            else:
+                start = min(max(0, self.count+i.start), self.count-1)
+            offset = self.offset+start*self.stride
+            if i.stop >= 0:
+                count = min(self.count, i.stop)
+            else:
+                count = min(self.count, self.count+i.stop)
+            return self.__class__(self.view, (self.struct_cls or self.typeref),
+                offset=offset, count=count)
+        else:
+            if not (0<=i<self.count):
+                raise IndexError(i)
+            offset = self.offset+i*self.stride
+            if self.struct_cls:
+                return self.struct_cls.read(self.view, offset=offset)
+            else:
+                return self.typeref(struct.unpack_from(self.format_string, self.view, offset=offset)[0])
 
 class LGVector(Struct):
     x: float32
     y: float32
     z: float32
+
+    def __len__(self):
+        return 3
+
+    def __getitem__(self, i):
+        return getattr(self, ['x','y','z'][i])
 
 class LGMMHeader(Struct):
     magic: bytes4       # 'LGMM'
@@ -142,15 +197,13 @@ class LGMMUVNorm(Struct):
     norm: uint32    # compacted normal
 
 class LGMMPolygon(Struct):
-    v0: uint16
-    v1: uint16
-    v2: uint16
+    vert: Array(uint16, 3)
     smatr_id: uint16
     d: float32
     norm: uint16
     pad: uint16
 
-class MM_SMatrV1(Struct):
+class LGMMSMatrV1(Struct):
     name: bytes16
     handle: uint32
     # union:
@@ -167,7 +220,7 @@ class MM_SMatrV1(Struct):
     weight_start: uint16 # number of weights = num vertices in segment
     pad: uint16
 
-class MM_SMatrV2(Struct):
+class LGMMSMatrV2(Struct):
     name: bytes16
     caps: uint32
     alpha: float32
@@ -202,7 +255,7 @@ class LGMMSegment(Struct):
     pad: uint16
 
 class LGMMSmatSeg(Struct):
-    pgons: uint16       # from here, only for segment order
+    pgons: uint16
     pgon_start: uint16
     verts: uint16
     vert_start: uint16
@@ -220,20 +273,25 @@ class LGCALTorso(Struct):
     joint: int32
     parent: int32
     fixed_points: int32
-    joint_id: int32[4]
-    pts: LGVector[4]
+    joint_id: Array(int32, 4)
+    pts: Array(LGVector, 4)
 
 class LGCALLimb(Struct):
     torso_id: int32
     bend: int32
     segments: int32
-    joint_id: int16[5]
-    seg: LGVector[4]
-    seg_len: float32[4]
+    joint_id: Array(int16, 5)
+    seg: Array(LGVector, 4)
+    seg_len: Array(float32, 4)
 
 class LGCALFooter(Struct):
     scale: float32
 
+def random_color(alpha=1.0):
+    return [random.uniform(0.0, 1.0) for c in "rgb"] + [alpha]
+ID_COLOR_TABLE = [random_color() for i in range(1024)]
+def id_color(id):
+    return ID_COLOR_TABLE[abs(id)%len(ID_COLOR_TABLE)]
 
 def do_import_mesh(context, filename):
     with open(filename, 'rb') as f:
@@ -263,43 +321,78 @@ def do_import_mesh(context, filename):
     print(f"weight_off: {header.weight_off:08x}")
     print()
 
-    # VERTEXES:
-
-    p_verts = StructView(view, LGVector, offset=header.vert_vec_off, count=header.verts)
-    print("VERTS:")
-    print(f"count: {len(p_verts)}")
-    vertices = []
-    # bb_min = LGVector(x=9999,y=9999,z=9999)
-    # bb_max = LGVector(x=-9999,y=-9999,z=-9999)
-    for i, vert in enumerate(p_verts):
-        # if vert.x>bb_max.x: bb_max.x = vert.x
-        # if vert.y>bb_max.y: bb_max.y = vert.y
-        # if vert.z>bb_max.z: bb_max.z = vert.z
-        # if vert.x<bb_min.x: bb_min.x = vert.x
-        # if vert.y<bb_min.y: bb_min.y = vert.y
-        # if vert.z<bb_min.z: bb_min.z = vert.z
-        v = (vert.x,vert.y,vert.z)
-        vertices.append(v)
-        if i<20: print(v)
-    # print(f"BBox min: {bb_min.x}, {bb_min.y}, {bb_min.z}")
-    # print(f"     max: {bb_max.x}, {bb_max.y}, {bb_max.z}")
-
-    # POLYGONS:
+    # TODO: does this match number of segs? smatrs? anything?
+    map_count = header.seg_off-header.map_off
+    print(f"maps: {map_count}")
+    p_maps = StructView(view, uint8, offset=header.map_off, count=map_count)
+    p_segs = StructView(view, LGMMSegment, offset=header.seg_off, count=header.segs)
+    p_smatrs = StructView(view, (LGMMSMatrV2 if header.version==2 else LGMMSMatrV1),
+        offset=header.smatr_off, count=header.smatrs)
+    p_smatsegs = StructView(view, LGMMSmatSeg, offset=header.smatseg_off, count=header.smatsegs)
     p_pgons = StructView(view, LGMMPolygon, offset=header.pgon_off, count=header.pgons)
-    print("PGONS:")
-    print(f"count: {len(p_pgons)}")
-    faces = []
-    for i, pgon in enumerate(p_pgons):
-        f = (pgon.v0, pgon.v1, pgon.v2)
-        faces.append(f)
-        if i<20: print(f)
+    p_norms = StructView(view, LGVector, offset=header.norm_off, count=header.pgons) # TODO: is count correct??
+    p_verts = StructView(view, LGVector, offset=header.vert_vec_off, count=header.verts)
+    p_uvnorms = StructView(view, LGMMUVNorm, offset=header.vert_uvn_off, count=header.verts)
+    p_weights = StructView(view, float32, offset=header.weight_off, count=header.verts)
 
-    name = "TEST"
+    if header.layout!=0:
+        raise NotImplementedError("Not implemented segment-ordered (layout=1) meshes!")
+
+    # Build segment/material/joint tables for later lookup
+    segment_by_vert_id = {}
+    material_by_vert_id = {}
+    joint_by_vert_id = {}
+    for mi, smatr in enumerate(p_smatrs):
+        print(f"smatr {mi}: {smatr.name!r}, {smatr.pgons} pgons, {smatr.verts} verts")
+        map_start = smatr.map_start
+        map_end = map_start+smatr.smatsegs
+        for smatseg_id in p_maps[map_start:map_end]:
+            smatseg = p_smatsegs[smatseg_id]
+            seg = p_segs[smatseg.seg_id]
+            vert_start = smatseg.vert_start
+            vert_end = vert_start+smatseg.verts
+            for vi in range(vert_start, vert_end):
+                segment_by_vert_id[vi] = smatseg.seg_id
+                material_by_vert_id[vi] = smatseg.smatr_id
+                joint_by_vert_id[vi] = seg.joint_id
+
+    # Build the bare mesh
+    vertices = [tuple(v) for v in p_verts]
+    faces = [tuple(p.vert) for p in p_pgons]
+    name = f"TEST"
     mesh = bpy.data.meshes.new(f"{name} mesh")
     mesh.from_pydata(vertices, [], faces)
     mesh.validate(verbose=True)
+    print(f"mesh vertices: {len(mesh.vertices)}, loops: {len(mesh.loops)}, polygons: {len(mesh.polygons)}")
+
+    vert_colors = mesh.vertex_colors.new(name="Col")
+    seg_colors = mesh.vertex_colors.new(name="SegCol")
+    mat_colors = mesh.vertex_colors.new(name="MatCol")
+    joint_colors = mesh.vertex_colors.new(name="JointCol")
+
+    for vi, vert in enumerate(mesh.vertices):
+        vert_colors.data[vi].color = id_color(vi)
+        seg_colors.data[vi].color = id_color( segment_by_vert_id[vi] )
+        mat_colors.data[vi].color = id_color( material_by_vert_id[vi] )
+        joint_colors.data[vi].color = id_color( joint_by_vert_id[vi] )
+
+    # # Add vertex color layers of info
+    # bm = bmesh.new()
+    # bm.from_mesh(mesh)
+    # print(f"bmesh vertices: {len(bm.verts)}, polygons: {len(bm.faces)}")
+    # seg_colors = bm.verts.layers.color.new("SegCol")
+    # mat_colors = bm.verts.layers.color.new("MatCol")
+    # joint_colors = bm.verts.layers.color.new("JointCol")
+    # for vi, vert in enumerate(bm.verts):
+    #     seg_colors.color[vi] = id_color( segment_by_vert_id[vi] )
+    #     mat_colors.color[vi] = id_color( material_by_vert_id[vi] )
+    #     joint_colors.color[vi] = id_color( joint_by_vert_id[vi] )
+    # bm.to_mesh(mesh)
+    # bm.free()
+
+    # Create the object
     o = bpy.data.objects.new(name, mesh)
-    #o.display_type = 'WIRE'
+    context.scene.collection.objects.link(o)
     return o
 
 #---------------------------------------------------------------------------#
@@ -319,8 +412,7 @@ class TTDebugImportMeshOperator(Operator):
 
         bpy.ops.object.select_all(action='DESELECT')
         print(f"filename: {self.filename}")
-        o = do_import_mesh(context, self.filename)
-        context.scene.collection.objects.link(o)
-        context.view_layer.objects.active = o
-        o.select_set(True)
+        do_import_mesh(context, self.filename)
+        # context.view_layer.objects.active = o
+        # o.select_set(True)
         return {'FINISHED'}

@@ -62,7 +62,7 @@ class TOOLS_PT_thieftools_debug(Panel):
         box = row.box()
         box.label(text="MESH")
         op = layout.operator("object.tt_debug_import_mesh")
-        op.filename = "e:/dev/thief/blender/thieftools/test_data/frgbeas.bin"
+        op.filename = "e:/dev/thief/blender/thieftools/test_data/mguard.bin"
 
 #---------------------------------------------------------------------------#
 # Register and unregister
