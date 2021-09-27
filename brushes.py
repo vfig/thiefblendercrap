@@ -235,6 +235,10 @@ BRUSH_OP_AIR2SOLID = 7
 BRUSH_OP_WATER2SOLID = 8
 BRUSH_OP_BLOCKABLE = 9
 
+BRUSH_OPS_TO_SOLID = (BRUSH_OP_SOLID, BRUSH_OP_AIR2SOLID, BRUSH_OP_WATER2SOLID)
+BRUSH_OPS_TO_AIR = (BRUSH_OP_AIR, BRUSH_OP_WATER2AIR, BRUSH_OP_SOLID2AIR)
+BRUSH_OPS_TO_WATER = (BRUSH_OP_WATER, BRUSH_OP_AIR2WATER, BRUSH_OP_SOLID2WATER)
+
 BRUSH_COLOR_WATER = [0.197,0.321,1.0,1.0]
 BRUSH_COLOR_AIR = [0.319,0.570,0.301,1.0]
 BRUSH_COLOR_EARTH = [0.196,0.146,0.115,1.0]
@@ -272,8 +276,7 @@ def create_brush(context, brush_json):
     o.rotation_euler = facing
     o.scale = size
     o.color = BRUSH_COLORS.get(op, [1.0,1.0,1.0,1.0])
-    is_air_brush = (op in (BRUSH_OP_AIR, BRUSH_OP_WATER2AIR, BRUSH_OP_SOLID2AIR))
-    o.display_type = 'WIRE' if is_air_brush else 'TEXTURED'
+    o.display_type = 'WIRE' if op in BRUSH_OPS_TO_AIR else 'TEXTURED'
     context.scene.collection.objects.link(o)
     return o
 
@@ -283,14 +286,26 @@ def create_brushes(filename):
         json_data = json.loads(raw_data)
     brushes = []
     for brush_json in json_data:
-        create_brush(bpy.context, brush_json)
+        b = create_brush(bpy.context, brush_json)
+        brushes.append(b)
+    return brushes
 
-    # TODO:
-    #     4. start doing boolean ops!
+# def create_booleans(brushes):
+#     prev_op = brushes[0].op
+#     it = iter(brushes)
+#     while (brush := it.next()).op in
+#     for brush in brushes:
+#         op in BRUSH_OPS_TO_AIR
+#         ..........
+#
+#         oh dang, we dont have the brush op here, cause now this is a dang
+#         blender object. and my brain is dead
+
 
 def delete_all_brushes():
     to_delete = [o for o in bpy.data.objects
-        if o.name.startswith("Brush ")]
+        if o.name.startswith("Brush ")
+        or o.name.startswith("CSG ")]
     for o in to_delete:
         bpy.data.objects.remove(o)
 
@@ -329,5 +344,6 @@ class TTDebugBrushesToBooleansOperator(Operator):
 
         bpy.ops.object.select_all(action='DESELECT')
         print(f"filename: {self.filename}")
-        create_brushes(self.filename)
+        brushes = create_brushes(self.filename)
+        #tree = create_booleans(brushes)
         return {'FINISHED'}
