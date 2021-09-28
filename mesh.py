@@ -297,11 +297,33 @@ class LGCALLimb(Struct):
 class LGCALFooter(Struct):
     scale: float32
 
-def random_color(alpha=1.0):
-    return [random.uniform(0.0, 1.0) for c in "rgb"] + [alpha]
-ID_COLOR_TABLE = [random_color() for i in range(1024)]
+def create_color_table(size):
+    rand = random.Random(0)
+    def random_color(alpha=1.0):
+        r = rand.uniform(0.0, 1.0)
+        g = rand.uniform(0.0, 1.0)
+        b = rand.uniform(0.0, 1.0)
+        return (r, g, b, alpha)
+    return [random_color() for i in range(size)]
+ID_COLOR_TABLE = create_color_table(1024)
 def id_color(id):
     return ID_COLOR_TABLE[abs(id)%len(ID_COLOR_TABLE)]
+
+def create_empty(name, location, context=None, link=True):
+    o = bpy.data.objects.new(name, None)
+    o.location = location
+    o.empty_display_size = 0.125
+    o.empty_display_type = 'PLAIN_AXES'
+    if context and link:
+        context.scene.collection.objects.link(o)
+    return o
+
+def create_object(name, mesh, location, context=None, link=True):
+    o = bpy.data.objects.new(name, mesh)
+    o.location = location
+    if context and link:
+        context.scene.collection.objects.link(o)
+    return o
 
 def do_import_mesh(context, bin_filename):
     cal_filename = os.path.splitext(bin_filename)[0]+'.cal'
@@ -472,13 +494,7 @@ def do_import_mesh(context, bin_filename):
         h = head_by_joint_id[j]
         t = tail_by_joint_id[j]
         print(f"joint {j}: head {h.x},{h.y},{h.z}; tail {t.x},{t.y},{t.z}")
-        # add empties for each joint, just to test!
-        name = f"{HUMAN_JOINTS[j]} (Joint {j})"
-        o = bpy.data.objects.new(name, None)
-        o.location = h
-        o.empty_display_size = 0.125
-        o.empty_display_type = 'PLAIN_AXES'
-        context.scene.collection.objects.link(o)
+        #create_empty(f"{HUMAN_JOINTS[j]} (Joint {j})", h, context=context)
     print()
 
     # Build segment/material/joint tables for later lookup
@@ -515,35 +531,33 @@ def do_import_mesh(context, bin_filename):
     mesh.validate(verbose=True)
     print(f"mesh vertices: {len(mesh.vertices)}, loops: {len(mesh.loops)}, polygons: {len(mesh.polygons)}")
 
-    vert_colors = mesh.vertex_colors.new(name="Col")
-    seg_colors = mesh.vertex_colors.new(name="SegCol")
-    mat_colors = mesh.vertex_colors.new(name="MatCol")
-    joint_colors = mesh.vertex_colors.new(name="JointCol")
+    # BUG: if we use the collection returned from .new(), then we sometimes get
+    # a RuntimeError: "bpy_prop_collection[index]: internal error, valid index
+    # X given in Y sized collection, but value not found" -- so we create the
+    # collections first, then look them up to use them.
+    mesh.vertex_colors.new(name="Col", do_init=False)
+    mesh.vertex_colors.new(name="SegCol", do_init=False)
+    mesh.vertex_colors.new(name="MatCol", do_init=False)
+    mesh.vertex_colors.new(name="JointCol", do_init=False)
+    mesh.vertex_colors.new(name="StretchyCol", do_init=False)
+    vert_colors = mesh.vertex_colors["Col"]
+    seg_colors = mesh.vertex_colors["SegCol"]
+    mat_colors = mesh.vertex_colors["MatCol"]
+    joint_colors = mesh.vertex_colors["JointCol"]
+    stretchy_colors = mesh.vertex_colors["StretchyCol"]
 
-    for vi, vert in enumerate(mesh.vertices):
-        vert_colors.data[vi].color = id_color(vi)
-        seg_colors.data[vi].color = id_color( segment_by_vert_id[vi] )
-        mat_colors.data[vi].color = id_color( material_by_vert_id[vi] )
-        joint_colors.data[vi].color = id_color( joint_by_vert_id[vi] )
-
-    # # Add vertex color layers of info
-    # bm = bmesh.new()
-    # bm.from_mesh(mesh)
-    # print(f"bmesh vertices: {len(bm.verts)}, polygons: {len(bm.faces)}")
-    # seg_colors = bm.verts.layers.color.new("SegCol")
-    # mat_colors = bm.verts.layers.color.new("MatCol")
-    # joint_colors = bm.verts.layers.color.new("JointCol")
-    # for vi, vert in enumerate(bm.verts):
-    #     seg_colors.color[vi] = id_color( segment_by_vert_id[vi] )
-    #     mat_colors.color[vi] = id_color( material_by_vert_id[vi] )
-    #     joint_colors.color[vi] = id_color( joint_by_vert_id[vi] )
-    # bm.to_mesh(mesh)
-    # bm.free()
+    for li, loop in enumerate(mesh.loops):
+        vi = loop.vertex_index
+        vert_colors.data[li].color = id_color(vi)
+        seg_colors.data[li].color = id_color( segment_by_vert_id[vi] )
+        mat_colors.data[li].color = id_color( material_by_vert_id[vi] )
+        joint_colors.data[li].color = id_color( joint_by_vert_id[vi] )
+        seg = p_segs[ segment_by_vert_id[vi] ]
+        is_stretchy = bool(seg.flags & 1)
+        stretchy_colors.data[li].color = id_color(0) if is_stretchy else id_color(1)
 
     # Create the object
-    o = bpy.data.objects.new(name, mesh)
-    context.scene.collection.objects.link(o)
-    return o
+    return create_object(name, mesh, Vector((0,0,0)), context=context)
 
 #---------------------------------------------------------------------------#
 # Operators
