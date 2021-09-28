@@ -481,7 +481,6 @@ def do_import_mesh(context, bin_filename):
         context.scene.collection.objects.link(o)
     print()
 
-
     # Build segment/material/joint tables for later lookup
     segment_by_vert_id = {}
     material_by_vert_id = {}
@@ -501,7 +500,14 @@ def do_import_mesh(context, bin_filename):
                 joint_by_vert_id[vi] = seg.joint_id
 
     # Build the bare mesh
-    vertices = [tuple(v) for v in p_verts]
+    vertices = [Vector(v) for v in p_verts]
+    # Offset each vert by the joint its attached to
+    assert len(joint_by_vert_id)==len(p_verts)
+    for i in range(len(vertices)):
+        v = vertices[i]
+        j = joint_by_vert_id[i]
+        head = head_by_joint_id[j]
+        vertices[i] = head+v
     faces = [tuple(p.vert) for p in p_pgons]
     name = f"TEST"
     mesh = bpy.data.meshes.new(f"{name} mesh")
