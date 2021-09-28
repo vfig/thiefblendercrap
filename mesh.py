@@ -439,6 +439,8 @@ def do_import_mesh(context, bin_filename):
     # Find the origin point of every joint
     head_by_joint_id = {}
     tail_by_joint_id = {}
+    parent_by_joint_id = {}
+    is_connected_by_joint_id = {}
     for torso in p_torsos:
         if torso.parent == -1:
             j = torso.joint
@@ -446,11 +448,16 @@ def do_import_mesh(context, bin_filename):
             assert j not in tail_by_joint_id
             head_by_joint_id[j] = Vector((0,0,0))
             tail_by_joint_id[j] = Vector((1,0,0))
+            assert j not in parent_by_joint_id
+            parent_by_joint_id[j] = -1
         else:
             j = torso.joint
             assert j in head_by_joint_id
             assert j not in tail_by_joint_id
             tail_by_joint_id[j] = head_by_joint_id[j]+Vector((1,0,0))
+            assert j not in parent_by_joint_id
+            parent_by_joint_id[j] = p_torsos[torso.parent].joint
+        is_connected_by_joint_id[j] = False
         root = head_by_joint_id[torso.joint]
         k = torso.fixed_points
         parts = zip(
@@ -468,11 +475,20 @@ def do_import_mesh(context, bin_filename):
             limb.joint_id[:k+1],
             limb.seg[:k] + [limb.seg[k-1]], # finger etc. bones, tail gets wrist vector
             limb.seg_len[:k] + [0.25])      # finger etc. bones, get fixed length
-        for j, seg, seg_len in parts:
+        pj = j
+        for i, (j, seg, seg_len) in enumerate(parts):
             head_by_joint_id[j] = head
             tail = head+seg_len*Vector(seg)
             tail_by_joint_id[j] = tail
             head = tail
+            assert j not in parent_by_joint_id
+            if i==0:
+                parent_by_joint_id[j] = p_torsos[limb.torso_id].joint
+                is_connected_by_joint_id[j] = False
+            else:
+                parent_by_joint_id[j] = pj
+                is_connected_by_joint_id[j] = True
+            pj = j
     assert sorted(head_by_joint_id.keys())==sorted(tail_by_joint_id.keys())
     print("Bone positions:")
     HUMAN_JOINTS = [
@@ -522,8 +538,11 @@ def do_import_mesh(context, bin_filename):
             vert_start = smatseg.vert_start
             vert_end = vert_start+smatseg.verts
             for vi in range(vert_start, vert_end):
+                assert vi not in segment_by_vert_id
                 segment_by_vert_id[vi] = smatseg.seg_id
+                assert vi not in material_by_vert_id
                 material_by_vert_id[vi] = smatseg.smatr_id
+                assert vi not in joint_by_vert_id
                 joint_by_vert_id[vi] = seg.joint_id
 
     # Build the bare mesh
@@ -546,12 +565,10 @@ def do_import_mesh(context, bin_filename):
     # a RuntimeError: "bpy_prop_collection[index]: internal error, valid index
     # X given in Y sized collection, but value not found" -- so we create the
     # collections first, then look them up to use them.
-    mesh.vertex_colors.new(name="Col", do_init=False)
     mesh.vertex_colors.new(name="SegCol", do_init=False)
     mesh.vertex_colors.new(name="MatCol", do_init=False)
     mesh.vertex_colors.new(name="JointCol", do_init=False)
     mesh.vertex_colors.new(name="StretchyCol", do_init=False)
-    vert_colors = mesh.vertex_colors["Col"]
     seg_colors = mesh.vertex_colors["SegCol"]
     mat_colors = mesh.vertex_colors["MatCol"]
     joint_colors = mesh.vertex_colors["JointCol"]
@@ -559,7 +576,6 @@ def do_import_mesh(context, bin_filename):
 
     for li, loop in enumerate(mesh.loops):
         vi = loop.vertex_index
-        vert_colors.data[li].color = id_color(vi)
         seg_colors.data[li].color = id_color( segment_by_vert_id[vi] )
         mat_colors.data[li].color = id_color( material_by_vert_id[vi] )
         joint_colors.data[li].color = id_color( joint_by_vert_id[vi] )
@@ -570,13 +586,31 @@ def do_import_mesh(context, bin_filename):
     # Create the object
     mesh_obj = create_object(name, mesh, Vector((0,0,0)), context=context)
 
-    # Create an armature for it
+    # Create vertex groups, and assign vertices
+    vertex_group_by_seg_id = {}
+    vertex_group_by_joint_id = {}
+    for seg_id in sorted(set(segment_by_vert_id.values())):
+        seg = p_segs[seg_id]
+        j = seg.joint_id
+        group = vertex_group_by_joint_id.get(j)
+        if group is None:
+            group_name = HUMAN_JOINTS[j]
+            mesh_obj.vertex_groups.new(name=group_name)
+            group = mesh_obj.vertex_groups[group_name]
+            vertex_group_by_joint_id[j] = group
+        vertex_group_by_seg_id[seg_id] = group
+    for vi, seg_id in sorted(segment_by_vert_id.items()):
+        group = vertex_group_by_seg_id[seg_id]
+        # TODO: actual weight, please!
+        group.add([vi], 1.0, 'REPLACE')
 
+    # Create an armature for it
     arm_obj = create_armature("Human", Vector((0,0,0)), context=context)
     arm_obj.show_in_front = True
     context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     edit_bones = arm_obj.data.edit_bones
+    bones_by_joint_id = {}
     for j in sorted(head_by_joint_id.keys()):
         bone_name = HUMAN_JOINTS[j]
         b = edit_bones.new(bone_name)
@@ -584,14 +618,26 @@ def do_import_mesh(context, bin_filename):
         b.tail = tail_by_joint_id[j]
         # TODO -- roll is all set to zero, but some of the bones are
         # getting created _not_ actually flat in world space??
+        # BUT: check if that matches the imported skeleton anyway? with motions
+        # etc, and see if they seem to match e.g. sword roll angle
+        # ...maybe .align_roll()?
         b.roll = 0.0
-        b.use_deform = False
+        bones_by_joint_id[j] = b
         # TODO -- should we not create bones for FINGER, TOE?? they dont get
         # their own transforms... or do they??
-        # TODO: set .parent to parent bone, and .use_connect for limb bones!
-        # and .use_deform maybe??
-        # maybe .align_roll()?
+    for j in sorted(head_by_joint_id.keys()):
+        bone_name = HUMAN_JOINTS[j]
+        b = edit_bones[bone_name]
+        pj = parent_by_joint_id[j]
+        if pj != -1:
+            b.use_connect = is_connected_by_joint_id[j]
+            b.parent = bones_by_joint_id[pj]
     bpy.ops.object.mode_set(mode='OBJECT')
+
+    # Add an armature modifier
+    arm_mod = mesh_obj.modifiers.new(name='Armature', type='ARMATURE')
+    arm_mod.object = arm_obj
+    arm_mod.use_vertex_groups = True
 
     context.view_layer.objects.active = mesh_obj
     return mesh_obj
