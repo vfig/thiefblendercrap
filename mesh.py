@@ -315,14 +315,25 @@ def create_empty(name, location, context=None, link=True):
     o.empty_display_size = 0.125
     o.empty_display_type = 'PLAIN_AXES'
     if context and link:
-        context.scene.collection.objects.link(o)
+        coll = context.view_layer.active_layer_collection.collection
+        coll.objects.link(o)
     return o
 
 def create_object(name, mesh, location, context=None, link=True):
     o = bpy.data.objects.new(name, mesh)
     o.location = location
     if context and link:
-        context.scene.collection.objects.link(o)
+        coll = context.view_layer.active_layer_collection.collection
+        coll.objects.link(o)
+    return o
+
+def create_armature(name, location, context=None, link=True):
+    arm = bpy.data.armatures.new(name)
+    o = bpy.data.objects.new(name, arm)
+    o.location = location
+    if context and link:
+        coll = context.view_layer.active_layer_collection.collection
+        coll.objects.link(o)
     return o
 
 def do_import_mesh(context, bin_filename):
@@ -434,20 +445,20 @@ def do_import_mesh(context, bin_filename):
             assert j not in head_by_joint_id
             assert j not in tail_by_joint_id
             head_by_joint_id[j] = Vector((0,0,0))
-            tail_by_joint_id[j] = Vector((0,0,0))
+            tail_by_joint_id[j] = Vector((1,0,0))
         else:
             j = torso.joint
             assert j in head_by_joint_id
             assert j not in tail_by_joint_id
-            tail_by_joint_id[j] = head_by_joint_id[j]
-        root = tail_by_joint_id[torso.joint]
+            tail_by_joint_id[j] = head_by_joint_id[j]+Vector((1,0,0))
+        root = head_by_joint_id[torso.joint]
         k = torso.fixed_points
         parts = zip(
             torso.joint_id[:k],
             torso.pts[:k])
         for j, pt in parts:
             assert j not in head_by_joint_id
-            head_by_joint_id[j] = root + Vector(pt)
+            head_by_joint_id[j] = root+Vector(pt)
     for limb in p_limbs:
         j = limb.joint_id[0]
         assert j in head_by_joint_id
@@ -455,8 +466,8 @@ def do_import_mesh(context, bin_filename):
         k = limb.segments
         parts = zip(
             limb.joint_id[:k+1],
-            limb.seg[:k] + [limb.seg[-1]], # e.g. finger bone tail gets wrist vector
-            limb.seg_len[:k] + [0.125])  # e.g. finger bone length
+            limb.seg[:k] + [limb.seg[k-1]], # finger etc. bones, tail gets wrist vector
+            limb.seg_len[:k] + [0.25])      # finger etc. bones, get fixed length
         for j, seg, seg_len in parts:
             head_by_joint_id[j] = head
             tail = head+seg_len*Vector(seg)
@@ -465,30 +476,30 @@ def do_import_mesh(context, bin_filename):
     assert sorted(head_by_joint_id.keys())==sorted(tail_by_joint_id.keys())
     print("Bone positions:")
     HUMAN_JOINTS = [
-        'LTOE',     #  0
-        'RTOE',     #  1
-        'LANKLE',   #  2
-        'RANKLE',   #  3
-        'LKNEE',    #  4
-        'RKNEE',    #  5
-        'LHIP',     #  6
-        'RHIP',     #  7
-        'BUTT',     #  8
-        'NECK',     #  9
-        'LSHLDR',   # 10
-        'RSHLDR',   # 11
-        'LELBOW',   # 12
-        'RELBOW',   # 13
-        'LWRIST',   # 14
-        'RWRIST',   # 15
-        'LFINGER',  # 16
-        'RFINGER',  # 17
-        'ABDOMEN',  # 18
-        'HEAD',     # 19
-        'LSHLDRIN', # 20
-        'RSHLDRIN', # 21
-        'LWEAP',    # 22
-        'RWEAP',    # 23
+        'LToe',     #  0
+        'RToe',     #  1
+        'LAnkle',   #  2
+        'RAnkle',   #  3
+        'LKnee',    #  4
+        'RKnee',    #  5
+        'LHip',     #  6
+        'RHip',     #  7
+        'Butt',     #  8
+        'Neck',     #  9
+        'LShldr',   # 10
+        'RShldr',   # 11
+        'LElbow',   # 12
+        'RElbow',   # 13
+        'LWrist',   # 14
+        'RWrist',   # 15
+        'LFinger',  # 16
+        'RFinger',  # 17
+        'Abdomen',  # 18
+        'Head',     # 19
+        'LShldrIn', # 20
+        'RShldrIn', # 21
+        'LWeap',    # 22
+        'RWeap',    # 23
         ]
     for j in sorted(head_by_joint_id.keys()):
         h = head_by_joint_id[j]
@@ -557,7 +568,33 @@ def do_import_mesh(context, bin_filename):
         stretchy_colors.data[li].color = id_color(0) if is_stretchy else id_color(1)
 
     # Create the object
-    return create_object(name, mesh, Vector((0,0,0)), context=context)
+    mesh_obj = create_object(name, mesh, Vector((0,0,0)), context=context)
+
+    # Create an armature for it
+
+    arm_obj = create_armature("Human", Vector((0,0,0)), context=context)
+    arm_obj.show_in_front = True
+    context.view_layer.objects.active = arm_obj
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    edit_bones = arm_obj.data.edit_bones
+    for j in sorted(head_by_joint_id.keys()):
+        bone_name = HUMAN_JOINTS[j]
+        b = edit_bones.new(bone_name)
+        b.head = head_by_joint_id[j]
+        b.tail = tail_by_joint_id[j]
+        # TODO -- roll is all set to zero, but some of the bones are
+        # getting created _not_ actually flat in world space??
+        b.roll = 0.0
+        b.use_deform = False
+        # TODO -- should we not create bones for FINGER, TOE?? they dont get
+        # their own transforms... or do they??
+        # TODO: set .parent to parent bone, and .use_connect for limb bones!
+        # and .use_deform maybe??
+        # maybe .align_roll()?
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    context.view_layer.objects.active = mesh_obj
+    return mesh_obj
 
 #---------------------------------------------------------------------------#
 # Operators
