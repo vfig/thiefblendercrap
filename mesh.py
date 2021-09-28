@@ -403,6 +403,85 @@ def do_import_mesh(context, bin_filename):
     print(f"scale: {cal_footer.scale}")
     print()
 
+    # Find the origin point of every joint
+    head_by_joint_id = {}
+    tail_by_joint_id = {}
+    for torso in p_torsos:
+        if torso.parent == -1:
+            j = torso.joint
+            assert j not in head_by_joint_id
+            assert j not in tail_by_joint_id
+            head_by_joint_id[j] = Vector((0,0,0))
+            tail_by_joint_id[j] = Vector((0,0,0))
+        else:
+            j = torso.joint
+            assert j in head_by_joint_id
+            assert j not in tail_by_joint_id
+            tail_by_joint_id[j] = head_by_joint_id[j]
+        root = tail_by_joint_id[torso.joint]
+        k = torso.fixed_points
+        parts = zip(
+            torso.joint_id[:k],
+            torso.pts[:k])
+        for j, pt in parts:
+            assert j not in head_by_joint_id
+            head_by_joint_id[j] = root + Vector(pt)
+    for limb in p_limbs:
+        j = limb.joint_id[0]
+        assert j in head_by_joint_id
+        head = head_by_joint_id[j]
+        k = limb.segments
+        parts = zip(
+            limb.joint_id[:k+1],
+            limb.seg[:k] + [limb.seg[-1]], # e.g. finger bone tail gets wrist vector
+            limb.seg_len[:k] + [0.125])  # e.g. finger bone length
+        for j, seg, seg_len in parts:
+            head_by_joint_id[j] = head
+            tail = head+seg_len*Vector(seg)
+            tail_by_joint_id[j] = tail
+            head = tail
+    assert sorted(head_by_joint_id.keys())==sorted(tail_by_joint_id.keys())
+    print("Bone positions:")
+    HUMAN_JOINTS = [
+        'LTOE',     #  0
+        'RTOE',     #  1
+        'LANKLE',   #  2
+        'RANKLE',   #  3
+        'LKNEE',    #  4
+        'RKNEE',    #  5
+        'LHIP',     #  6
+        'RHIP',     #  7
+        'BUTT',     #  8
+        'NECK',     #  9
+        'LSHLDR',   # 10
+        'RSHLDR',   # 11
+        'LELBOW',   # 12
+        'RELBOW',   # 13
+        'LWRIST',   # 14
+        'RWRIST',   # 15
+        'LFINGER',  # 16
+        'RFINGER',  # 17
+        'ABDOMEN',  # 18
+        'HEAD',     # 19
+        'LSHLDRIN', # 20
+        'RSHLDRIN', # 21
+        'LWEAP',    # 22
+        'RWEAP',    # 23
+        ]
+    for j in sorted(head_by_joint_id.keys()):
+        h = head_by_joint_id[j]
+        t = tail_by_joint_id[j]
+        print(f"joint {j}: head {h.x},{h.y},{h.z}; tail {t.x},{t.y},{t.z}")
+        # add empties for each joint, just to test!
+        name = f"{HUMAN_JOINTS[j]} (Joint {j})"
+        o = bpy.data.objects.new(name, None)
+        o.location = h
+        o.empty_display_size = 0.125
+        o.empty_display_type = 'PLAIN_AXES'
+        context.scene.collection.objects.link(o)
+    print()
+
+
     # Build segment/material/joint tables for later lookup
     segment_by_vert_id = {}
     material_by_vert_id = {}
