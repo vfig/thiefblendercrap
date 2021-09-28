@@ -125,16 +125,16 @@ class Struct:
         return cls(values)
 
 class StructView:
-    def __init__(self, view, typeref, *, offset=0, count=0, size=0):
+    def __init__(self, view, typeref, *, offset=0, count=-1, size=-1):
         self.view = view
         self.typeref = typeref
         self.stride = typeref.size()
         self.offset = offset
-        if count and size:
+        if count==-1 and size==-1:
             raise ValueError("Must provide either count, or size, or neither (to use entire view)")
-        if count:
+        if count!=-1:
             self.count = count
-        elif size:
+        elif size!=-1:
             self.count = size//self.stride
         else:
             self.count = len(view)//self.stride
@@ -152,9 +152,9 @@ class StructView:
                 start = min(max(0, self.count+i.start), self.count-1)
             offset = self.offset+start*self.stride
             if i.stop >= 0:
-                count = min(self.count, i.stop)
+                count = min(self.count, i.stop-i.start)
             else:
-                count = min(self.count, self.count+i.stop)
+                count = min(self.count, self.count+i.stop-i.start)
             return self.__class__(self.view, self.typeref,
                 offset=offset, count=count)
         else:
@@ -229,6 +229,16 @@ class LGMMSMatrV1(Struct):
     vert_start: uint16
     weight_start: uint16 # number of weights = num vertices in segment
     pad: uint16
+
+    # For forward compatibility with V2:
+    @property
+    def caps(self): return uint32(0)
+    @property
+    def alpha(self): return float32(1.0)
+    @property
+    def self_illum(self): return float32(0.0);
+    @property
+    def for_rent(self): return uint32(0)
 
 class LGMMSMatrV2(Struct):
     name: bytes16
@@ -389,6 +399,53 @@ def do_import_mesh(context, bin_filename):
     p_uvnorms = StructView(bin_view, LGMMUVNorm, offset=header.vert_uvn_off, count=header.verts)
     p_weights = StructView(bin_view, float32, offset=header.weight_off, count=header.verts)
 
+    print("BIN:")
+    print("Segments")
+    for i, seg in enumerate(p_segs):
+        print(f"  Seg {i}:")
+        print(f"    bbox: {seg.bbox}")
+        print(f"    joint_id: {seg.joint_id}")
+        print(f"    smatsegs: {seg.smatsegs}")
+        print(f"    map_start: {seg.map_start}")
+        print(f"    flags: {seg.flags}")
+        print(f"    pgons: {seg.pgons}")
+        print(f"    pgon_start: {seg.pgon_start}")
+        print(f"    verts: {seg.verts}")
+        print(f"    vert_start: {seg.vert_start}")
+        print(f"    weight_start: {seg.weight_start}")
+    print("Smatrs")
+    for i, smatr in enumerate(p_smatrs):
+        print(f"  Smatr {i}:")
+        print(f"    name: {smatr.name}")
+        print(f"    caps: {smatr.caps}")
+        print(f"    alpha: {smatr.alpha}")
+        print(f"    self_illum: {smatr.self_illum}")
+        print(f"    for_rent: {smatr.for_rent}")
+        print(f"    handle: {smatr.handle}")
+        print(f"    uv: {smatr.uv}")
+        print(f"    mat_type: {smatr.mat_type}")
+        print(f"    smatsegs: {smatr.smatsegs}")
+        print(f"    map_start: {smatr.map_start}")
+        print(f"    flags: {smatr.flags}")
+        print(f"    pgons: {smatr.pgons}")
+        print(f"    pgon_start: {smatr.pgon_start}")
+        print(f"    verts: {smatr.verts}")
+        print(f"    vert_start: {smatr.vert_start}")
+        print(f"    weight_start: {smatr.weight_start}")
+        print(f"    pad: {smatr.pad}")
+    print("SmatSegs")
+    for i, smatseg in enumerate(p_smatsegs):
+        print(f"  Smatseg {i}:")
+        print(f"    pgons: {smatseg.pgons}")
+        print(f"    pgon_start: {smatseg.pgon_start}")
+        print(f"    verts: {smatseg.verts}")
+        print(f"    vert_start: {smatseg.vert_start}")
+        print(f"    weight_start: {smatseg.weight_start}")
+        print(f"    pad: {smatseg.pad}")
+        print(f"    smatr_id: {smatseg.smatr_id}")
+        print(f"    seg_id: {smatseg.seg_id}")
+
+
     # Parse the .cal file
     cal_view = memoryview(cal_data)
     offset = 0
@@ -526,6 +583,7 @@ def do_import_mesh(context, bin_filename):
 
     # Build segment/material/joint tables for later lookup
     segment_by_vert_id = {}
+    smatseg_by_vert_id = {}
     material_by_vert_id = {}
     joint_by_vert_id = {}
     for mi, smatr in enumerate(p_smatrs):
@@ -540,6 +598,8 @@ def do_import_mesh(context, bin_filename):
             for vi in range(vert_start, vert_end):
                 assert vi not in segment_by_vert_id
                 segment_by_vert_id[vi] = smatseg.seg_id
+                assert  vi not in smatseg_by_vert_id
+                smatseg_by_vert_id[vi] = smatseg_id
                 assert vi not in material_by_vert_id
                 material_by_vert_id[vi] = smatseg.smatr_id
                 assert vi not in joint_by_vert_id
@@ -565,17 +625,21 @@ def do_import_mesh(context, bin_filename):
     # a RuntimeError: "bpy_prop_collection[index]: internal error, valid index
     # X given in Y sized collection, but value not found" -- so we create the
     # collections first, then look them up to use them.
+    mesh.vertex_colors.new(name="SmatSegCol", do_init=False)
     mesh.vertex_colors.new(name="SegCol", do_init=False)
     mesh.vertex_colors.new(name="MatCol", do_init=False)
     mesh.vertex_colors.new(name="JointCol", do_init=False)
     mesh.vertex_colors.new(name="StretchyCol", do_init=False)
+    mesh.vertex_colors.new(name="WeightCol", do_init=False)
+    smatseg_colors = mesh.vertex_colors["SmatSegCol"]
     seg_colors = mesh.vertex_colors["SegCol"]
     mat_colors = mesh.vertex_colors["MatCol"]
     joint_colors = mesh.vertex_colors["JointCol"]
     stretchy_colors = mesh.vertex_colors["StretchyCol"]
-
+    weight_colors = mesh.vertex_colors["WeightCol"]
     for li, loop in enumerate(mesh.loops):
         vi = loop.vertex_index
+        smatseg_colors.data[li].color = id_color( smatseg_by_vert_id[vi] )
         seg_colors.data[li].color = id_color( segment_by_vert_id[vi] )
         mat_colors.data[li].color = id_color( material_by_vert_id[vi] )
         joint_colors.data[li].color = id_color( joint_by_vert_id[vi] )
@@ -587,22 +651,72 @@ def do_import_mesh(context, bin_filename):
     mesh_obj = create_object(name, mesh, Vector((0,0,0)), context=context)
 
     # Create vertex groups, and assign vertices
-    vertex_group_by_seg_id = {}
-    vertex_group_by_joint_id = {}
-    for seg_id in sorted(set(segment_by_vert_id.values())):
-        seg = p_segs[seg_id]
+    # vertex_group_by_seg_id = {}
+    # vertex_group_by_joint_id = {}
+    # for seg_id in sorted(set(segment_by_vert_id.values())):
+    #     # TODO: can _actually_ look up smatsmegs from the seg, via the mapping!
+    #     # _thats_ why the mapping exists!! two-way lookup from both smatr and seg
+    #     # Then, only smatsegs belonging to stretchy segs actually have meaningful
+    #     # weights!!
+    #     seg = p_segs[seg_id]
+    #     j = seg.joint_id
+    #     group = vertex_group_by_joint_id.get(j)
+    #     if group is None:
+    #         group_name = HUMAN_JOINTS[j]
+    #         mesh_obj.vertex_groups.new(name=group_name)
+    #         group = mesh_obj.vertex_groups[group_name]
+    #         vertex_group_by_joint_id[j] = group
+    #     vertex_group_by_seg_id[seg_id] = group
+    # for vi, seg_id in sorted(segment_by_vert_id.items()):
+    #     group = vertex_group_by_seg_id[seg_id]
+    #     # TODO: actual weight, please!
+    #     group.add([vi], 1.0, 'REPLACE')
+    print("Vertex groups:")
+    weight_by_vert_id = {}
+    for seg_id, seg in enumerate(p_segs):
+        print(f"  seg {seg_id} flags {seg.flags} smatsegs {seg.smatsegs}")
         j = seg.joint_id
-        group = vertex_group_by_joint_id.get(j)
-        if group is None:
-            group_name = HUMAN_JOINTS[j]
-            mesh_obj.vertex_groups.new(name=group_name)
+        is_stretchy = bool(seg.flags & 1)
+        group_name = HUMAN_JOINTS[j]
+        try:
             group = mesh_obj.vertex_groups[group_name]
-            vertex_group_by_joint_id[j] = group
-        vertex_group_by_seg_id[seg_id] = group
-    for vi, seg_id in sorted(segment_by_vert_id.items()):
-        group = vertex_group_by_seg_id[seg_id]
-        # TODO: actual weight, please!
-        group.add([vi], 1.0, 'REPLACE')
+        except KeyError:
+            group = mesh_obj.vertex_groups.new(name=group_name)
+        # TODO: do we need to do this same collection dance?
+        #group = mesh_obj.vertex_groups[group_name]
+        map_start = seg.map_start
+        map_end = map_start+seg.smatsegs
+        print(f"  map_start: {map_start}, map_end: {map_end}")
+        # huh, it is zero, why is this trying to do all of them??
+        if seg.smatsegs==0:
+            foo = p_maps[map_start:map_end]
+            print(f"foo! {foo.offset:08x}, {foo.count}, len {len(foo)}")
+        for smatseg_id in p_maps[map_start:map_end]:
+            print(f"    smatseg {smatseg_id}")
+            smatseg = p_smatsegs[smatseg_id]
+            for i in range(smatseg.verts):
+                vi = smatseg.vert_start+i
+                print(f"      vert {vi}")
+                # OKAY, so this is wrong. but why?
+                # by definition a 'stretchy' area should have
+                # weights for _two_ different bones, right? but not
+                # in this format! each smatseg belongs to _one_ segment,
+                # i.e. one joint. so what delimits this?
+                if is_stretchy:
+                    wi = smatseg.weight_start+i
+                    print(f"      weight {wi}")
+                    weight = p_weights[wi]
+                    weight_by_vert_id[vi] = weight # TODO just for weight debugging
+                else:
+                    weight = 1.0
+                group.add([vi], weight, 'REPLACE')
+    for li, loop in enumerate(mesh.loops):
+        vi = loop.vertex_index
+        if vi in weight_by_vert_id:
+            w = weight_by_vert_id[vi]
+            weight_colors.data[li].color = (w,w,w,1.0)
+        else:
+            weight_colors.data[li].color = (1.0,0.0,0.0,1.0)
 
     # Create an armature for it
     arm_obj = create_armature("Human", Vector((0,0,0)), context=context)
