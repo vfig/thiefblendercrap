@@ -4,6 +4,14 @@ so i think _for now_ i can maybe ignore the weights on the import side?
 
 i believe all they are is a precomputed influence factor, to ramp up the child bone's influence at a joint. if that is the case, i should look for a relatively simple mesh [where we know the _actual_ limit planes] with a stretchy segment (player arm? blackjack?), and try to generate the same weights (within tolerance).
 
+...
+
+Assigning vert to its bone with just weights from file definitely looks wrong.
+
+Assigning verts to its bone and its parent bone with both weight 1.0 looks less wrong.
+
+Assigning vert to its bone with weight from file, and to its parent bone with weight 1.0 looks pretty okay? But will have to import an extreme pose or two, and cross-check with the in-game appearance to be quite sure!
+
 
 EASY WINS
 

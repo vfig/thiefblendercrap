@@ -339,8 +339,10 @@ def create_object(name, mesh, location, context=None, link=True):
 
 def create_armature(name, location, context=None, link=True):
     arm = bpy.data.armatures.new(name)
+    arm.display_type = 'WIRE'
     o = bpy.data.objects.new(name, arm)
     o.location = location
+    o.show_in_front = True
     if context and link:
         coll = context.view_layer.active_layer_collection.collection
         coll.objects.link(o)
@@ -352,6 +354,8 @@ def do_import_mesh(context, bin_filename):
         bin_data = f.read()
     with open(cal_filename, 'rb') as f:
         cal_data = f.read()
+    dump_filename = os.path.splitext(bin_filename)[0]+'.dump'
+    dumpf = open(dump_filename, 'w')
 
     # Parse the .bin file
     bin_view = memoryview(bin_data)
@@ -362,32 +366,32 @@ def do_import_mesh(context, bin_filename):
         raise ValueError("Only version 1 and 2 .bin files are supported")
     if header.layout!=0:
         raise ValueError("Only material-layout (layout=0) meshes are supported")
-    print(f"magic: {header.magic}")
-    print(f"version: {header.version}")
-    print(f"radius: {header.radius:f}")
-    print(f"flags: {header.flags:04x}")
-    print(f"app_data: {header.app_data:04x}")
-    print(f"layout: {header.layout}")
-    print(f"segs: {header.segs}")
-    print(f"smatrs: {header.smatrs}")
-    print(f"smatsegs: {header.smatsegs}")
-    print(f"pgons: {header.pgons}")
-    print(f"verts: {header.verts}")
-    print(f"weights: {header.weights}")
-    print(f"map_off: {header.map_off:08x}")
-    print(f"seg_off: {header.seg_off:08x}")
-    print(f"smatr_off: {header.smatr_off:08x}")
-    print(f"smatseg_off: {header.smatseg_off:08x}")
-    print(f"pgon_off: {header.pgon_off:08x}")
-    print(f"norm_off: {header.norm_off:08x}")
-    print(f"vert_vec_off: {header.vert_vec_off:08x}")
-    print(f"vert_uvn_off: {header.vert_uvn_off:08x}")
-    print(f"weight_off: {header.weight_off:08x}")
-    print()
+    print(f"magic: {header.magic}", file=dumpf)
+    print(f"version: {header.version}", file=dumpf)
+    print(f"radius: {header.radius:f}", file=dumpf)
+    print(f"flags: {header.flags:04x}", file=dumpf)
+    print(f"app_data: {header.app_data:04x}", file=dumpf)
+    print(f"layout: {header.layout}", file=dumpf)
+    print(f"segs: {header.segs}", file=dumpf)
+    print(f"smatrs: {header.smatrs}", file=dumpf)
+    print(f"smatsegs: {header.smatsegs}", file=dumpf)
+    print(f"pgons: {header.pgons}", file=dumpf)
+    print(f"verts: {header.verts}", file=dumpf)
+    print(f"weights: {header.weights}", file=dumpf)
+    print(f"map_off: {header.map_off:08x}", file=dumpf)
+    print(f"seg_off: {header.seg_off:08x}", file=dumpf)
+    print(f"smatr_off: {header.smatr_off:08x}", file=dumpf)
+    print(f"smatseg_off: {header.smatseg_off:08x}", file=dumpf)
+    print(f"pgon_off: {header.pgon_off:08x}", file=dumpf)
+    print(f"norm_off: {header.norm_off:08x}", file=dumpf)
+    print(f"vert_vec_off: {header.vert_vec_off:08x}", file=dumpf)
+    print(f"vert_uvn_off: {header.vert_uvn_off:08x}", file=dumpf)
+    print(f"weight_off: {header.weight_off:08x}", file=dumpf)
+    print(file=dumpf)
 
     # TODO: does this match number of segs? smatrs? anything?
     map_count = header.seg_off-header.map_off
-    print(f"maps: {map_count}")
+    print(f"maps: {map_count}", file=dumpf)
     p_maps = StructView(bin_view, uint8, offset=header.map_off, count=map_count)
     p_segs = StructView(bin_view, LGMMSegment, offset=header.seg_off, count=header.segs)
     p_smatrs = StructView(bin_view, (LGMMSMatrV2 if header.version==2 else LGMMSMatrV1),
@@ -397,54 +401,73 @@ def do_import_mesh(context, bin_filename):
     p_norms = StructView(bin_view, LGVector, offset=header.norm_off, count=header.pgons) # TODO: is count correct??
     p_verts = StructView(bin_view, LGVector, offset=header.vert_vec_off, count=header.verts)
     p_uvnorms = StructView(bin_view, LGMMUVNorm, offset=header.vert_uvn_off, count=header.verts)
-    p_weights = StructView(bin_view, float32, offset=header.weight_off, count=header.verts)
+    p_weights = StructView(bin_view, float32, offset=header.weight_off, count=header.weights)
 
-    print("BIN:")
-    print("Segments")
+    print("BIN:", file=dumpf)
+    print("Segments", file=dumpf)
     for i, seg in enumerate(p_segs):
-        print(f"  Seg {i}:")
-        print(f"    bbox: {seg.bbox}")
-        print(f"    joint_id: {seg.joint_id}")
-        print(f"    smatsegs: {seg.smatsegs}")
-        print(f"    map_start: {seg.map_start}")
-        print(f"    flags: {seg.flags}")
-        print(f"    pgons: {seg.pgons}")
-        print(f"    pgon_start: {seg.pgon_start}")
-        print(f"    verts: {seg.verts}")
-        print(f"    vert_start: {seg.vert_start}")
-        print(f"    weight_start: {seg.weight_start}")
-    print("Smatrs")
+        print(f"  Seg {i}:", file=dumpf)
+        print(f"    bbox: {seg.bbox}", file=dumpf)
+        print(f"    joint_id: {seg.joint_id}", file=dumpf)
+        print(f"    smatsegs: {seg.smatsegs}", file=dumpf)
+        print(f"    map_start: {seg.map_start}", file=dumpf)
+        print(f"    flags: {seg.flags}", file=dumpf)
+        print(f"    pgons: {seg.pgons}", file=dumpf)
+        print(f"    pgon_start: {seg.pgon_start}", file=dumpf)
+        print(f"    verts: {seg.verts}", file=dumpf)
+        print(f"    vert_start: {seg.vert_start}", file=dumpf)
+        print(f"    weight_start: {seg.weight_start}", file=dumpf)
+    print("Smatrs", file=dumpf)
     for i, smatr in enumerate(p_smatrs):
-        print(f"  Smatr {i}:")
-        print(f"    name: {smatr.name}")
-        print(f"    caps: {smatr.caps}")
-        print(f"    alpha: {smatr.alpha}")
-        print(f"    self_illum: {smatr.self_illum}")
-        print(f"    for_rent: {smatr.for_rent}")
-        print(f"    handle: {smatr.handle}")
-        print(f"    uv: {smatr.uv}")
-        print(f"    mat_type: {smatr.mat_type}")
-        print(f"    smatsegs: {smatr.smatsegs}")
-        print(f"    map_start: {smatr.map_start}")
-        print(f"    flags: {smatr.flags}")
-        print(f"    pgons: {smatr.pgons}")
-        print(f"    pgon_start: {smatr.pgon_start}")
-        print(f"    verts: {smatr.verts}")
-        print(f"    vert_start: {smatr.vert_start}")
-        print(f"    weight_start: {smatr.weight_start}")
-        print(f"    pad: {smatr.pad}")
-    print("SmatSegs")
+        print(f"  Smatr {i}:", file=dumpf)
+        print(f"    name: {smatr.name}", file=dumpf)
+        print(f"    caps: {smatr.caps}", file=dumpf)
+        print(f"    alpha: {smatr.alpha}", file=dumpf)
+        print(f"    self_illum: {smatr.self_illum}", file=dumpf)
+        print(f"    for_rent: {smatr.for_rent}", file=dumpf)
+        print(f"    handle: {smatr.handle}", file=dumpf)
+        print(f"    uv: {smatr.uv}", file=dumpf)
+        print(f"    mat_type: {smatr.mat_type}", file=dumpf)
+        print(f"    smatsegs: {smatr.smatsegs}", file=dumpf)
+        print(f"    map_start: {smatr.map_start}", file=dumpf)
+        print(f"    flags: {smatr.flags}", file=dumpf)
+        print(f"    pgons: {smatr.pgons}", file=dumpf)
+        print(f"    pgon_start: {smatr.pgon_start}", file=dumpf)
+        print(f"    verts: {smatr.verts}", file=dumpf)
+        print(f"    vert_start: {smatr.vert_start}", file=dumpf)
+        print(f"    weight_start: {smatr.weight_start}", file=dumpf)
+        print(f"    pad: {smatr.pad}", file=dumpf)
+    print("SmatSegs", file=dumpf)
     for i, smatseg in enumerate(p_smatsegs):
-        print(f"  Smatseg {i}:")
-        print(f"    pgons: {smatseg.pgons}")
-        print(f"    pgon_start: {smatseg.pgon_start}")
-        print(f"    verts: {smatseg.verts}")
-        print(f"    vert_start: {smatseg.vert_start}")
-        print(f"    weight_start: {smatseg.weight_start}")
-        print(f"    pad: {smatseg.pad}")
-        print(f"    smatr_id: {smatseg.smatr_id}")
-        print(f"    seg_id: {smatseg.seg_id}")
+        print(f"  Smatseg {i}:", file=dumpf)
+        print(f"    pgons: {smatseg.pgons}", file=dumpf)
+        print(f"    pgon_start: {smatseg.pgon_start}", file=dumpf)
+        print(f"    verts: {smatseg.verts}", file=dumpf)
+        print(f"    vert_start: {smatseg.vert_start}", file=dumpf)
+        print(f"    weight_start: {smatseg.weight_start}", file=dumpf)
+        print(f"    pad: {smatseg.pad}", file=dumpf)
+        print(f"    smatr_id: {smatseg.smatr_id}", file=dumpf)
+        print(f"    seg_id: {smatseg.seg_id}", file=dumpf)
+    print(file=dumpf)
 
+    print("Maps:", file=dumpf)
+    for i, m in enumerate(p_maps):
+        print(f"  {i}: {m}", file=dumpf)
+    print("Pgons:", file=dumpf)
+    for i, p in enumerate(p_pgons):
+        print(f"  {i}: verts {p.vert[0]},{p.vert[1]},{p.vert[2]}; smatr {p.smatr_id}; norm: {p.norm}, d: {p.d}", file=dumpf)
+    print("Verts:", file=dumpf)
+    for i, v in enumerate(p_verts):
+        print(f"  {i}: {v.x},{v.y},{v.z}", file=dumpf)
+    print("Norms:", file=dumpf)
+    for i, n in enumerate(p_norms):
+        print(f"  {i}: {n.x},{n.y},{n.z}", file=dumpf)
+    print("UVNorms:", file=dumpf)
+    for i, n in enumerate(p_uvnorms):
+        print(f"  {i}: {n.u},{n.v}; norm {n.norm}", file=dumpf)
+    print("Weights:", file=dumpf)
+    for i, w in enumerate(p_weights):
+        print(f"  {i}: {w}", file=dumpf)
 
     # Parse the .cal file
     cal_view = memoryview(cal_data)
@@ -459,39 +482,41 @@ def do_import_mesh(context, bin_filename):
     offset += p_limbs.size()
     cal_footer = LGCALFooter.read(cal_view, offset=offset)
 
-    print("CAL:")
-    print(f"  version: {cal_header.version}")
-    print(f"  torsos: {cal_header.torsos}")
-    print(f"  limbs: {cal_header.limbs}")
+    print("CAL:", file=dumpf)
+    print(f"  version: {cal_header.version}", file=dumpf)
+    print(f"  torsos: {cal_header.torsos}", file=dumpf)
+    print(f"  limbs: {cal_header.limbs}", file=dumpf)
     for i, torso in enumerate(p_torsos):
-        print(f"torso {i}:")
-        print(f"  joint: {torso.joint}")
-        print(f"  parent: {torso.parent}")
-        print(f"  fixed_points: {torso.fixed_points}")
-        print(f"  joint_id:")
+        print(f"torso {i}:", file=dumpf)
+        print(f"  joint: {torso.joint}", file=dumpf)
+        print(f"  parent: {torso.parent}", file=dumpf)
+        print(f"  fixed_points: {torso.fixed_points}", file=dumpf)
+        print(f"  joint_id:", file=dumpf)
         k = torso.fixed_points
         for joint_id in torso.joint_id[:k]:
-            print(f"    {joint_id}")
-        print(f"  pts:")
+            print(f"    {joint_id}", file=dumpf)
+        print(f"  pts:", file=dumpf)
         for pt in torso.pts[:k]:
-            print(f"    {pt.x}, {pt.y}, {pt.z}")
+            print(f"    {pt.x}, {pt.y}, {pt.z}", file=dumpf)
     for i, limb in enumerate(p_limbs):
-        print(f"limb {i}:")
-        print(f"  torso_id: {limb.torso_id}")
-        print(f"  bend: {limb.bend}")
-        print(f"  segments: {limb.segments}")
-        print(f"  joint_id:")
+        print(f"limb {i}:", file=dumpf)
+        print(f"  torso_id: {limb.torso_id}", file=dumpf)
+        print(f"  bend: {limb.bend}", file=dumpf)
+        print(f"  segments: {limb.segments}", file=dumpf)
+        print(f"  joint_id:", file=dumpf)
         k = limb.segments
         for joint_id in limb.joint_id[:k+1]:
-            print(f"    {joint_id}")
-        print(f"  seg:")
+            print(f"    {joint_id}", file=dumpf)
+        print(f"  seg:", file=dumpf)
         for seg in limb.seg[:k]:
             print(f"    {seg}")
-        print(f"  seg_len:")
+        print(f"  seg_len:", file=dumpf)
         for seg_len in limb.seg_len[:k]:
-            print(f"    {seg_len}")
-    print(f"scale: {cal_footer.scale}")
-    print()
+            print(f"    {seg_len}", file=dumpf)
+    print(f"scale: {cal_footer.scale}", file=dumpf)
+    print(file=dumpf)
+
+    dumpf.close()
 
     # Find the origin point of every joint
     head_by_joint_id = {}
@@ -547,7 +572,7 @@ def do_import_mesh(context, bin_filename):
                 is_connected_by_joint_id[j] = True
             pj = j
     assert sorted(head_by_joint_id.keys())==sorted(tail_by_joint_id.keys())
-    print("Bone positions:")
+    #print("Bone positions:")
     HUMAN_JOINTS = [
         'LToe',     #  0
         'RToe',     #  1
@@ -577,9 +602,9 @@ def do_import_mesh(context, bin_filename):
     for j in sorted(head_by_joint_id.keys()):
         h = head_by_joint_id[j]
         t = tail_by_joint_id[j]
-        print(f"joint {j}: head {h.x},{h.y},{h.z}; tail {t.x},{t.y},{t.z}")
+        #print(f"joint {j}: head {h.x},{h.y},{h.z}; tail {t.x},{t.y},{t.z}")
         #create_empty(f"{HUMAN_JOINTS[j]} (Joint {j})", h, context=context)
-    print()
+    #print()
 
     # Build segment/material/joint tables for later lookup
     segment_by_vert_id = {}
@@ -631,12 +656,14 @@ def do_import_mesh(context, bin_filename):
     mesh.vertex_colors.new(name="JointCol", do_init=False)
     mesh.vertex_colors.new(name="StretchyCol", do_init=False)
     mesh.vertex_colors.new(name="WeightCol", do_init=False)
+    mesh.vertex_colors.new(name="UVCol", do_init=False)
     smatseg_colors = mesh.vertex_colors["SmatSegCol"]
     seg_colors = mesh.vertex_colors["SegCol"]
     mat_colors = mesh.vertex_colors["MatCol"]
     joint_colors = mesh.vertex_colors["JointCol"]
     stretchy_colors = mesh.vertex_colors["StretchyCol"]
     weight_colors = mesh.vertex_colors["WeightCol"]
+    uv_colors = mesh.vertex_colors["UVCol"]
     for li, loop in enumerate(mesh.loops):
         vi = loop.vertex_index
         smatseg_colors.data[li].color = id_color( smatseg_by_vert_id[vi] )
@@ -646,31 +673,12 @@ def do_import_mesh(context, bin_filename):
         seg = p_segs[ segment_by_vert_id[vi] ]
         is_stretchy = bool(seg.flags & 1)
         stretchy_colors.data[li].color = id_color(0) if is_stretchy else id_color(1)
+        uvn = p_uvnorms[vi]
+        uv_colors.data[li].color = (float(uvn.u),float(uvn.v),0.0,1.0)
 
     # Create the object
     mesh_obj = create_object(name, mesh, Vector((0,0,0)), context=context)
 
-    # Create vertex groups, and assign vertices
-    # vertex_group_by_seg_id = {}
-    # vertex_group_by_joint_id = {}
-    # for seg_id in sorted(set(segment_by_vert_id.values())):
-    #     # TODO: can _actually_ look up smatsmegs from the seg, via the mapping!
-    #     # _thats_ why the mapping exists!! two-way lookup from both smatr and seg
-    #     # Then, only smatsegs belonging to stretchy segs actually have meaningful
-    #     # weights!!
-    #     seg = p_segs[seg_id]
-    #     j = seg.joint_id
-    #     group = vertex_group_by_joint_id.get(j)
-    #     if group is None:
-    #         group_name = HUMAN_JOINTS[j]
-    #         mesh_obj.vertex_groups.new(name=group_name)
-    #         group = mesh_obj.vertex_groups[group_name]
-    #         vertex_group_by_joint_id[j] = group
-    #     vertex_group_by_seg_id[seg_id] = group
-    # for vi, seg_id in sorted(segment_by_vert_id.items()):
-    #     group = vertex_group_by_seg_id[seg_id]
-    #     # TODO: actual weight, please!
-    #     group.add([vi], 1.0, 'REPLACE')
     print("Vertex groups:")
     weight_by_vert_id = {}
     for seg_id, seg in enumerate(p_segs):
@@ -718,9 +726,20 @@ def do_import_mesh(context, bin_filename):
         else:
             weight_colors.data[li].color = (1.0,0.0,0.0,1.0)
 
+    # SmatSmeg vertex groups
+    print("SmatSmeg Vertex groups:")
+    for smatseg_id, smatseg in enumerate(p_smatsegs):
+        group_name = f"SmatSmeg{smatseg_id}"
+        try:
+            group = mesh_obj.vertex_groups[group_name]
+        except KeyError:
+            group = mesh_obj.vertex_groups.new(name=group_name)
+        for i in range(smatseg.verts):
+            vi = smatseg.vert_start+i
+            group.add([vi], 1.0, 'REPLACE')
+
     # Create an armature for it
     arm_obj = create_armature("Human", Vector((0,0,0)), context=context)
-    arm_obj.show_in_front = True
     context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     edit_bones = arm_obj.data.edit_bones
