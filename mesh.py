@@ -986,9 +986,16 @@ def do_export_mesh(context, mesh_obj, bin_filename):
         'rtip',     # 38
         ]
 
+    arm_mod = [mod for mod in mesh_obj.modifiers if mod.type == 'ARMATURE'][0]
+    arm_obj = arm_mod.object
     mesh = mesh_obj.data
     mesh.calc_loop_triangles()
     vert_count = len(mesh.vertices)
+    arm = arm_obj.data
+    arm.pose_position = 'REST' # TODO: shouldnt change this and not set it back later!
+    bone_head_pos = {}
+    for b in arm.bones:
+        bone_head_pos[b.name] = Vector(arm_obj.location)+Vector(b.head_local)
 
     # okay, this is not good enough. we need to sort the vertices [by material,
     # once we stop hardcoding the material, then] by group, so that each
@@ -1042,8 +1049,8 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     # TODO: use actual vertex uvs and normals!
     uvnorms = [
         LGMMUVNorm(values=(
-            v.mesh_vert.co.x, # temporarily use worldspace vert coord as uvs
-            v.mesh_vert.co.y,
+            v.mesh_vert.co.x/16.0, # temporarily use worldspace vert coord as uvs
+            v.mesh_vert.co.y/16.0,
             0))
         for v in source_verts
         ]
@@ -1086,6 +1093,8 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     in enumerate(itertools.groupby(source_verts, key=SourceVert.sort_key)):
         temp_mat_id = sort_key[0]
         group_id = sort_key[1]
+        group_name = mesh_obj.vertex_groups[group_id].name
+        bone_head = bone_head_pos[group_name]
         smatseg_source_verts = list(smatseg_source_verts)
         print(f"Smatseg {smatseg_id}: material {temp_mat_id}, vertex group {group_id}", file=dumpf)
         smatseg = LGMMSmatSeg()
@@ -1100,12 +1109,16 @@ def do_export_mesh(context, mesh_obj, bin_filename):
         smatsegs.append(smatseg)
         for source_vert in smatseg_source_verts:
             vi = source_vert.vert_id
+            pos = Vector((verts[vi].x,verts[vi].y,verts[vi].z))
+            local_pos = pos - bone_head
+            verts[vi] = LGVector(values=local_pos)
             # TODO: do we want to use undeformed_co? or do we want to ensure that
             # the armature is in rest pose for the export? (cause there might
             # reasonably be other modifiers that we _do_ want to have affecting
             # the mesh!
             pos = source_vert.mesh_vert.co
             print(f"  {vi}: mesh_vert_id {source_vert.mesh_vert_id} at {pos[0]},{pos[1]},{pos[2]}", file=dumpf)
+
 
     # TODO: if there are multiple materials, or
     # stretchy segs, then this cannot be 1:1
@@ -1114,8 +1127,8 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     in enumerate(itertools.groupby(source_verts, key=SourceVert.sort_key)):
         temp_mat_id = sort_key[0]
         group_id = sort_key[1]
-        smatseg_source_verts = list(smatseg_source_verts)
         group_name = mesh_obj.vertex_groups[group_id].name
+        smatseg_source_verts = list(smatseg_source_verts)
         joint_id = SPIDER_JOINTS.index(group_name)
         seg = LGMMSegment()
         seg.joint_id = uint8(joint_id)
