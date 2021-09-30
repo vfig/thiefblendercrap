@@ -1039,9 +1039,12 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     for i, v in enumerate(verts):
         print(f"  {i}: {v.x},{v.y},{v.z}", file=dumpf)
 
-    # TODO: use actual vertex normals!
+    # TODO: use actual vertex uvs and normals!
     uvnorms = [
-        LGMMUVNorm(values=(0.0,0.0,0))
+        LGMMUVNorm(values=(
+            v.mesh_vert.co.x, # temporarily use worldspace vert coord as uvs
+            v.mesh_vert.co.y,
+            0))
         for v in source_verts
         ]
 
