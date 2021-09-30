@@ -994,8 +994,12 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     arm = arm_obj.data
     arm.pose_position = 'REST' # TODO: shouldnt change this and not set it back later!
     bone_head_pos = {}
+    bone_directions = {}
+    bone_lengths = {}
     for b in arm.bones:
         bone_head_pos[b.name] = Vector(arm_obj.location)+Vector(b.head_local)
+        bone_directions[b.name] = Vector(b.vector).normalized()
+        bone_lengths[b.name] = b.length
 
     # okay, this is not good enough. we need to sort the vertices [by material,
     # once we stop hardcoding the material, then] by group, so that each
@@ -1211,11 +1215,69 @@ def do_export_mesh(context, mesh_obj, bin_filename):
         for uvnorm in uvnorms: uvnorm.write(f)
         # for w in weights: w.write(f)
 
-    ## TODO: write the .cal, too!
-    # with open(cal_filename, 'wb') as f:
-    #     cal_data = f.read()
+    # TODO: do a proper export of the .cal (probably means harcoding knowledge
+    # of torsos/limbs of all the stock skeletons...
+    def make_torso(joint_id, parent_id, *bone_names):
+        limb_joint_ids = [-1 for _ in range(16)]
+        limb_pts = [LGVector() for _ in range(16)]
+        for i, name in enumerate(bone_names):
+            limb_joint_ids[i] = SPIDER_JOINTS.index(name)
+            limb_pts[i] = bone_head_pos[name]
+        return LGCALTorso((
+            joint_id,  # joint
+            parent_id, # parent
+            len(bone_names),  # fixed_points
+            Array(int32, 16)(limb_joint_ids), # joint_id
+            Array(LGVector, 16)(limb_pts), # pts
+            ))
+    def make_limb(torso_id, bend, *bone_names):
+        limb_joint_ids = [-1 for _ in range(17)]
+        limb_segs = [LGVector() for _ in range(16)]
+        limb_lengths = [0.0 for _ in range(16)]
+        for i, name in enumerate(bone_names):
+            limb_joint_ids[i] = SPIDER_JOINTS.index(name)
+        for i, name in enumerate(bone_names[:-1]):
+            limb_segs[i] = bone_directions[name]
+            limb_lengths[i] = bone_lengths[name]
+        return LGCALLimb((
+            torso_id,  # torso_id
+            bend,  # bend (TODO: maybe wrong for this abuse of the skeleton?)
+            len(bone_names)-1,  # segments
+            Array(int16, 17)(limb_joint_ids), # joint_id
+            Array(LGVector, 16)(limb_segs), # seg
+            Array(float32, 16)(limb_lengths), # seg_len
+            ))
+    # NOTE: hardcoded spider skeleton (because its hardcoded in the game)
+    torsos = [
+        make_torso(0, -1, 'lmand', 'rmand', 'r1shldr'),
+        make_torso(0, -1, 'r2shldr', 'r3shldr', 'r4shldr'),
+        make_torso(0, -1, 'l1shldr', 'l2shldr', 'l3shldr'),
+        make_torso(0, -1, 'l4shldr'),
+        ]
+    limbs = [
+        make_limb(0, 1, 'rmand', 'rmelbow', 'rtip'),
+        make_limb(0, 1, 'lmand', 'lmelbow', 'ltip'),
+        make_limb(0, 1, 'r1shldr', 'r1elbow', 'r1wrist'),
+        make_limb(0, 1, 'r2shldr', 'r2elbow', 'r2wrist'),
+        make_limb(0, 1, 'r3shldr', 'r3elbow', 'r3wrist'),
+        make_limb(0, 1, 'r4shldr', 'r4elbow', 'r4wrist'),
+        make_limb(0, 1, 'l1shldr', 'l1elbow', 'l1wrist'),
+        make_limb(0, 1, 'l2shldr', 'l2elbow', 'l2wrist'),
+        make_limb(0, 1, 'l3shldr', 'l3elbow', 'l3wrist'),
+        make_limb(0, 1, 'l4shldr', 'l4elbow', 'l4wrist'),
+        ]
+    header = LGCALHeader((
+        1,  # version
+        len(torsos), # torsos
+        len(limbs), # limbs
+        ))
+    footer = LGCALFooter((1.0,))
 
-
+    with open(cal_filename, 'wb') as f:
+        header.write(f)
+        for t in torsos: t.write(f)
+        for l in limbs: l.write(f)
+        footer.write(f)
 
     print("done.")
 
