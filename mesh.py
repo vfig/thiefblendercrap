@@ -1,5 +1,6 @@
 import bpy
 import bmesh
+import itertools
 import math
 import mathutils
 import os, os.path
@@ -25,6 +26,8 @@ class PrimitiveTypeMixin:
     def read(cls, view, offset=0):
         values = struct.unpack_from(cls._format_string, view, offset=offset)
         return cls(values[0])
+    def write(self, f):
+        f.write(struct.pack(self.__class__._format_string, self))
     def __repr__(self):
         return f"<PrimitiveType {self._name}>"
 
@@ -75,6 +78,9 @@ def Array(typeref_, count_):
                 offset += stride
                 values.append(value)
             return cls(values)
+        def write(self, f):
+            for i in range(self.count):
+                self.values[i].write(f)
     TypedArrayInstance.__name__ = f"{typeref_.__name__}x{count_}"
     return TypedArrayInstance
 
@@ -82,28 +88,18 @@ def Array(typeref_, count_):
 # read/write/size methods??
 # TODO: also rename this because it clashes with struct.Struct haha
 class Struct:
-    def __init__(self, values):
+    def __init__(self, values=None):
         if self.__class__==Struct:
             raise TypeError("Cannot instantiate Struct itself, only subclasses")
         hints = get_type_hints(self.__class__)
         if len(hints)==0:
             raise TypeError(f"{self.__class__.__name__} has no fields defined")
+        if values is None:
+            values = self.default_values()
         if len(values)!=len(hints):
             raise ValueError(f"Expected {len(self.hints)} values")
         for (name, typeref), value in zip(hints.items(), values):
             setattr(self, name, typeref(value))
-
-    # @classmethod
-    # def format_string(cls):
-    #     fmt = []
-    #     hints = get_type_hints(cls)
-    #     for name, typeref in hints.items():
-    #         fmt.append(typeref.format_string())
-    #     return ''.join(fmt)
-
-    # @classmethod
-    # def size(cls):
-    #     return struct.calcsize(cls.format_string())
 
     @classmethod
     def size(cls):
@@ -123,6 +119,12 @@ class Struct:
             offset += typeref.size()
             values.append(value)
         return cls(values)
+
+    def write(self, f):
+        hints = get_type_hints(self.__class__)
+        for name, typeref in hints.items():
+            value = getattr(self, name)
+            value.write(f)
 
 class StructView:
     def __init__(self, view, typeref, *, offset=0, count=-1, size=-1):
@@ -177,6 +179,10 @@ class LGVector(Struct):
     def __str__(self):
         return f"({self.x},{self.y},{self.z})"
 
+    @classmethod
+    def default_values(cls):
+        return (0.0,0.0,0.0)
+
 class LGMMHeader(Struct):
     magic: bytes4       # 'LGMM'
     version: uint32     # 1 or 2
@@ -201,10 +207,41 @@ class LGMMHeader(Struct):
     vert_uvn_off: uint32    # offset to array of other vertex data (uvs, normals etc)
     weight_off: uint32      # offset to array of weights (float32)
 
+    @classmethod
+    def default_values(cls):
+        return (
+            b'LGMM',    # magic
+            2,          # version
+            0.0,        # radius
+            0,          # flags
+            0,          # app_data
+            0,          # layout
+            0,          # segs
+            0,          # smatrs
+            0,          # smatsegs
+            0,          # pgons
+            0,          # verts
+            0,          # weights
+            0,          # pad
+            0,          # map_off
+            0,          # seg_off
+            0,          # smatr_off
+            0,          # smatseg_off
+            0,          # pgon_off
+            0,          # norm_off
+            0,          # vert_vec_off
+            0,          # vert_uvn_off
+            0,          # weight_off
+            )
+
 class LGMMUVNorm(Struct):
     u: float32
     v: float32
     norm: uint32    # compacted normal
+
+    @classmethod
+    def default_values(cls):
+        return (0.0,0.0,0)
 
 class LGMMPolygon(Struct):
     vert: Array(uint16, 3)
@@ -212,6 +249,16 @@ class LGMMPolygon(Struct):
     d: float32
     norm: uint16
     pad: uint16
+
+    @classmethod
+    def default_values(cls):
+        return (
+            [0.0,0.0,0.0],  # vert
+            -1,             # smatr_id
+            0.0,            # d
+            0,              # norm
+            0,              # pad
+            )
 
 class LGMMSMatrV1(Struct):
     name: bytes16
@@ -229,7 +276,6 @@ class LGMMSMatrV1(Struct):
     vert_start: uint16
     weight_start: uint16 # number of weights = num vertices in segment
     pad: uint16
-
     # For forward compatibility with V2:
     @property
     def caps(self): return uint32(0)
@@ -239,6 +285,24 @@ class LGMMSMatrV1(Struct):
     def self_illum(self): return float32(0.0);
     @property
     def for_rent(self): return uint32(0)
+
+    @classmethod
+    def default_values(cls):
+        return (
+            b'\x00'*16, # name
+            0,          # handle
+            0.0,        # uv
+            0,          # mat_type
+            0,          # smatsegs
+            0,          # map_start
+            0,          # flags
+            0,          # pgons
+            0,          # pgon_start
+            0,          # verts
+            0,          # vert_start
+            0,          # weight_start
+            0,          # pad
+            )
 
 class LGMMSMatrV2(Struct):
     name: bytes16
@@ -261,6 +325,28 @@ class LGMMSMatrV2(Struct):
     weight_start: uint16 # number of weights = num vertices in segment
     pad: uint16
 
+    @classmethod
+    def default_values(cls):
+        return (
+            b'abcdefghijkl.png',    # name
+            0,                      # caps
+            0.0,                    # alpha
+            0.0,                    # self_illum
+            0,                      # for_rent
+            0,                      # handle
+            0.0,                    # uv
+            0,                      # mat_type
+            0,                      # smatsegs
+            0,                      # map_start
+            0,                      # flags
+            0,                      # pgons
+            0,                      # pgon_start
+            0,                      # verts
+            0,                      # vert_start
+            0,                      # weight_start
+            0,                      # pad
+            )
+
 class LGMMSegment(Struct):
     bbox: uint32
     joint_id: uint8
@@ -274,6 +360,22 @@ class LGMMSegment(Struct):
     weight_start: uint16 # number of weights = num vertices in segment
     pad: uint16
 
+    @classmethod
+    def default_values(cls):
+        return (
+            0,  # bbox
+            0,  # joint_id
+            0,  # smatsegs
+            0,  # map_start
+            0,  # flags
+            0,  # pgons
+            0,  # pgon_start
+            0,  # verts
+            0,  # vert_start
+            0,  # weight_start
+            0,  # pad
+            )
+
 class LGMMSmatSeg(Struct):
     pgons: uint16
     pgon_start: uint16
@@ -283,6 +385,19 @@ class LGMMSmatSeg(Struct):
     pad: uint16
     smatr_id: uint16
     seg_id: uint16
+
+    @classmethod
+    def default_values(cls):
+        return (
+            0,  # pgons
+            0,  # pgon_start
+            0,  # verts
+            0,  # vert_start
+            0,  # weight_start
+            0,  # pad
+            0,  # smatr_id
+            0,  # seg_id
+            )
 
 class LGCALHeader(Struct):
     version: uint32     # only know version 1
@@ -306,6 +421,9 @@ class LGCALLimb(Struct):
 
 class LGCALFooter(Struct):
     scale: float32
+
+#---------------------------------------------------------------------------#
+# Import
 
 def create_color_table(size):
     rand = random.Random(0)
@@ -815,6 +933,278 @@ def do_import_mesh(context, bin_filename):
     return mesh_obj
 
 #---------------------------------------------------------------------------#
+# Export
+
+def do_export_mesh(context, mesh_obj, bin_filename):
+    cal_filename = os.path.splitext(bin_filename)[0]+'.cal'
+    dump_filename = os.path.splitext(bin_filename)[0]+'.export_dump'
+    dumpf = open(dump_filename, 'w')
+
+    # TODO: note that if we import the spider this way, the 'sac' thats in the
+    # .e and in the .map will just be part of the 'base' vertex group. and
+    # that is exactly how it should be! not relevant here ofc, just noting why
+    # it is not listed.
+    SPIDER_JOINTS = [
+        'base',     # 0
+        'lmand',    # 1
+        'lmelbow',  # 2
+        'rmand',    # 3
+        'rmelbow',  # 4
+        'r1shldr',  # 5
+        'r1elbow',  # 6
+        'r1wrist',  # 7
+        'r2shldr',  # 8
+        'r2elbow',  # 9
+        'r2wrist',  # 10
+        'r3shldr',  # 11
+        'r3elbow',  # 12
+        'r3wrist',  # 13
+        'r4shldr',  # 14
+        'r4elbow',  # 15
+        'r4wrist',  # 16
+        'l1shldr',  # 17
+        'l1elbow',  # 18
+        'l1wrist',  # 19
+        'l2shldr',  # 20
+        'l2elbow',  # 21
+        'l2wrist',  # 22
+        'l3shldr',  # 23
+        'l3elbow',  # 24
+        'l3wrist',  # 25
+        'l4shldr',  # 26
+        'l4elbow',  # 27
+        'l4wrist',  # 28
+        'r1finger', # 29
+        'r2finger', # 30
+        'r3finger', # 31
+        'r4finger', # 32
+        'l1finger', # 33
+        'l2finger', # 34
+        'l3finger', # 35
+        'l4finger', # 36
+        'ltip',     # 37
+        'rtip',     # 38
+        ]
+
+    mesh = mesh_obj.data
+    mesh.calc_loop_triangles()
+    vert_count = len(mesh.vertices)
+
+    # okay, this is not good enough. we need to sort the vertices [by material,
+    # once we stop hardcoding the material, then] by group, so that each
+    # [material and each] smatseg can have contiguous vertices.
+
+    # TODO: to support stretchy segments, we will need to support verts in
+    # two groups, with weights derived from parent joint and child joint.
+    # but for now, only nonstretchy groups!
+    for vi, mesh_vert in enumerate(mesh.vertices):
+        group_count = len(mesh_vert.groups)
+        if group_count != 1:
+            raise ValueError(f"Vertex {vi} is in {group_count} vertex groups! Should be only 1.")
+
+    # TODO: what do we do about vertex groups that dont match any known
+    # joint name? we should at least check for them!
+
+    # for this first effort, we go with one smatr (all hard-coded); and for
+    # each vertex group, one seg and one smatseg.
+
+    # sort vertices by material and joint
+    class SourceVert:
+        def __init__(self, mesh_vert_id, mesh_vert):
+            self.mesh_vert_id = mesh_vert_id
+            self.mesh_vert = mesh_vert
+            self.vert_id = -1
+        @staticmethod
+        def sort_key(source_vert):
+            # TODO: insert real material sort key here
+            temp_mat_id = 0
+            # TODO: this will have to change when supporting stretchy segs (i.e. 2 groups)
+            group_id = source_vert.mesh_vert.groups[0].group
+            return (temp_mat_id, group_id)
+    source_verts = sorted([
+        SourceVert(mesh_vert_id, mesh_vert)
+        for mesh_vert_id, mesh_vert
+        in enumerate(mesh.vertices)
+        ], key=SourceVert.sort_key)
+    # update each source vert with its vert_id for the .bin
+    for vi, source_vert in enumerate(source_verts):
+        source_vert.vert_id = vi
+
+    # TODO: vert positions must be local to the head of the bone they belong to
+    verts = [
+        LGVector(values=(v.mesh_vert.co.x,v.mesh_vert.co.y,v.mesh_vert.co.z))
+        for v in source_verts
+        ]
+    print("VERTS:", file=dumpf)
+    for i, v in enumerate(verts):
+        print(f"  {i}: {v.x},{v.y},{v.z}", file=dumpf)
+
+    # TODO: use actual vertex normals!
+    uvnorms = [
+        LGMMUVNorm(values=(0.0,0.0,0))
+        for v in source_verts
+        ]
+
+    vert_remap = [-1]*len(verts)
+    for vi, source_vert in enumerate(source_verts):
+        vert_remap[source_vert.mesh_vert_id] = source_vert.vert_id
+    pgons = []
+    norms = []
+    for i, tri in enumerate(mesh.loop_triangles):
+        pgon = LGMMPolygon()
+        pgon.vert = Array(uint16, 3)([
+            vert_remap[mesh.loops[tri.loops[0]].vertex_index],
+            vert_remap[mesh.loops[tri.loops[1]].vertex_index],
+            vert_remap[mesh.loops[tri.loops[2]].vertex_index],
+            ])
+        pgon.smatr_id = uint16(0) # TODO: multiple materials
+        pgon.d = float32(Vector(tri.center).length)
+        pgon.norm = uint16(i)
+        pgons.append(pgon)
+        norm = LGVector(values=tri.normal)
+        norms.append(norm)
+
+    print("NORMS:", file=dumpf)
+    for i, n in enumerate(norms):
+        print(f"  {i}: {n.x},{n.y},{n.z}", file=dumpf)
+
+    print("PGONS:", file=dumpf)
+    for i, p in enumerate(pgons):
+        print(f"  {i}:", file=dumpf)
+        print(f"    vert0: {p.vert[0]}", file=dumpf)
+        print(f"    vert1: {p.vert[1]}", file=dumpf)
+        print(f"    vert2: {p.vert[2]}", file=dumpf)
+        print(f"    smatr_id: {p.smatr_id}", file=dumpf)
+        print(f"    d: {p.d}", file=dumpf)
+        print(f"    norm: {p.norm}", file=dumpf)
+
+    smatsegs = []
+    for smatseg_id, (sort_key, smatseg_source_verts) \
+    in enumerate(itertools.groupby(source_verts, key=SourceVert.sort_key)):
+        temp_mat_id = sort_key[0]
+        group_id = sort_key[1]
+        smatseg_source_verts = list(smatseg_source_verts)
+        print(f"Smatseg {smatseg_id}: material {temp_mat_id}, vertex group {group_id}", file=dumpf)
+        smatseg = LGMMSmatSeg()
+        smatseg.pgons = uint16(0)
+        smatseg.pgon_start = uint16(0)
+        smatseg.verts = uint16(len(smatseg_source_verts))
+        smatseg.vert_start = uint16(smatseg_source_verts[0].vert_id)
+        smatseg.weight_start = uint16(0) # TODO: smatsegs of stretchy segs need weights
+        smatseg.smatr_id = uint16(0) # TODO: do materials
+        smatseg.seg_id = uint16(smatseg_id) # TODO: if there are multiple materials, or
+                                    # stretchy segs, then this cannot be 1:1
+        smatsegs.append(smatseg)
+        for source_vert in smatseg_source_verts:
+            vi = source_vert.vert_id
+            # TODO: do we want to use undeformed_co? or do we want to ensure that
+            # the armature is in rest pose for the export? (cause there might
+            # reasonably be other modifiers that we _do_ want to have affecting
+            # the mesh!
+            pos = source_vert.mesh_vert.co
+            print(f"  {vi}: mesh_vert_id {source_vert.mesh_vert_id} at {pos[0]},{pos[1]},{pos[2]}", file=dumpf)
+
+    # TODO: if there are multiple materials, or
+    # stretchy segs, then this cannot be 1:1
+    segs = []
+    for seg_id, (sort_key, seg_source_verts) \
+    in enumerate(itertools.groupby(source_verts, key=SourceVert.sort_key)):
+        temp_mat_id = sort_key[0]
+        group_id = sort_key[1]
+        smatseg_source_verts = list(smatseg_source_verts)
+        group_name = mesh_obj.vertex_groups[group_id].name
+        joint_id = SPIDER_JOINTS.index(group_name)
+        seg = LGMMSegment()
+        seg.joint_id = uint8(joint_id)
+        seg.smatsegs = uint8(1) # TODO: fix this when we do materials and stretchies
+        seg.map_start = uint8(seg_id) # TODO: fix this when we do materials and stretchies
+        seg.flags = uint8(0) # TODO: fix this for stretchies
+        seg.pgons = uint16(0) # no stretchies and only hardware rendering, so we ignore this
+        seg.pgon_start = uint16(0) # ditto
+        seg.verts = uint16(0) # No verts for material-first layout
+        seg.vert_start = uint16(0)
+        seg.weight_start = uint16(0) # TODO: support weights for stretchies
+        segs.append(seg)
+
+    smatrs = []
+    # TODO: dont hardcode 1 material!
+    smatr = LGMMSMatrV2()
+    smatr.name = bytes16(b'face.png\x00\x00\x00\x00\x00\x00\x00\x00')
+    smatr.caps = uint32(0)
+    smatr.alpha = float32(1.0) # TODO: i think this is 1.0 for opaque?
+    smatr.self_illum = float32(0.0)
+    smatr.for_rent = uint32(0.0)
+    smatr.handle = uint32(0)
+    smatr.uv = float32(1.0) # TODO: i think this is uv scale?
+    smatr.mat_type = uint8(0)
+    smatr.smatsegs = uint8(len(smatsegs))
+    smatr.map_start = uint8(0) # maps for materials are just smatseg indices in order
+    smatr.flags = uint8(0) # TODO: what are these flags?
+    smatr.pgons = uint16(len(pgons))
+    smatr.pgon_start = uint16(0)
+    smatr.verts = uint16(len(verts))
+    smatr.vert_start = uint16(0)
+    smatr.weight_start = uint16(0)
+    smatrs.append(smatr)
+
+    maps = [uint8(i) for i in range(len(smatsegs))]
+
+    dumpf.close()
+
+    header = LGMMHeader()
+    header.segs = uint8(len(segs))
+    header.smatrs = uint8(len(smatrs))
+    header.smatsegs = uint8(len(smatsegs))
+    header.pgons = uint16(len(pgons))
+    header.verts = uint16(len(verts))
+    header.weights = uint16(0) # TODO: support weights
+
+    # TODO: account for alignment?
+    offset = 0
+    offset += LGMMHeader.size()
+    header.map_off = uint32(offset)
+    offset += len(maps)*uint8.size()
+    header.seg_off = uint32(offset)
+    offset += len(segs)*LGMMSegment.size()
+    header.smatr_off = uint32(offset)
+    offset += len(smatrs)*LGMMSMatrV2.size()
+    header.smatseg_off = uint32(offset)
+    offset += len(smatsegs)*LGMMSmatSeg.size()
+    header.pgon_off = uint32(offset)
+    offset += len(pgons)*LGMMPolygon.size()
+    header.norm_off = uint32(offset)
+    offset += len(norms)*LGVector.size()
+    header.vert_vec_off = uint32(offset)
+    offset += len(verts)*LGVector.size()
+    header.vert_uvn_off = uint32(offset)
+    offset += len(uvnorms)*LGMMUVNorm.size()
+    header.weight_off = uint32(offset)
+    ## TODO: support weights
+    # offset += len(weights)*float32.size()
+    file_size = offset
+
+    with open(bin_filename, 'wb') as f:
+        header.write(f)
+        for m in maps: m.write(f)
+        for seg in segs: seg.write(f)
+        for smatr in smatrs: smatr.write(f)
+        for smatseg in smatsegs: smatseg.write(f)
+        for pgon in pgons: pgon.write(f)
+        for norm in norms: norm.write(f)
+        for vert in verts: vert.write(f)
+        for uvnorm in uvnorms: uvnorm.write(f)
+        # for w in weights: w.write(f)
+
+    ## TODO: write the .cal, too!
+    # with open(cal_filename, 'wb') as f:
+    #     cal_data = f.read()
+
+
+
+    print("done.")
+
+
+#---------------------------------------------------------------------------#
 # Operators
 
 class TTDebugImportMeshOperator(Operator):
@@ -834,4 +1224,24 @@ class TTDebugImportMeshOperator(Operator):
         do_import_mesh(context, self.filename)
         # context.view_layer.objects.active = o
         # o.select_set(True)
+        return {'FINISHED'}
+
+class TTDebugExportMeshOperator(Operator):
+    bl_idname = "object.tt_debug_export_mesh"
+    bl_label = "Export mesh"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    filename : StringProperty()
+
+    def execute(self, context):
+        if context.mode != "OBJECT":
+            self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
+            return {'CANCELLED'}
+
+        o = context.view_layer.objects.active
+        if o.type != 'MESH':
+            self.report({'WARNING'}, f"{self.bl_label}: active object is not a mesh.")
+            return {'CANCELLED'}
+
+        do_export_mesh(context, o, self.filename)
         return {'FINISHED'}

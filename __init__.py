@@ -64,6 +64,12 @@ class TOOLS_PT_thieftools_debug(Panel):
         op = layout.operator("object.tt_debug_import_mesh")
         op.filename = "e:/dev/thief/blender/thieftools/test_data/mguard.bin"
 
+        row = layout.row(align=True)
+        box = row.box()
+        box.label(text="MESH")
+        op = layout.operator("object.tt_debug_export_mesh")
+        op.filename = "e:/dev/thief/blender/thieftools/test_data/face.bin"
+
 #---------------------------------------------------------------------------#
 # Register and unregister
 
@@ -72,6 +78,7 @@ def register():
     bpy.utils.register_class(brushes.TTDebugDeleteAllBrushesOperator)
     #bpy.utils.register_class(mission.TTDebugImportMissionOperator)
     bpy.utils.register_class(mesh.TTDebugImportMeshOperator)
+    bpy.utils.register_class(mesh.TTDebugExportMeshOperator)
     bpy.utils.register_class(TOOLS_PT_thieftools_debug)
     print("thieftools: registered.");
 
@@ -79,6 +86,7 @@ def register():
 def unregister():
     bpy.utils.unregister_class(TOOLS_PT_thieftools_debug)
     bpy.utils.unregister_class(mesh.TTDebugImportMeshOperator)
+    bpy.utils.unregister_class(mesh.TTDebugExportMeshOperator)
     #bpy.utils.unregister_class(mission.DebugImportMissionOperator)
     bpy.utils.unregister_class(brushes.TTDebugDeleteAllBrushesOperator)
     bpy.utils.unregister_class(brushes.TTDebugBrushesToBooleansOperator)
