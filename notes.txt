@@ -13,6 +13,33 @@ Assigning verts to its bone and its parent bone with both weight 1.0 looks less 
 Assigning vert to its bone with weight from file, and to its parent bone with weight 1.0 looks pretty okay? But will have to import an extreme pose or two, and cross-check with the in-game appearance to be quite sure!
 
 
+POLYS AND SMATSEGS
+
+so, for the face, the idea of listing all connected polys in each smatseg could be a problem, because some vertices have polys that connect to vertices from several other joints. and because smatseg pgons must be contiguous, this would result in ordering problems:
+
+    smatseg a: pgons A, B, C
+    smatseg b: pgons B, D, E  **discontiguous
+    smatseg c: pgons C, F, G  **discontiguous
+
+now this could be worked around by decomposing:
+
+    smatseg a:  pgons A, B, C
+    smatseg b0: pgons B
+    smatseg b1: pgons D, E
+    smatseg c0: pgons C
+    smatseg c1: pgons F, G
+
+but thats hopefully unnecessary profusion of smatsegs.
+
+now in terms of the code, it looks like:
+
+    - smatr pgons are used for hardware rendering
+    - smatseg pgons are ONLY used for recalculating normals of stretchy segments
+    - (software rendering would use smatseg pgons and sort them, but irrelevant)
+
+=> smatseg pgon list can be empty, if there are no stretchys. or so i think!
+
+
 EASY WINS
 
 uvs and material (texture)

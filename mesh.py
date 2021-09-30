@@ -518,6 +518,20 @@ def do_import_mesh(context, bin_filename):
 
     dumpf.close()
 
+    # test: check that only stretchy segments have pgons in their smatsegs:
+    # UNTRUE! segment 9 (head) is non-stretchy, but has 30 pgons!
+    # however, i still dont think it matters, for hardware rendering?
+    for seg_id, seg in enumerate(p_segs):
+        is_stretchy = bool(seg.flags & 1)
+        map_start = seg.map_start
+        map_end = map_start+seg.smatsegs
+        for smatseg_id in p_maps[map_start:map_end]:
+            smatseg = p_smatsegs[smatseg_id]
+            if is_stretchy:
+                print(f"stretchy seg {seg_id}, smatseg {smatseg_id} has {smatseg.pgons} pgons")
+            else:
+                print(f"non-stretchy seg {seg_id} smatseg {smatseg_id} has {smatseg.pgons} pgons")
+
     # Find the origin point of every joint
     head_by_joint_id = {}
     tail_by_joint_id = {}
@@ -695,10 +709,6 @@ def do_import_mesh(context, bin_filename):
         map_start = seg.map_start
         map_end = map_start+seg.smatsegs
         print(f"  map_start: {map_start}, map_end: {map_end}")
-        # huh, it is zero, why is this trying to do all of them??
-        if seg.smatsegs==0:
-            foo = p_maps[map_start:map_end]
-            print(f"foo! {foo.offset:08x}, {foo.count}, len {len(foo)}")
         for smatseg_id in p_maps[map_start:map_end]:
             print(f"    smatseg {smatseg_id}")
             smatseg = p_smatsegs[smatseg_id]
@@ -725,6 +735,35 @@ def do_import_mesh(context, bin_filename):
             weight_colors.data[li].color = (w,w,w,1.0)
         else:
             weight_colors.data[li].color = (1.0,0.0,0.0,1.0)
+
+    # Smatr vertex groups
+    print("Smatr Vertex groups:")
+    for smatr_id, smatr in enumerate(p_smatrs):
+        group_name = f"Smatr{smatr_id}"
+        try:
+            group = mesh_obj.vertex_groups[group_name]
+        except KeyError:
+            group = mesh_obj.vertex_groups.new(name=group_name)
+        for i in range(smatr.verts):
+            vi = smatr.vert_start+i
+            group.add([vi], 1.0, 'REPLACE')
+
+    # Seg vertex groups
+    print("Seg Vertex groups:")
+    for seg_id, seg in enumerate(p_segs):
+        group_name = f"Seg{seg_id}"
+        try:
+            group = mesh_obj.vertex_groups[group_name]
+        except KeyError:
+            group = mesh_obj.vertex_groups.new(name=group_name)
+        map_start = seg.map_start
+        map_end = map_start+seg.smatsegs
+        print(f"  map_start: {map_start}, map_end: {map_end}")
+        for smatseg_id in p_maps[map_start:map_end]:
+            smatseg = p_smatsegs[smatseg_id]
+            for i in range(smatseg.verts):
+                vi = smatseg.vert_start+i
+                group.add([vi], 1.0, 'REPLACE')
 
     # SmatSmeg vertex groups
     print("SmatSmeg Vertex groups:")
