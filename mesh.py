@@ -998,7 +998,8 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     bone_lengths = {}
     for b in arm.bones:
         bone_head_pos[b.name] = Vector(arm_obj.location)+Vector(b.head_local)
-        bone_directions[b.name] = Vector(b.vector).normalized()
+        d = (Vector(b.tail_local)-Vector(b.head_local)).normalized()
+        bone_directions[b.name] = d
         bone_lengths[b.name] = b.length
 
     # okay, this is not good enough. we need to sort the vertices [by material,
