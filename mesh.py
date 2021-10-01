@@ -1304,14 +1304,14 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     limbs = [
         make_limb(0, 1, 'rmand', 'rmelbow', 'rtip'),
         make_limb(0, 1, 'lmand', 'lmelbow', 'ltip'),
-        make_limb(0, 1, 'r1shldr', 'r1elbow', 'r1wrist'),
-        make_limb(0, 1, 'r2shldr', 'r2elbow', 'r2wrist'),
-        make_limb(0, 1, 'r3shldr', 'r3elbow', 'r3wrist'),
-        make_limb(0, 1, 'r4shldr', 'r4elbow', 'r4wrist'),
-        make_limb(0, 1, 'l1shldr', 'l1elbow', 'l1wrist'),
-        make_limb(0, 1, 'l2shldr', 'l2elbow', 'l2wrist'),
-        make_limb(0, 1, 'l3shldr', 'l3elbow', 'l3wrist'),
-        make_limb(0, 1, 'l4shldr', 'l4elbow', 'l4wrist'),
+        make_limb(0, 1, 'r1shldr', 'r1elbow', 'r1wrist', 'r1finger'),
+        make_limb(0, 1, 'r2shldr', 'r2elbow', 'r2wrist', 'r2finger'),
+        make_limb(0, 1, 'r3shldr', 'r3elbow', 'r3wrist', 'r3finger'),
+        make_limb(0, 1, 'r4shldr', 'r4elbow', 'r4wrist', 'r4finger'),
+        make_limb(0, 1, 'l1shldr', 'l1elbow', 'l1wrist', 'l1finger'),
+        make_limb(0, 1, 'l2shldr', 'l2elbow', 'l2wrist', 'l2finger'),
+        make_limb(0, 1, 'l3shldr', 'l3elbow', 'l3wrist', 'l3finger'),
+        make_limb(0, 1, 'l4shldr', 'l4elbow', 'l4wrist', 'l4finger'),
         ]
     header = LGCALHeader((
         1,  # version
