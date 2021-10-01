@@ -234,10 +234,32 @@ class LGMMHeader(Struct):
             0,          # weight_off
             )
 
+def _to_signed16(u):
+    sign = -1 if (u&0x8000) else 1
+    return sign*(u&0x7fff)
+
+def _to_unsigned16(u):
+    sign = 0x8000 if u<0 else 0x000
+    return (int(abs(u))&0x7fff|sign)
+
+def pack_normal(v):
+    return (
+         ((_to_unsigned16(v[0]*16384.0)&0xFFC0)<<16)
+        |((_to_unsigned16(v[1]*16384.0)&0xFFC0)<<6)
+        |((_to_unsigned16(v[2]*16384.0)&0xFFC0)>>4)
+        )
+
+def unpack_normal(norm):
+    return (
+        _to_signed16((norm>>16)&0xFFC0)/16384.0,
+        _to_signed16((norm>>6)&0xFFC0)/16384.0,
+        _to_signed16((norm<<4)&0xFFC0)/16384.0,
+        )
+
 class LGMMUVNorm(Struct):
     u: float32
     v: float32
-    norm: uint32    # compacted normal
+    norm: uint32    # packed normal
 
     @classmethod
     def default_values(cls):
@@ -988,8 +1010,9 @@ def do_export_mesh(context, mesh_obj, bin_filename):
 
     arm_mod = [mod for mod in mesh_obj.modifiers if mod.type == 'ARMATURE'][0]
     arm_obj = arm_mod.object
-    mesh = mesh_obj.data
+    mesh = mesh_obj.data.copy()
     mesh.calc_loop_triangles()
+    mesh.calc_normals() # TODO: create_normals_split() and calc_normals_split()?
     vert_count = len(mesh.vertices)
     arm = arm_obj.data
     arm.pose_position = 'REST' # TODO: shouldnt change this and not set it back later!
@@ -1056,7 +1079,7 @@ def do_export_mesh(context, mesh_obj, bin_filename):
         LGMMUVNorm(values=(
             v.mesh_vert.co.x/16.0, # temporarily use worldspace vert coord as uvs
             v.mesh_vert.co.y/16.0,
-            0))
+            pack_normal(v.mesh_vert.normal)))
         for v in source_verts
         ]
 
