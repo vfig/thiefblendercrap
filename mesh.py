@@ -1013,6 +1013,8 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     mesh = mesh_obj.data.copy()
     mesh.calc_loop_triangles()
     mesh.calc_normals() # TODO: create_normals_split() and calc_normals_split()?
+    # NOTE: for the face, we dont need to handle split normals! we want flat shading
+    # for it, because the terrain it is standing in for has flat shading.
     vert_count = len(mesh.vertices)
     arm = arm_obj.data
     arm.pose_position = 'REST' # TODO: shouldnt change this and not set it back later!
@@ -1074,18 +1076,28 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     for i, v in enumerate(verts):
         print(f"  {i}: {v.x},{v.y},{v.z}", file=dumpf)
 
-    # TODO: use actual vertex uvs and normals!
-    uvnorms = [
-        LGMMUVNorm(values=(
-            v.mesh_vert.co.x/16.0, # temporarily use worldspace vert coord as uvs
-            v.mesh_vert.co.y/16.0,
-            pack_normal(v.mesh_vert.normal)))
-        for v in source_verts
-        ]
-
     vert_remap = [-1]*len(verts)
     for vi, source_vert in enumerate(source_verts):
         vert_remap[source_vert.mesh_vert_id] = source_vert.vert_id
+
+    # TODO: actually generate souce_verts from loops, not from mesh.vertices!
+    #       that will allow split normals, split uvs, and so on.
+    mesh_uvs = mesh.uv_layers[0].data
+    source_vert_uvs = [(0.0,0.0) for _ in source_verts]
+    for li, loop in enumerate(mesh.loops):
+        vi = vert_remap[loop.vertex_index]
+        if source_vert_uvs[vi] == (0.0,0.0):
+            source_vert_uvs[vi] = mesh_uvs[li].uv
+        else:
+            print(f"multiple uvs for vertex {loop.vertex_index}, not yet supported")
+    uvnorms = [
+        LGMMUVNorm(values=(
+            source_vert_uvs[vi][0],
+            source_vert_uvs[vi][1],
+            pack_normal(v.mesh_vert.normal)))
+        for vi, v in enumerate(source_verts)
+        ]
+
     pgons = []
     norms = []
     for i, tri in enumerate(mesh.loop_triangles):
