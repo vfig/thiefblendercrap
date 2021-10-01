@@ -1007,17 +1007,23 @@ def do_export_mesh(context, mesh_obj, bin_filename):
         'ltip',     # 37
         'rtip',     # 38
         ]
+    SPIDER_JOINT_INDICES = {name: j
+        for j, name in enumerate(SPIDER_JOINTS)}
 
     arm_mod = [mod for mod in mesh_obj.modifiers if mod.type == 'ARMATURE'][0]
     arm_obj = arm_mod.object
+    arm = arm_obj.data.copy()
+    arm.pose_position = 'REST'
     mesh = mesh_obj.data.copy()
     mesh.calc_loop_triangles()
-    mesh.calc_normals() # TODO: create_normals_split() and calc_normals_split()?
-    # NOTE: for the face, we dont need to handle split normals! we want flat shading
-    # for it, because the terrain it is standing in for has flat shading.
-    vert_count = len(mesh.vertices)
-    arm = arm_obj.data
-    arm.pose_position = 'REST' # TODO: shouldnt change this and not set it back later!
+    # TODO: smoothing amount?
+    mesh.calc_normals_split()
+
+    # TODO: verify that the armature matches the hardcoded skeleton!
+    #       (optionally omitting trailing chains of bones)
+
+    # TODO: do this as an array also, indexed by joint. We want to get
+    #       to joint_ids as soon as possible!
     bone_head_pos = {}
     bone_directions = {}
     bone_lengths = {}
@@ -1026,6 +1032,89 @@ def do_export_mesh(context, mesh_obj, bin_filename):
         d = (Vector(b.tail_local)-Vector(b.head_local)).normalized()
         bone_directions[b.name] = d
         bone_lengths[b.name] = b.length
+
+    vertex_group_joint_ids = [
+        SPIDER_JOINT_INDICES.get(g.name.lower(), 0)
+        for g in mesh_obj.vertex_groups]
+
+    # TODO: ensure one uv layer
+
+    # Vectors are all kinds of weird (only sometimes hashable), so
+    # just keep everything as tuples unless we are doing maths on it!
+
+    vertex_pos = []
+    vertex_normal = []
+    vertex_uv = []
+    vertex_joint_id = []
+    vertex_weight = []
+    vertex_tuples = {}
+    loop_vertex_id = []
+    for li, (loop, uvloop) in enumerate(zip(mesh.loops, mesh.uv_layers[0].data)):
+        mesh_vert = mesh.vertices[loop.vertex_index]
+        pos = tuple(mesh_vert.co)
+        normal = tuple(loop.normal)
+        uv = tuple(uvloop.uv)
+        # Split a vertex if it has multiple uvs or split normals.
+        tup = (loop.vertex_index, normal, uv)
+        vi = vertex_tuples.get(tup, -1)
+        if vi==-1:
+            vi = len(vertex_pos)
+            vertex_pos.append(pos)
+            vertex_normal.append(normal)
+            vertex_uv.append(uv)
+            vertex_tuples[tup] = vi
+            # Determine the joint for this vertex from its vertex groups.
+            group_count = len(mesh_vert.groups)
+            if group_count == 0:
+                joint_id = 0
+                weight = 1.0
+            elif group_count == 1:
+                g = mesh_vert.groups[0]
+                joint_id = vertex_group_joint_ids[g.group]
+                weight = g.weight # TODO: double-check if this is correct weight handling!
+            elif group_count == 2:
+                g0 = mesh_vert.groups[0]
+                g1 = mesh_vert.groups[1]
+                # TODO: only allow this if one group is the parent (with weight 1.0)
+                #       and the other is the child (with whatever weight); then this
+                #       will be a stretchy vertex!
+                raise NotImplementedError("Stretchy vertices not yet implemented")
+            else:
+                raise ValueError(f"Vertex {loop.vertex_index} is in more than 2 vertex groups")
+            vertex_joint_id.append(joint_id)
+            vertex_weight.append(weight)
+        loop_vertex_id.append(vi)
+
+    poly_vertex_ids = []
+    poly_material_id = []
+    poly_normal = []
+    poly_distance = []
+    for tri in mesh.loop_triangles:
+        vertex_ids = tuple(loop_vertex_id[li] for li in tri.loops)
+        material_id = tri.material_index # TODO: handle materials!
+        normal = tuple(tri.normal)
+        distance = tri.center.length
+        poly_vertex_ids.append(vertex_ids)
+        poly_material_id.append(material_id)
+        poly_normal.append(normal)
+        poly_distance.append(distance)
+
+    # From here on out, we are working with our arrays of data, and don't use
+    # any more Blender objects (except for Vectors that we construct).
+
+
+    print()
+    print("VERTICES:")
+    for vi, (pos, normal, uv, joint_id, weight) \
+    in enumerate(zip(vertex_pos, vertex_normal, vertex_uv, vertex_joint_id, vertex_weight)):
+        print(f"  {vi}: pos {pos}; normal {normal}; uv {uv}; joint_id {joint_id}; weight {weight}")
+    print("TRIANGLES:")
+    for pi, (vertex_ids, material_id, normal, distance) \
+    in enumerate(zip(poly_vertex_ids, poly_material_id, poly_normal, poly_distance)):
+        print(f"  {pi}: vertex_ids {vertex_ids}; material_id {material_id}; normal {normal}; distance {distance}")
+    print()
+
+    raise NotImplementedError("stop here")
 
     # okay, this is not good enough. we need to sort the vertices [by material,
     # once we stop hardcoding the material, then] by group, so that each
