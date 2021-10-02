@@ -1022,16 +1022,15 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     # TODO: verify that the armature matches the hardcoded skeleton!
     #       (optionally omitting trailing chains of bones)
 
-    # TODO: do this as an array also, indexed by joint. We want to get
-    #       to joint_ids as soon as possible!
-    bone_head_pos = {}
-    bone_directions = {}
-    bone_lengths = {}
+    bone_head_pos = [(0.0,0.0,0.0) for j in SPIDER_JOINTS]
+    bone_directions = [(1.0,0.0,0.0) for j in SPIDER_JOINTS]
+    bone_lengths = [(1.0,0.0,0.0) for j in SPIDER_JOINTS]
     for b in arm.bones:
-        bone_head_pos[b.name] = Vector(arm_obj.location)+Vector(b.head_local)
+        ji = SPIDER_JOINTS.index(n.name)
+        bone_head_pos[ji] = tuple(Vector(arm_obj.location)+Vector(b.head_local))
         d = (Vector(b.tail_local)-Vector(b.head_local)).normalized()
-        bone_directions[b.name] = d
-        bone_lengths[b.name] = b.length
+        bone_directions[ji] = tuple(d)
+        bone_lengths[ji] = b.length
 
     vertex_group_joint_ids = [
         SPIDER_JOINT_INDICES.get(g.name.lower(), 0)
@@ -1069,20 +1068,16 @@ def do_export_mesh(context, mesh_obj, bin_filename):
             # Gather vertex attributes.
             vertex_index = tri.vertices[i]
             mesh_vert = mesh_vertices[vertex_index]
-            pos = tuple(mesh_vert.co)
+            world_pos = tuple(mesh_vert.co)
             normal = tuple(tri.split_normals[i])
             uv = tuple(mesh_uvloops[ tri.loops[i] ].uv)
             material_id = tri.material_index # TODO: handle materials!
+
             # Split a vertex if it has multiple materials, uvs or split normals.
             tup = (vertex_index, uv, material_id, normal)
             uvi = vertex_tuples.get(tup, -1)
             if uvi==-1:
                 uvi = len(vertex_pos)
-                vertex_pos.append(pos)
-                vertex_normal.append(normal)
-                vertex_uv.append(uv)
-                vertex_material_id.append(material_id) # TODO: handle materials!
-                vertex_tuples[tup] = uvi
                 # Determine the joint for this vertex from its vertex groups.
                 group_count = len(mesh_vert.groups)
                 if group_count == 0:
@@ -1101,8 +1096,16 @@ def do_export_mesh(context, mesh_obj, bin_filename):
                     raise NotImplementedError("Stretchy vertices not yet implemented")
                 else:
                     raise ValueError(f"Vertex {vertex_index} is in more than 2 vertex groups")
+                # vertex positions must be relative to the bone they belong to.
+                # (TODO: confirm they are in local-world-space, not bone-space)
+                pos = Vector(world_pos)-Vector(bone_head_pos[ji])
+                vertex_pos.append(pos)
+                vertex_normal.append(normal)
+                vertex_uv.append(uv)
+                vertex_material_id.append(material_id) # TODO: handle materials!
                 vertex_joint_id.append(joint_id)
                 vertex_weight.append(weight)
+                vertex_tuples[tup] = uvi
             # Add this vertex to the polygon
             tri_vertex_ids.append(uvi)
         # Gather polygon attributes.
@@ -1163,6 +1166,23 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     for pi in range(len(poly_vertex_ids)):
         poly_vertex_ids[pi] = tuple(vi_from_uvi[uvi] for uvi in poly_vertex_ids[pi])
 
+    # Polygons need to be sorted by material, so that all pgons in a smatr are
+    # also contiguous.
+    # TODO: stretchy smatsegs also need to reference their pgons in a contiguous
+    #       group! this implies: no poly can be part of two stretchy smatsegs;
+    #       (although a stretchy joint can have multiple smatsegs; see mecsub03.bin
+    #       for an example where the neck and breathing tube are different materials
+    #       but both part of the stretchy neck segment). note however that you
+    #       _could_ allow polys to be in multiple stretchy smatsegs if you kept
+    #       subdividing them into more smatsegs until the polys were contiguous...
+    unsorted_poly_ids = list(range(len(poly_vertex_ids)))
+    temp = sorted(zip(poly_material_id, unsorted_poly_ids,
+        poly_vertex_ids, poly_normal, poly_distance))
+    (poly_material_id, unsorted_poly_ids,
+        poly_vertex_ids, poly_normal, poly_distance) = zip(*temp)
+
+    # TODO: more figuring out what needs to be done to properly output stretchy
+    #       smatsegs!
 
     # TEMP: test the grouping looks okay?
     vi = 0; vi_end = len(vertex_pos)
@@ -1200,59 +1220,15 @@ def do_export_mesh(context, mesh_obj, bin_filename):
 
     raise NotImplementedError("rewrite in progress up to here")
 
+    next up:
+        build verts etc arrays now from the data above.
 
-
-    # sort vertices by material and joint
-    class SourceVert:
-        def __init__(self, mesh_vert_id, mesh_vert):
-            self.mesh_vert_id = mesh_vert_id
-            self.mesh_vert = mesh_vert
-            self.vert_id = -1
-        @staticmethod
-        def sort_key(source_vert):
-            # TODO: insert real material sort key here
-            temp_mat_id = 0
-            # TODO: this will have to change when supporting stretchy segs (i.e. 2 groups)
-            group_id = source_vert.mesh_vert.groups[0].group
-            return (temp_mat_id, group_id)
-    source_verts = sorted([
-        SourceVert(mesh_vert_id, mesh_vert)
-        for mesh_vert_id, mesh_vert
-        in enumerate(mesh.vertices)
-        ], key=SourceVert.sort_key)
-    # update each source vert with its vert_id for the .bin
-    for vi, source_vert in enumerate(source_verts):
-        source_vert.vert_id = vi
-
-    # TODO: vert positions must be local to the head of the bone they belong to
-    verts = [
-        LGVector(values=(v.mesh_vert.co.x,v.mesh_vert.co.y,v.mesh_vert.co.z))
-        for v in source_verts
-        ]
-    print("VERTS:", file=dumpf)
-    for i, v in enumerate(verts):
-        print(f"  {i}: {v.x},{v.y},{v.z}", file=dumpf)
-
-    vert_remap = [-1]*len(verts)
-    for vi, source_vert in enumerate(source_verts):
-        vert_remap[source_vert.mesh_vert_id] = source_vert.vert_id
-
-    # TODO: actually generate souce_verts from loops, not from mesh.vertices!
-    #       that will allow split normals, split uvs, and so on.
-    mesh_uvs = mesh.uv_layers[0].data
-    source_vert_uvs = [(0.0,0.0) for _ in source_verts]
-    for li, loop in enumerate(mesh.loops):
-        vi = vert_remap[loop.vertex_index]
-        if source_vert_uvs[vi] == (0.0,0.0):
-            source_vert_uvs[vi] = mesh_uvs[li].uv
-        else:
-            print(f"multiple uvs for vertex {loop.vertex_index}, not yet supported")
     uvnorms = [
         LGMMUVNorm(values=(
-            source_vert_uvs[vi][0],
-            source_vert_uvs[vi][1],
-            pack_normal(v.mesh_vert.normal)))
-        for vi, v in enumerate(source_verts)
+            vertex_uv[vi][0],
+            vertex_uv[vi][1],
+            pack_normal(vertex_normal[vi])))
+        for vi, v in enumerate(vertex_pos)
         ]
 
     pgons = []
