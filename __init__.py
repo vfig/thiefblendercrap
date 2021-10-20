@@ -70,6 +70,13 @@ class TOOLS_PT_thieftools_debug(Panel):
         op = layout.operator("object.tt_debug_export_mesh")
         op.filename = "e:/dev/thief/blender/thieftools/test_data/face.bin"
 
+def thief_test_menu_func(self, context):
+    layout = self.layout
+    layout.separator()
+    #layout.operator("object.tt_add_armature", icon='OUTLINER_OB_ARMATURE')
+    layout.operator_menu_enum("object.tt_add_armature", "creature_type")
+    #self.layout.menu("OBJECT_MT_effector_submenu", text="Effector")
+
 #---------------------------------------------------------------------------#
 # Register and unregister
 
@@ -80,10 +87,14 @@ def register():
     bpy.utils.register_class(mesh.TTDebugImportMeshOperator)
     bpy.utils.register_class(mesh.TTDebugExportMeshOperator)
     bpy.utils.register_class(TOOLS_PT_thieftools_debug)
+    bpy.utils.register_class(mesh.TTAddArmatureOperator)
+    bpy.types.VIEW3D_MT_armature_add.append(thief_test_menu_func)
     print("thieftools: registered.");
 
 
 def unregister():
+    bpy.types.VIEW3D_MT_armature_add.remove(thief_test_menu_func)
+    bpy.utils.unregister_class(mesh.TTAddArmatureOperator)
     bpy.utils.unregister_class(TOOLS_PT_thieftools_debug)
     bpy.utils.unregister_class(mesh.TTDebugImportMeshOperator)
     bpy.utils.unregister_class(mesh.TTDebugExportMeshOperator)

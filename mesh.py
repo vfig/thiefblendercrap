@@ -10,7 +10,7 @@ import zlib
 
 from array import array
 from dataclasses import dataclass
-from bpy.props import IntProperty, PointerProperty, StringProperty
+from bpy.props import EnumProperty, IntProperty, PointerProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
@@ -477,9 +477,9 @@ def create_object(name, mesh, location, context=None, link=True):
         coll.objects.link(o)
     return o
 
-def create_armature(name, location, context=None, link=True):
+def create_armature(name, location, context=None, link=True, display_type='OCTAHEDRAL'):
     arm = bpy.data.armatures.new(name)
-    arm.display_type = 'WIRE'
+    arm.display_type = display_type
     o = bpy.data.objects.new(name, arm)
     o.location = location
     o.show_in_front = True
@@ -929,13 +929,14 @@ def do_import_mesh(context, bin_filename):
             group.add([vi], 1.0, 'REPLACE')
 
     # Create an armature for it
-    arm_obj = create_armature("Human", Vector((0,0,0)), context=context)
+    arm_obj = create_armature("Human", Vector((0,0,0)), context=context, display_type='WIRE')
     context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     edit_bones = arm_obj.data.edit_bones
     bones_by_joint_id = {}
     for j in sorted(head_by_joint_id.keys()):
         bone_name = HUMAN_JOINTS[j]
+        #print(j, bone_name, head_by_joint_id[j], tail_by_joint_id[j])
         b = edit_bones.new(bone_name)
         b.head = head_by_joint_id[j]
         b.tail = tail_by_joint_id[j]
@@ -1578,6 +1579,77 @@ def do_export_mesh(context, mesh_obj, bin_filename):
 
     print("done.")
 
+#---------------------------------------------------------------------------#
+# Armatures
+
+# TODO: derive the stock skeletons from the rest pose in the appropriate .cal!
+SKELETONS = {
+    "HUMANOID": [
+        # Joints, in order by id:
+        # (name, parent, connected, head_pos, tail_pos, limb_end)
+        ('LToe',    2,  True,   (0.8850,  0.2455, -3.3494), (1.1326,  0.2411, -3.3837), True),
+        ('RToe',    3,  True,   (0.8850, -0.3634, -3.3324), (1.1337, -0.3705, -3.3567), True),
+        ('LAnkle',  4,  True,   (0.1084,  0.2591, -3.2418), (0.8850,  0.2455, -3.3494), False),
+        ('RAnkle',  5,  True,   (0.0829, -0.3408, -3.2543), (0.8850, -0.3634, -3.3324), False),
+        ('LKnee',   6,  True,   (0.1879,  0.2705, -1.8117), (0.1084,  0.2591, -3.2418), False),
+        ('RKnee',   7,  True,   (0.2613, -0.3352, -1.7769), (0.0829, -0.3408, -3.2543), False),
+        ('LHip',    8,  False,  (0.2949,  0.2230, -0.6344), (0.1879,  0.2705, -1.8117), False),
+        ('RHip',    8,  False,  (0.2918, -0.3125, -0.5903), (0.2613, -0.3352, -1.7769), False),
+        ('Butt',    -1, False,  (0.0000,  0.0000,  0.0000), (1.0000,  0.0000,  0.0000), False),
+        ('Neck',    18, False,  (0.0857,  0.0978,  1.8273), (0.1427,  0.0557,  2.6658), False),
+        ('LShldr',  18, False,  (0.1972,  0.6303,  1.4434), (0.2240,  1.6486,  1.2859), False),
+        ('RShldr',  18, False,  (0.2763, -0.5833,  1.4711), (0.0265, -1.4890,  1.2865), False),
+        ('LElbow',  10, True,   (0.2240,  1.6486,  1.2859), (0.5747,  2.4200,  1.3434), False),
+        ('RElbow',  11, True,   (0.0265, -1.4890,  1.2865), (0.3633, -2.3835,  1.2135), False),
+        ('LWrist',  12, True,   (0.5747,  2.4200,  1.3434), (0.5149,  2.9273,  1.2002), False),
+        ('RWrist',  13, True,   (0.3633, -2.3835,  1.2135), (1.3068, -5.1926,  0.9632), False),
+        ('LFinger', 14, True,   (0.5149,  2.9273,  1.2002), (0.4867,  3.1664,  1.1328), True),
+        ('RFinger', 15, True,   (1.3068, -5.1926,  0.9632), (1.3861, -5.4287,  0.9421), True),
+        ('Abdomen', 8,  False,  (0.0906,  0.0414,  0.4875), (1.0906,  0.0414,  0.4875), False),
+        ('Head',    9,  True,   (0.1427,  0.0557,  2.6658), (0.1597,  0.0432,  2.9149), True),
+        ]
+    }
+
+def add_creature_armature(creature_type, context):
+    try:
+        skeleton = SKELETONS[creature_type]
+    except KeyError:
+        raise ValueError(f"Unsupported Creature Type '{creature_type}'")
+
+    arm_obj = create_armature("Armature", Vector((0,0,0)), context=context)
+    context.view_layer.objects.active = arm_obj
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    edit_bones = arm_obj.data.edit_bones
+    bones = {}
+    # store actual bone names (i.e. with ".001" suffix if added) to look up
+    # pose bones with:
+    bone_names = {}
+    def add_bone(j, name, pj, connected, head_pos, tail_pos, limb_end):
+        b = edit_bones.new(name)
+        b.head = head_pos
+        b.tail = tail_pos
+        b.use_deform = (not limb_end)
+        print(j, b)
+        bones[j] = b
+        bone_names[j] = b.name
+    def connect_bone(j, name, pj, connected, head_pos, tail_pos, limb_end):
+        b = bones[j]
+        if pj != -1:
+            b.use_connect = connected
+            b.parent = bones[pj]
+    def hide_bone(j, name, pj, connected, head_pos, tail_pos, limb_end):
+        print(arm_obj.data.items())
+        b = arm_obj.data.bones[bone_names[j]]
+        b.hide = limb_end
+
+    for j, args in enumerate(skeleton):
+        add_bone(j, *args)
+    for j, args in enumerate(skeleton):
+        connect_bone(j, *args)
+    bpy.ops.object.mode_set(mode='POSE')
+    for j, args in enumerate(skeleton):
+        hide_bone(j, *args)
+    bpy.ops.object.mode_set(mode='OBJECT')
 
 #---------------------------------------------------------------------------#
 # Operators
@@ -1619,4 +1691,45 @@ class TTDebugExportMeshOperator(Operator):
             return {'CANCELLED'}
 
         do_export_mesh(context, o, self.filename)
+        return {'FINISHED'}
+
+TT_CREATURE_TYPE_ENUM=[
+    ("HUMANOID", "Humanoid", ""),
+    ("PLAYER_ARM", "PlayerArm", ""),
+    ("PLAYER_BOWARM", "PlayerBowArm", ""),
+    ("BURRICK", "Burrick", ""),
+    ("SPIDER", "Spider", ""),
+    ("BUGBEAST", "BugBeast", ""),
+    ("CRAYMAN", "Crayman", ""),
+    ("CONSTANTINE", "Constantine", ""),
+    ("APPARITION", "Apparition", ""),
+    ("SWEEL", "Sweel", ""),
+    ("ROPE", "Rope", ""),
+    ("ZOMBIE", "Zombie", ""),
+    ("SMALL_SPIDER", "Small Spider", ""),
+    ("FROG", "Frog", ""),
+    ("CUTTY", "Cutty", ""),
+    ("AVATAR", "Avatar", ""),
+    ("ROBOT", "Robot (T2)", ""),
+    ("SMALL_ROBOT", "Small Robot (T2)", ""),
+    ("SPIDER_BOT", "Spider Bot (T2)", ""),
+    ]
+
+class TTAddArmatureOperator(Operator):
+    bl_idname = "object.tt_add_armature"
+    bl_label = "Thief Armature"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    creature_type : EnumProperty(
+        items=TT_CREATURE_TYPE_ENUM,
+        name="Creature Type",
+        default=TT_CREATURE_TYPE_ENUM[0][0] )
+
+    def execute(self, context):
+        if context.mode != "OBJECT":
+            self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
+            return {'CANCELLED'}
+
+        print(f"You chose {self.creature_type}!")
+        add_creature_armature(self.creature_type, context)
         return {'FINISHED'}
