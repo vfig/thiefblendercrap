@@ -296,7 +296,7 @@ class LGMMSMatrV1(Struct):
     pgon_start: uint16
     verts: uint16
     vert_start: uint16
-    weight_start: uint16 # number of weights = num vertices in segment
+    weight_start: uint16    # number of weights = num vertices in segment
     pad: uint16
     # For forward compatibility with V2:
     @property
@@ -328,24 +328,24 @@ class LGMMSMatrV1(Struct):
 
 class LGMMSMatrV2(Struct):
     name: bytes16
-    caps: uint32
-    alpha: float32
-    self_illum: float32
-    for_rent: uint32
-    handle: uint32
+    caps: uint32            # 1 = use alpha; 2 = use self_illum
+    alpha: float32          # 0.0 = transparent; 1.0 = opaque
+    self_illum: float32     # 0.0 = none; 1.0 = full self-illumination
+    for_rent: uint32        # junk
+    handle: uint32          # zero on disk
     # union:
     uv: float32
     # ipal: uint32
-    mat_type: uint8     # 0 = texture, 1 = virtual color
-    smatsegs: uint8
-    map_start: uint8
-    flags: uint8
-    pgons: uint16       # from here, only for material order
-    pgon_start: uint16
-    verts: uint16
-    vert_start: uint16
-    weight_start: uint16 # number of weights = num vertices in segment
-    pad: uint16
+    mat_type: uint8         # 0 = texture, 1 = virtual color
+    smatsegs: uint8         # count of smatsegs with this material
+    map_start: uint8        # index of first smatseg_id in mappings
+    flags: uint8            # zero
+    pgons: uint16           # count of pgons with this material
+    pgon_start: uint16      # index of first pgon with this material
+    verts: uint16           # zero
+    vert_start: uint16      # zero
+    weight_start: uint16    # zero
+    pad: uint16             # junk
 
     @classmethod
     def default_values(cls):
@@ -370,17 +370,17 @@ class LGMMSMatrV2(Struct):
             )
 
 class LGMMSegment(Struct):
-    bbox: uint32
+    bbox: uint32            # always zero
     joint_id: uint8
-    smatsegs: uint8 # number of smatsegs in segment
-    map_start: uint8
-    flags: uint8        # 1 = stretchy segment
-    pgons: uint16       # from here, only for segment order
-    pgon_start: uint16
-    verts: uint16
-    vert_start: uint16
-    weight_start: uint16 # number of weights = num vertices in segment
-    pad: uint16
+    smatsegs: uint8         # count of smatsegs in segment
+    map_start: uint8        # index in map of first smatseg_id
+    flags: uint8            # 1 = stretchy segment
+    pgons: uint16           # always zero (material-ordered .bin)
+    pgon_start: uint16      #   "
+    verts: uint16           #   "
+    vert_start: uint16      #   "
+    weight_start: uint16    #   "
+    pad: uint16             # junk
 
     @classmethod
     def default_values(cls):
@@ -860,6 +860,17 @@ def do_import_mesh(context, bin_filename):
                 # weights for _two_ different bones, right? but not
                 # in this format! each smatseg belongs to _one_ segment,
                 # i.e. one joint. so what delimits this?
+                # from the code it looks like the parent bone transform
+                # gets applied, then the child bone transform gets applied
+                # _with weighting_. in blender weight terms, i am not sure
+                # if this should be interpreted as vertex weights:
+                #     parent bone: 1.0
+                #     child bone: weight
+                # or as vertex weights:
+                #     parent bone: 1.0-weight
+                #     child bone: weight
+                # TODO: compare extreme poses in game and in blender to
+                # compare how each strategy places the stretchy vertices.
                 if is_stretchy:
                     wi = smatseg.weight_start+i
                     print(f"      weight {wi}")
@@ -931,12 +942,19 @@ def do_import_mesh(context, bin_filename):
         # TODO -- roll is all set to zero, but some of the bones are
         # getting created _not_ actually flat in world space??
         # BUT: check if that matches the imported skeleton anyway? with motions
-        # etc, and see if they seem to match e.g. sword roll angle
-        # ...maybe .align_roll()?
+        # etc, and see if they seem to match e.g. sword roll angle.
+        # may need to use .align_roll()?
+        # TODO: check extreme poses in game versus in blender to see if
+        # a difference in roll is visible.
         b.roll = 0.0
         bones_by_joint_id[j] = b
         # TODO -- should we not create bones for FINGER, TOE?? they dont get
-        # their own transforms... or do they??
+        # their own transforms... (i dont think - can experiment with that
+        # when doing motion export). BUT they can be used as anchor points for
+        # detailattachements and so on, so their positions are important!
+        # SO: should create bones for them regardless (so that their
+        # positions are clear), but they need to be non-deform bones. also
+        # might want to change the appearance of them?
     for j in sorted(head_by_joint_id.keys()):
         bone_name = HUMAN_JOINTS[j]
         b = edit_bones[bone_name]
@@ -1026,7 +1044,7 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     bone_directions = [(1.0,0.0,0.0) for j in SPIDER_JOINTS]
     bone_lengths = [(1.0,0.0,0.0) for j in SPIDER_JOINTS]
     for b in arm.bones:
-        ji = SPIDER_JOINTS.index(n.name)
+        ji = SPIDER_JOINTS.index(b.name)
         bone_head_pos[ji] = tuple(Vector(arm_obj.location)+Vector(b.head_local))
         d = (Vector(b.tail_local)-Vector(b.head_local)).normalized()
         bone_directions[ji] = tuple(d)
@@ -1184,6 +1202,9 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     # TODO: more figuring out what needs to be done to properly output stretchy
     #       smatsegs!
 
+    # TODO: could compact the normals table here, to eliminate duplicates.
+    #       probably only a tiny space savings though.
+
     # TEMP: test the grouping looks okay?
     vi = 0; vi_end = len(vertex_pos)
     pi = 0; pi_end = len(poly_vertex_ids)
@@ -1218,34 +1239,42 @@ def do_export_mesh(context, mesh_obj, bin_filename):
     print(file=dumpf)
     dumpf.flush()
 
-    raise NotImplementedError("rewrite in progress up to here")
+    # From here we build up the file-specific data formats.
 
-    next up:
-        build verts etc arrays now from the data above.
-
+    vert_count = len(vertex_pos)
+    pgon_count = len(poly_vertex_ids)
+    verts = [
+        LGVector(vertex_pos[vi])
+        for vi in range(vert_count)
+        ]
     uvnorms = [
         LGMMUVNorm(values=(
             vertex_uv[vi][0],
             vertex_uv[vi][1],
             pack_normal(vertex_normal[vi])))
-        for vi, v in enumerate(vertex_pos)
+        for vi in range(vert_count)
+        ]
+    pgons = [
+        LGMMPolygon(values=(
+            poly_vertex_ids[pi],
+            poly_material_id[pi],
+            poly_distance[pi],
+            pi,
+            0))
+        for pi in range(pgon_count)
+        ]
+    norms = [
+        LGVector(poly_normal[pi])
+        for pi in range(pgon_count)
         ]
 
-    pgons = []
-    norms = []
-    for i, tri in enumerate(mesh.loop_triangles):
-        pgon = LGMMPolygon()
-        pgon.vert = Array(uint16, 3)([
-            vert_remap[mesh.loops[tri.loops[0]].vertex_index],
-            vert_remap[mesh.loops[tri.loops[1]].vertex_index],
-            vert_remap[mesh.loops[tri.loops[2]].vertex_index],
-            ])
-        pgon.smatr_id = uint16(0) # TODO: multiple materials
-        pgon.d = float32(Vector(tri.center).length)
-        pgon.norm = uint16(i)
-        pgons.append(pgon)
-        norm = LGVector(values=tri.normal)
-        norms.append(norm)
+    print("VERTS:", file=dumpf)
+    for i, v in enumerate(verts):
+        print(f"  {i}: {v.x},{v.y},{v.z}", file=dumpf)
+
+    print("UVNORMS:", file=dumpf)
+    for i, uvn in enumerate(uvnorms):
+        print(f"  {i}: {uvn.u},{uvn.v},{uvn.norm:08x}", file=dumpf)
 
     print("NORMS:", file=dumpf)
     for i, n in enumerate(norms):
@@ -1260,6 +1289,59 @@ def do_export_mesh(context, mesh_obj, bin_filename):
         print(f"    smatr_id: {p.smatr_id}", file=dumpf)
         print(f"    d: {p.d}", file=dumpf)
         print(f"    norm: {p.norm}", file=dumpf)
+
+    raise NotImplementedError("rewrite in progress up to here")
+
+    # HERE: ...
+
+    # TEMP: test the grouping looks okay?
+    smatsegs = []
+    grouped_vis = itertools.groupby(range(vert_count),
+        key=lambda vi: (vertex_material_id[vi], vertex_joint_id[vi]))
+    for (mi, ji), group in grouped_vis:
+        smatseg_id = len(smatsegs)
+
+        smatseg = LGMMSmatSeg()
+        smatseg.pgons = uint16(0)
+        smatseg.pgon_start = uint16(0)
+        smatseg.verts = uint16(len(smatseg_source_verts))
+        smatseg.vert_start = uint16(smatseg_source_verts[0].vert_id)
+        smatseg.weight_start = uint16(0) # TODO: smatsegs of stretchy segs need weights
+        smatseg.smatr_id = uint16(0) # TODO: do materials
+        smatseg.seg_id = uint16(smatseg_id) # TODO: if there are multiple materials, or
+
+
+    mi = 0
+    ji = 0
+    while True:
+        print(f"smatsmeg {smatseg_id}:", file=dumpf)
+        print(f"  start at vi {vi}, pi {pi}", file=dumpf)
+        # Advance to the next change in vertex material/joint:
+        while (vi<vi_end
+        and vertex_material_id[vi]==mi
+        and vertex_joint_id[vi]==ji):
+            vi += 1
+
+        # Advance to the next change in polygon material/joint:
+        # TODO: need to sort polys by material (and joint??) first!
+        # while (pi<pi_end
+        # and poly_material_id[vi]==mi
+        # and poly_joint_id[vi]==ji):
+        #     vi += 1
+        # TODO: rather than this weird awkward doublestep, maybe we
+        # could store poly indices with the verts? that way the polys would
+        # get the right sorting order too?? unsure.
+        print(f"    end at vi {vi}, pi {pi}", file=dumpf)
+        if vi==vi_end: break
+        # Next smatseg begins with the next material/joint
+        mi = vertex_material_id[vi]
+        ji = vertex_joint_id[vi]
+        smatseg_id += 1
+        if smatseg_id>10000: raise RuntimeError("Whoa boy, you screwed up!")
+    print(file=dumpf)
+    dumpf.flush()
+
+
 
     smatsegs = []
     for smatseg_id, (sort_key, smatseg_source_verts) \
