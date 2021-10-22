@@ -536,6 +536,7 @@ def dump_cal(cal_filename):
         for j, pt in parts:
             assert j not in head_by_joint_id, f"joint {j} already in head list!"
             head_by_joint_id[j] = vec_add(root, pt)
+
     for limb in p_limbs:
         j = limb.joint_id[0]
         assert j in head_by_joint_id, f"joint {j} not found in head list!"
@@ -561,10 +562,26 @@ def dump_cal(cal_filename):
             pj = j
 
     parent_joint_ids = set(parent_by_joint_id.values())
-    for j, _ in enumerate(head_by_joint_id):
+    for j in head_by_joint_id.keys():
         is_limb_end_by_joint_id[j] = (j not in parent_joint_ids)
 
-    assert sorted(head_by_joint_id.keys())==sorted(tail_by_joint_id.keys())
+    # some .cals have torso fixed points without limb definitions. (Apparition
+    # 'toe' joint is like this). So add in default values for each.
+    for torso in p_torsos:
+        k = torso.fixed_points
+        for j in torso.joint_id[:k]:
+            if j not in tail_by_joint_id:
+                head = head_by_joint_id[j]
+                tail_by_joint_id[j] = vec_add(head, (1,0,0))
+                parent_by_joint_id[j] = torso.joint
+                is_connected_by_joint_id[j] = False
+                is_limb_end_by_joint_id[j] = True
+
+    joint_ids = sorted(head_by_joint_id.keys())
+    assert sorted(tail_by_joint_id.keys())==joint_ids
+    assert sorted(parent_by_joint_id.keys())==joint_ids
+    assert sorted(is_connected_by_joint_id.keys())==joint_ids
+    assert sorted(is_limb_end_by_joint_id.keys())==joint_ids
 
     bones_by_joint_id = {}
     for j in sorted(head_by_joint_id.keys()):
