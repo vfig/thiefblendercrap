@@ -74,7 +74,7 @@ def thief_test_menu_func(self, context):
     layout = self.layout
     layout.separator()
     #layout.operator("object.tt_add_armature", icon='OUTLINER_OB_ARMATURE')
-    layout.operator_menu_enum("object.tt_add_armature", "creature_type")
+    layout.operator_menu_enum("object.tt_add_armature", "skeleton_type")
     #self.layout.menu("OBJECT_MT_effector_submenu", text="Effector")
 
 #---------------------------------------------------------------------------#

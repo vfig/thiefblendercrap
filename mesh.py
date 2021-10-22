@@ -1582,12 +1582,73 @@ def do_export_mesh(context, mesh_obj, bin_filename):
 #---------------------------------------------------------------------------#
 # Armatures
 
-# TODO: derive the stock skeletons from the rest pose in the appropriate .cal!
+TT_CREATURE_TYPE_ENUM=[
+    ("CR_HUMANOID", "Humanoid", ""),
+    ("CR_PLAYER_ARM", "PlayerArm", ""),
+    ("CR_PLAYER_BOWARM", "PlayerBowArm", ""),
+    ("CR_BURRICK", "Burrick", ""),
+    ("CR_SPIDER", "Spider", ""),
+    ("CR_BUGBEAST", "BugBeast", ""),
+    ("CR_CRAYMAN", "Crayman", ""),
+    ("CR_CONSTANTINE", "Constantine", ""),
+    ("CR_APPARITION", "Apparition", ""),
+    ("CR_SWEEL", "Sweel", ""),
+    ("CR_ROPE", "Rope", ""),
+    ("CR_ZOMBIE", "Zombie", ""),
+    ("CR_SMALL_SPIDER", "Small Spider", ""),
+    ("CR_FROG", "Frog", ""),
+    ("CR_CUTTY", "Cutty", ""),
+    ("CR_AVATAR", "Avatar", ""),
+    ("CR_ROBOT", "Robot (T2)", ""),
+    ("CR_SMALL_ROBOT", "Small Robot (T2)", ""),
+    ("CR_SPIDER_BOT", "Spider Bot (T2)", ""),
+    ]
+
+TT_SKELETON_TYPE_ENUM=[
+    ("SK_HUMANOID", "Humanoid", ""),
+    ("SK_PLAYER_ARM", "PlayerArm", ""),
+    ("SK_PLAYER_BOWARM", "PlayerBowArm", ""),
+    ("SK_BURRICK", "Burrick/Frog", ""),
+    ("SK_SPIDER", "Spider", ""),
+    ("SK_BUGBEAST", "BugBeast", ""),
+    ("SK_CRAYMAN", "Crayman", ""),
+    ("SK_CONSTANTINE", "Constantine", ""),
+    ("SK_APPARITION", "Apparition", ""),
+    ("SK_SWEEL", "Sweel", ""),
+    ("SK_ROPE", "Rope", ""),
+    ("SK_ROBOT", "Robot (T2)", ""),
+    ("SK_SPIDER_BOT", "Spider Bot (T2)", ""),
+    ]
+
+CREATURE_TYPE_SKELETONS = {
+    # Many creature types share their skeleton topology with others. This
+    # lookup table maps the creature type enum to the skeleton type enum.
+    "CR_HUMANOID": "SK_HUMANOID",
+    "CR_PLAYER_ARM": "SK_PLAYER_ARM",
+    "CR_PLAYER_BOWARM": "SK_PLAYER_BOWARM",
+    "CR_BURRICK": "SK_BURRICK",
+    "CR_SPIDER": "SK_SPIDER",
+    "CR_BUGBEAST": "SK_BUGBEAST",
+    "CR_CRAYMAN": "SK_CRAYMAN",
+    "CR_CONSTANTINE": "SK_CONSTANTINE",
+    "CR_APPARITION": "SK_APPARITION",
+    "CR_SWEEL": "SK_SWEEL",
+    "CR_ROPE": "SK_ROPE",
+    "CR_ZOMBIE": "SK_HUMANOID",
+    "CR_SMALL_SPIDER": "SK_SPIDER",
+    "CR_FROG": "SK_BURRICK",
+    "CR_CUTTY": "SK_HUMANOID",
+    "CR_AVATAR": "SK_HUMANOID",
+    "CR_ROBOT": "SK_ROBOT",
+    "CR_SMALL_ROBOT": "SK_ROBOT",
+    "CR_SPIDER_BOT": "SK_SPIDER_BOT",
+    }
+
 SKELETONS = {
     # Joints, in order by id:
     # (name, parent, connected, head_pos, tail_pos, limb_end)
 
-    "HUMANOID": [
+    "SK_HUMANOID": [
         ('LToe',     2, True,  ( 0.884971, 0.245466,-3.349379), ( 1.132570, 0.241114,-3.383671), True),
         ('RToe',     3, True,  ( 0.884971,-0.363442,-3.332439), ( 1.133693,-0.370478,-3.356683), True),
         ('LAnkle',   4, True,  ( 0.108441, 0.259114,-3.241831), ( 0.884971, 0.245466,-3.349379), False),
@@ -1610,7 +1671,7 @@ SKELETONS = {
         ('Head',     9, True,  ( 0.142746, 0.055724, 2.665782), ( 0.159690, 0.043230, 2.914894), True),
         ],
 
-    "PLAYER_ARM": [
+    "SK_PLAYER_ARM": [
         ('Butt',   -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ('Shldr',   0, False, ( 0.276273,-0.583319, 1.471145), ( 0.026511,-1.489041, 1.286486), False),
         ('Elbow',   1, True,  ( 0.026511,-1.489041, 1.286486), ( 0.363334,-2.383466, 1.213473), False),
@@ -1618,7 +1679,7 @@ SKELETONS = {
         ('Finger',  3, True,  (-0.441815,-4.966849, 3.078860), (-0.503060,-5.163358, 3.220753), True),
         ],
 
-    "PLAYER_BOWARM": [
+    "SK_PLAYER_BOWARM": [
         ('Butt',   -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ('Shldr',   0, False, ( 0.483372, 0.705298, 1.615229), ( 1.483372, 0.705298, 1.615229), False),
         ('Elbow',   1, False, ( 0.250679, 1.844825, 1.438993), ( 1.250679, 1.844825, 1.438993), False),
@@ -1629,7 +1690,7 @@ SKELETONS = {
         ('BotTom',  6, True,  ( 0.565506, 3.006636,-0.365237), ( 0.558349, 2.992394,-0.614728), True),
         ],
 
-    "BURRICK": [
+    "SK_BURRICK": [
         ('LToe', 2, True, (1.335589,0.972176,-3.005818), (1.569843,0.953108,-3.091031), True),
         ('RToe', 3, True, (1.349016,-1.180253,-2.989248), (1.584376,-1.171291,-3.073065), True),
         ('LAnkle', 4, True, (0.797779,1.015953,-2.810183), (1.335589,0.972176,-3.005818), False),
@@ -1653,7 +1714,8 @@ SKELETONS = {
         ('Tail', 8, False, (-4.658150,0.000000,-1.001281), (-3.658150,0.000000,-1.001281), True),
         ],
 
-    "SPIDER": [
+    # Yes, the spider skeleton faces backwards. Deal with it.
+    "SK_SPIDER": [
         ('Base', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
         ('LMand', 0, False, (-0.598144,-0.189434,-0.134901), (-0.752332,-0.252489,-0.005184), False),
         ('LMElbow', 1, True, (-0.752332,-0.252489,-0.005184), (-0.945764,-0.099278,-0.167966), False),
@@ -1695,7 +1757,7 @@ SKELETONS = {
         ('RTip', 4, True, (-0.953029,0.090079,-0.167966), (-1.116090,-0.047048,-0.298760), True),
         ],
 
-    "BUGBEAST": [
+    "SK_BUGBEAST": [
         ('LToe',     2, True,  ( 1.170711, 0.518669,-3.742350), ( 1.417519, 0.520483,-3.782134), True),
         ('RToe',     3, True,  ( 1.180363,-0.434027,-3.739797), ( 1.427355,-0.429722,-3.778223), True),
         ('LAnkle',   4, True,  ( 0.326978, 0.512466,-3.606343), ( 1.170711, 0.518669,-3.742350), False),
@@ -1723,7 +1785,7 @@ SKELETONS = {
     # TODO: when importing/creating CRAYMAN armatures, special-case the left shoulder/elbow/wrist
     #       so the bones are connected as per usual; but when exporting, recognise the topology
     #       from the pincher fork, and make sure to export the correct torsos vs limbs.
-    "CRAYMAN": [
+    "SK_CRAYMAN": [
         ('LToe',      2, True,  ( 1.017140, 0.450631,-3.251434), ( 1.263947, 0.452445,-3.291219), True),
         ('RToe',      3, True,  ( 1.025526,-0.377092,-3.249217), ( 1.272518,-0.372787,-3.287643), True),
         ('LAnkle',    4, True,  ( 0.284086, 0.445242,-3.133269), ( 1.017140, 0.450631,-3.251434), False),
@@ -1748,7 +1810,7 @@ SKELETONS = {
         ('BTip',     20, True,  ( 0.714571, 4.804078, 0.584941), ( 0.747151, 5.035669, 0.496600), True),
         ],
 
-    "CONSTANTINE": [
+    "SK_CONSTANTINE": [
         ('LToe', 2, True, (1.061637,0.729181,-3.187923), (1.307049,0.749264,-3.231159), True),
         ('RToe', 3, True, (0.994403,-0.895230,-3.193205), (1.232736,-0.940769,-3.253401), True),
         ('LAnkle', 20, True, (0.198115,0.658517,-3.035788), (1.061637,0.729181,-3.187923), False),
@@ -1774,7 +1836,7 @@ SKELETONS = {
         ('Tail', 8, False, (-4.157607,0.016612,0.509623), (-3.157607,0.016612,0.509623), True),
         ],
 
-    "APPARITION": [
+    "SK_APPARITION": [
         ('Toe', 8, False, (-1.648353,0.000000,-3.563158), (-0.648353,0.000000,-3.563158), False),
         # TODO: apparition doesnt use joint ids 1-7 ! but this current skeleton definition needs them :(
         ('Dummy', 8, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), True),
@@ -1801,7 +1863,7 @@ SKELETONS = {
 
     # There's no .cal for the sweel, so these positions are just a best guess.
     # TODO: there *are* sweel motions, so maybe extract a possible rest pose from those?
-    "SWEEL": [
+    "SK_SWEEL": [
         ('Base', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
         ('Back', 0, False, (0.000000,0.000000,1.000000), (0.000000,0.000000,2.000000), False),
         ('Shoulder', 1, True, (0.000000,0.000000,2.000000), (0.000000,0.000000,3.000000), False),
@@ -1811,7 +1873,7 @@ SKELETONS = {
         ('Tip', 5, True, (-2.000000,0.000000,0.000000), (-2.250000,0.000000,0.000000), True),
         ],
 
-    "ROPE": [
+    "SK_ROPE": [
         ('Node_0', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
         ('Node_1', 0, False, (0.004206,0.000000,-1.009076), (-0.000000,-0.002121,-2.031790), False),
         ('Node_2', 1, True, (-0.000000,-0.002121,-2.031790), (-0.000000,-0.002121,-3.013595), False),
@@ -1823,125 +1885,7 @@ SKELETONS = {
         ('Node_8', 7, True, (-0.000372,-0.001032,-8.010067), (-0.001007,-0.001297,-8.260067), True),
         ],
 
-    # TODO: merge with HUMANOID
-    "ZOMBIE": [
-        ('LToe', 2, True, (0.935079,0.322488,-3.211668), (1.182213,0.344501,-3.242333), True),
-        ('RToe', 3, True, (0.893562,-0.400766,-3.195425), (1.141494,-0.423312,-3.218257), True),
-        ('LAnkle', 4, True, (0.103983,0.248461,-3.108542), (0.935079,0.322488,-3.211668), False),
-        ('RAnkle', 5, True, (0.079495,-0.326742,-3.120456), (0.893562,-0.400766,-3.195425), False),
-        ('LKnee', 6, True, (0.180130,0.259361,-1.737175), (0.103983,0.248461,-3.108542), False),
-        ('RKnee', 7, True, (0.250563,-0.321426,-1.703842), (0.079495,-0.326742,-3.120456), False),
-        ('LHip', 8, False, (0.282737,0.213869,-0.608307), (0.180130,0.259361,-1.737175), False),
-        ('RHip', 8, False, (0.279803,-0.299643,-0.565987), (0.250563,-0.321426,-1.703842), False),
-        ('Butt', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
-        ('Neck', 18, False, (0.082193,0.093755,1.752201), (0.136877,-0.025031,2.570484), False),
-        ('LShldr', 18, False, (0.414195,0.604360,1.384068), (0.214803,1.580805,1.233055), False),
-        ('RShldr', 18, False, (0.264915,-0.559335,1.410658), (0.025422,-1.427818,1.233591), False),
-        ('LElbow', 10, True, (0.214803,1.580805,1.233055), (0.551067,2.320523,1.288166), False),
-        ('RElbow', 11, True, (0.025422,-1.427818,1.233591), (0.348396,-2.285468,1.163580), False),
-        ('LWrist', 12, True, (0.551067,2.320523,1.288166), (0.675945,2.907196,1.200737), False),
-        ('RWrist', 13, True, (0.348396,-2.285468,1.163580), (0.541926,-2.833545,1.041128), False),
-        ('LFinger', 14, True, (0.675945,2.907196,1.200737), (0.727449,3.149161,1.164678), True),
-        ('RFinger', 15, True, (0.541926,-2.833545,1.041128), (0.623378,-3.064216,0.989591), True),
-        ('Abdomen', 8, False, (0.086863,0.039701,0.467493), (1.086863,0.039701,0.467493), False),
-        ('Head', 9, True, (0.136877,-0.025031,2.570484), (0.153374,-0.060867,2.817352), True),
-        ],
-
-    # TODO: merge with SPIDER
-    "SMALL_SPIDER": [
-        ('Base', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
-        ('LMand', 0, False, (-0.194652,-0.060155,-0.043805), (-0.244861,-0.080280,-0.001684), False),
-        ('LMElbow', 1, True, (-0.244861,-0.080280,-0.001684), (-0.307323,-0.030092,-0.054541), False),
-        ('RMand', 0, False, (-0.193301,0.062726,-0.042964), (-0.243280,0.086108,-0.001931), False),
-        ('RMElbow', 3, True, (-0.243280,0.086108,-0.001931), (-0.309252,0.031410,-0.054541), False),
-        ('R1Shldr', 0, False, (-0.115617,0.174778,0.001752), (-0.256934,0.375596,0.258687), False),
-        ('R1Elbow', 5, True, (-0.256934,0.375596,0.258687), (-0.515075,0.782223,0.049162), False),
-        ('R1Wrist', 6, True, (-0.515075,0.782223,0.049162), (-0.596854,0.959717,-0.360509), False),
-        ('R2Shldr', 0, False, (-0.047663,0.182787,0.001752), (-0.120007,0.417445,0.258687), False),
-        ('R2Elbow', 8, True, (-0.120007,0.417445,0.258687), (-0.239859,0.883941,0.049162), False),
-        ('R2Wrist', 9, True, (-0.239859,0.883941,0.049162), (-0.261831,1.113326,-0.360509), False),
-        ('R3Shldr', 0, False, (0.018523,0.188022,0.001752), (0.043248,0.428883,0.258687), False),
-        ('R3Elbow', 11, True, (0.043248,0.428883,0.258687), (0.044989,0.910624,0.049162), False),
-        ('R3Wrist', 12, True, (0.044989,0.910624,0.049162), (0.043528,1.122054,-0.360509), False),
-        ('R4Shldr', 0, False, (0.089543,0.184942,0.001752), (0.220665,0.386944,0.258687), False),
-        ('R4Elbow', 14, True, (0.220665,0.386944,0.258687), (0.365833,0.847701,0.049162), False),
-        ('R4Wrist', 15, True, (0.365833,0.847701,0.049162), (0.430898,1.053977,-0.360509), False),
-        ('L1Shldr', 0, False, (-0.115617,-0.177080,0.001752), (-0.256934,-0.377898,0.258687), False),
-        ('L1Elbow', 17, True, (-0.256934,-0.377898,0.258687), (-0.515075,-0.784525,0.049162), False),
-        ('L1Wrist', 18, True, (-0.515075,-0.784525,0.049162), (-0.613342,-1.011288,-0.360509), False),
-        ('L2Shldr', 0, False, (-0.047663,-0.185089,0.001752), (-0.120007,-0.419748,0.258687), False),
-        ('L2Elbow', 20, True, (-0.120007,-0.419748,0.258687), (-0.239859,-0.886243,0.049162), False),
-        ('L2Wrist', 21, True, (-0.239859,-0.886243,0.049162), (-0.257006,-1.098944,-0.360509), False),
-        ('L3Shldr', 0, False, (0.018523,-0.190325,0.001752), (0.043248,-0.431185,0.258687), False),
-        ('L3Elbow', 23, True, (0.043248,-0.431185,0.258687), (0.044989,-0.912926,0.049162), False),
-        ('L3Wrist', 24, True, (0.044989,-0.912926,0.049162), (0.042862,-1.118423,-0.360509), False),
-        ('L4Shldr', 0, False, (0.089543,-0.187244,0.001752), (0.220665,-0.389246,0.258687), False),
-        ('L4Elbow', 26, True, (0.220665,-0.389246,0.258687), (0.365833,-0.850003,0.049162), False),
-        ('L4Wrist', 27, True, (0.365833,-0.850003,0.049162), (0.428407,-1.048298,-0.360509), False),
-        ('R1Finger', 7, True, (-0.596854,0.959717,-0.360509), (-0.641896,1.057479,-0.586150), True),
-        ('R2Finger', 10, True, (-0.261831,1.113326,-0.360509), (-0.273517,1.235330,-0.578404), True),
-        ('R3Finger', 13, True, (0.043528,1.122054,-0.360509), (0.042735,1.236708,-0.582666), True),
-        ('R4Finger', 16, True, (0.430898,1.053977,-0.360509), (0.466009,1.165294,-0.581588), True),
-        ('L1Finger', 19, True, (-0.613342,-1.011288,-0.360509), (-0.664690,-1.129778,-0.574574), True),
-        ('L2Finger', 22, True, (-0.257006,-1.098944,-0.360509), (-0.266286,-1.214063,-0.582233), True),
-        ('L3Finger', 25, True, (0.042862,-1.118423,-0.360509), (0.041701,-1.230514,-0.583969), True),
-        ('L4Finger', 28, True, (0.428407,-1.048298,-0.360509), (0.462457,-1.156203,-0.583437), True),
-        ('LTip', 2, True, (-0.307323,-0.030092,-0.054541), (-0.470000,0.100617,-0.192205), True),
-        ('RTip', 4, True, (-0.309252,0.031410,-0.054541), (-0.473267,-0.104576,-0.185336), True),
-        ],
-
-    # TODO: merge with BURRICK
-    "FROG": [
-        ('LToe', 2, True, (0.378453,0.275477,-0.851730), (0.612707,0.256408,-0.936944), True),
-        ('RToe', 3, True, (0.382258,-0.334437,-0.847035), (0.617618,-0.325476,-0.930853), True),
-        ('LAnkle', 4, True, (0.226059,0.287881,-0.796295), (0.378453,0.275477,-0.851730), False),
-        ('RAnkle', 5, True, (0.196966,-0.341492,-0.781047), (0.382258,-0.334437,-0.847035), False),
-        ('LKnee', 6, True, (0.322197,0.264945,-0.381022), (0.226059,0.287881,-0.796295), False),
-        ('RKnee', 7, True, (0.266464,-0.329761,-0.346667), (0.196966,-0.341492,-0.781047), False),
-        ('LHip', 8, False, (0.165430,0.203643,-0.091792), (0.322197,0.264945,-0.381022), False),
-        ('RHip', 8, False, (0.096097,-0.266501,-0.042480), (0.266464,-0.329761,-0.346667), False),
-        ('Butt', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
-        ('Neck', 18, False, (0.681372,0.018598,0.079116), (1.457583,-0.007542,0.365093), False),
-        ('LShldr', 18, False, (0.578048,0.166082,-0.035857), (0.535669,0.247205,-0.294291), False),
-        ('RShldr', 18, False, (0.569139,-0.135317,0.006070), (0.512768,-0.317255,-0.189417), False),
-        ('LElbow', 10, True, (0.535669,0.247205,-0.294291), (0.673150,0.136649,-0.219067), False),
-        ('RElbow', 11, True, (0.512768,-0.317255,-0.189417), (0.693010,-0.205419,-0.189114), False),
-        ('LWrist', 12, True, (0.673150,0.136649,-0.219067), (0.822563,-0.011196,-0.254306), False),
-        ('RWrist', 13, True, (0.693010,-0.205419,-0.189114), (0.850867,-0.167598,-0.296089), False),
-        ('LFinger', 14, True, (0.822563,-0.011196,-0.254306), (0.997824,-0.184618,-0.295641), True),
-        ('RFinger', 15, True, (0.850867,-0.167598,-0.296089), (1.053868,-0.118960,-0.433658), True),
-        ('Abdomen', 8, False, (0.257191,0.007464,0.090013), (1.257191,0.007464,0.090013), False),
-        ('Head', 9, True, (1.457583,-0.007542,0.365093), (1.692051,-0.015438,0.451477), True),
-        ('Tail', 8, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), True),
-        ],
-
-    # TODO: merge with HUMANOID
-    "CUTTY": [
-        ('LToe', 2, True, (0.985982,0.255872,-3.125115), (1.234358,0.259832,-3.153284), True),
-        ('RToe', 3, True, (0.991246,-0.389966,-3.109309), (1.239688,-0.409548,-3.129140), True),
-        ('LAnkle', 4, True, (0.101181,0.241765,-3.024767), (0.985982,0.255872,-3.125115), False),
-        ('RAnkle', 5, True, (0.077351,-0.317936,-3.036361), (0.991246,-0.389966,-3.109309), False),
-        ('LKnee', 6, True, (0.175275,0.252371,-1.690359), (0.101181,0.241765,-3.024767), False),
-        ('RKnee', 7, True, (0.243810,-0.312764,-1.657924), (0.077351,-0.317936,-3.036361), False),
-        ('LHip', 8, False, (0.275117,0.208105,-0.591912), (0.175275,0.252371,-1.690359), False),
-        ('RHip', 8, False, (0.272262,-0.291568,-0.550734), (0.243810,-0.312764,-1.657924), False),
-        ('Butt', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
-        ('Neck', 18, False, (0.079978,0.091229,1.704981), (0.240219,-0.016559,2.583091), False),
-        ('LShldr', 18, False, (0.297153,0.593310,1.346768), (0.209014,1.538203,1.199824), False),
-        ('RShldr', 18, False, (0.257775,-0.544262,1.372642), (0.024736,-1.389339,1.200346), False),
-        ('LElbow', 10, True, (0.209014,1.538203,1.199824), (0.536215,2.257986,1.253451), False),
-        ('RElbow', 11, True, (0.024736,-1.389339,1.200346), (0.339006,-2.223876,1.132223), False),
-        ('LWrist', 12, True, (0.536215,2.257986,1.253451), (0.596936,2.828849,1.168378), False),
-        ('RWrist', 13, True, (0.339006,-2.223876,1.132223), (0.378735,-2.777946,1.050287), False),
-        ('LFinger', 14, True, (0.596936,2.828849,1.168378), (0.623092,3.074761,1.131731), True),
-        ('RFinger', 15, True, (0.378735,-2.777946,1.050287), (0.396423,-3.024637,1.013806), True),
-        ('Abdomen', 8, False, (0.084522,0.038631,0.454895), (1.084522,0.038631,0.454895), False),
-        ('Head', 9, True, (0.240219,-0.016559,2.583091), (0.284775,-0.046531,2.827256), True),
-        ],
-
-    # TODO: "AVATAR": - exact same skeleton definition as HUMANOID
-
-    "ROBOT": [
+    "SK_ROBOT": [
         ('LToe', 2, True, (0.839878,1.231792,-3.288423), (1.023777,1.207722,-3.456060), True),
         ('RToe', 3, True, (0.946882,-1.287747,-3.284290), (1.136831,-1.268632,-3.445703), True),
         ('LAnkle', 4, True, (-0.878642,1.456727,-1.721873), (0.839878,1.231792,-3.288423), False),
@@ -1962,29 +1906,7 @@ SKELETONS = {
         ('Head', 10, True, (-0.021752,0.015703,4.358021), (-0.021752,0.015703,4.608021), True),
         ],
 
-    # TODO: merge with ROBOT
-    "SMALL_ROBOT": [
-        ('LToe', 2, True, (0.476817,0.699314,-1.866906), (0.660715,0.675244,-2.034542), True),
-        ('RToe', 3, True, (0.537565,-0.731081,-1.864560), (0.727514,-0.711966,-2.025972), True),
-        ('LAnkle', 4, True, (-0.498823,0.827014,-0.977543), (0.476817,0.699314,-1.866906), False),
-        ('RAnkle', 5, True, (-0.499128,-0.835406,-0.983612), (0.537565,-0.731081,-1.864560), False),
-        ('LKnee', 6, True, (0.354642,0.823023,-0.439074), (-0.498823,0.827014,-0.977543), False),
-        ('RKnee', 7, True, (0.319929,-0.825947,-0.455852), (-0.499128,-0.835406,-0.983612), False),
-        ('LHip', 8, False, (-0.004519,0.828782,-0.002925), (0.354642,0.823023,-0.439074), False),
-        ('RHip', 8, False, (-0.002303,-0.836902,-0.007839), (0.319929,-0.825947,-0.455852), False),
-        ('Butt', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
-        ('Abdomen', 8, False, (-0.005956,0.000313,0.312757), (0.994044,0.000313,0.312757), False),
-        ('Neck', 9, False, (-0.012349,0.008915,1.390192), (-0.012349,0.008915,2.474140), False),
-        ('LShldr', 9, False, (-0.012606,1.123650,1.393570), (-0.408129,1.116248,0.740330), False),
-        ('RShldr', 9, False, (-0.011077,-1.068525,1.389876), (-0.383962,-1.066514,0.710383), False),
-        ('LElbow', 11, True, (-0.408129,1.116248,0.740330), (1.160934,1.122930,0.724554), False),
-        ('RElbow', 12, True, (-0.383962,-1.066514,0.710383), (1.136699,-1.081512,0.727830), False),
-        ('LWrist', 13, True, (1.160934,1.122930,0.724554), (1.410919,1.123994,0.722040), True),
-        ('RWrist', 14, True, (1.136699,-1.081512,0.727830), (1.386670,-1.083977,0.730698), True),
-        ('Head', 10, True, (-0.012349,0.008915,2.474140), (-0.012349,0.008915,2.724140), True),
-        ],
-
-    "SPIDER_BOT": [
+    "SK_SPIDER_BOT": [
         ('Base', -1, False, (0.000000,0.000000,0.000000), (1.000000,0.000000,0.000000), False),
         ('LMand', 0, False, (-0.966854,-0.234567,0.003028), (-1.375582,-0.418715,-0.110450), False),
         ('LMElbow', 1, True, (-1.375582,-0.418715,-0.110450), (-1.598338,-0.288490,-0.382587), False),
@@ -2029,11 +1951,11 @@ SKELETONS = {
 
     }
 
-def add_creature_armature(creature_type, context):
+def add_creature_armature(skeleton_type, context):
     try:
-        skeleton = SKELETONS[creature_type]
+        skeleton = SKELETONS[skeleton_type]
     except KeyError:
-        raise ValueError(f"Unsupported Creature Type '{creature_type}'")
+        raise ValueError(f"Unknown Skeleton Type '{skeleton_type}'")
 
     arm_obj = create_armature("Armature", Vector((0,0,0)), context=context)
     context.view_layer.objects.active = arm_obj
@@ -2112,43 +2034,21 @@ class TTDebugExportMeshOperator(Operator):
         do_export_mesh(context, o, self.filename)
         return {'FINISHED'}
 
-TT_CREATURE_TYPE_ENUM=[
-    ("HUMANOID", "Humanoid", ""),
-    ("PLAYER_ARM", "PlayerArm", ""),
-    ("PLAYER_BOWARM", "PlayerBowArm", ""),
-    ("BURRICK", "Burrick", ""),
-    ("SPIDER", "Spider", ""),
-    ("BUGBEAST", "BugBeast", ""),
-    ("CRAYMAN", "Crayman", ""),
-    ("CONSTANTINE", "Constantine", ""),
-    ("APPARITION", "Apparition", ""),
-    ("SWEEL", "Sweel", ""),
-    ("ROPE", "Rope", ""),
-    ("ZOMBIE", "Zombie", ""),
-    ("SMALL_SPIDER", "Small Spider", ""),
-    ("FROG", "Frog", ""),
-    ("CUTTY", "Cutty", ""),
-    ("AVATAR", "Avatar", ""),
-    ("ROBOT", "Robot (T2)", ""),
-    ("SMALL_ROBOT", "Small Robot (T2)", ""),
-    ("SPIDER_BOT", "Spider Bot (T2)", ""),
-    ]
-
 class TTAddArmatureOperator(Operator):
     bl_idname = "object.tt_add_armature"
     bl_label = "Thief Armature"
     bl_options = {'REGISTER', 'UNDO'}
 
-    creature_type : EnumProperty(
-        items=TT_CREATURE_TYPE_ENUM,
-        name="Creature Type",
-        default=TT_CREATURE_TYPE_ENUM[0][0] )
+    skeleton_type : EnumProperty(
+        items=TT_SKELETON_TYPE_ENUM,
+        name="Skeleton Type",
+        default=TT_SKELETON_TYPE_ENUM[0][0] )
 
     def execute(self, context):
         if context.mode != "OBJECT":
             self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
             return {'CANCELLED'}
 
-        print(f"You chose {self.creature_type}!")
-        add_creature_armature(self.creature_type, context)
+        print(f"You chose {self.skeleton_type}!")
+        add_creature_armature(self.skeleton_type, context)
         return {'FINISHED'}
