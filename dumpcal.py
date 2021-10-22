@@ -511,14 +511,18 @@ def dump_cal(cal_filename):
     for torso in p_torsos:
         if torso.parent == -1:
             j = torso.joint
-            # BUG!  burrick.cal fails this assertion! because torso 0 (legs) and
-            #       torso 1 (tail) *both* are on the BUTT joint, with no parent.
-            assert j not in head_by_joint_id, f"joint {j} already in head list!"
-            assert j not in tail_by_joint_id, f"joint {j} already in tail list!"
-            head_by_joint_id[j] = (0,0,0)
-            tail_by_joint_id[j] = (1,0,0)
-            assert j not in parent_by_joint_id, f"joint {j} already in parent list!"
-            parent_by_joint_id[j] = -1
+            # Some skeletons (burrick, spider, ...) have multiple torsos defined
+            # with the same joint id (presumably from before they increased the
+            # torso's fixed-point maximum to 16). When we encounter those, we
+            # just ignore that; the rest of the skeleton should continue to
+            # import correctly.
+            if j not in head_by_joint_id:
+                assert j not in head_by_joint_id, f"joint {j} already in head list!"
+                assert j not in tail_by_joint_id, f"joint {j} already in tail list!"
+                head_by_joint_id[j] = (0,0,0)
+                tail_by_joint_id[j] = (1,0,0)
+                assert j not in parent_by_joint_id, f"joint {j} already in parent list!"
+                parent_by_joint_id[j] = -1
         else:
             j = torso.joint
             assert j in head_by_joint_id, f"joint {j} not found in head list!"
@@ -570,6 +574,7 @@ def dump_cal(cal_filename):
     for torso in p_torsos:
         k = torso.fixed_points
         for j in torso.joint_id[:k]:
+            j = int(j)
             if j not in tail_by_joint_id:
                 head = head_by_joint_id[j]
                 tail_by_joint_id[j] = vec_add(head, (1,0,0))
@@ -587,7 +592,7 @@ def dump_cal(cal_filename):
     for j in sorted(head_by_joint_id.keys()):
         # name, parent, connected, head_pos, tail_pos, limb_end)
         print(
-            f"{j}: ('xxnamexx', "
+            f"{j:02d}: ('xxnamexx', "
             f"{parent_by_joint_id[j]}, "
             f"{is_connected_by_joint_id[j]}, "
             f"{vec_fmt(head_by_joint_id[j])}, "
