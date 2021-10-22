@@ -1837,9 +1837,10 @@ SKELETONS = {
         ],
 
     "SK_APPARITION": [
-        # Toe is just a torso fixed point, with no limb. It would be nice for it to be visible, but it
-        # cannot deform the mesh. Better to leave it hidden, like finger bones.
-        ( 0, 'Toe',      8, False, (-1.648353, 0.000000,-3.563158), (-0.648353, 0.000000,-3.563158), True),
+        # Toe is just a torso fixed point, with no torso nor limb; it cannot be posed, nor deform the mesh.
+        # TODO: look into the motion file format, to see if, actually, this toe or limb_end joints can
+        #       be posed.
+        ( 0, 'Toe',      8, False, (-1.648353, 0.000000,-3.563158), (-1.398353, 0.000000,-3.563158), True),
         ( 8, 'Butt',    -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ( 9, 'Neck',    18, False, ( 0.083846, 0.095641, 1.787435), ( 0.139629, 0.054508, 2.607577), False),
         (10, 'LShldr',  18, False, ( 0.422523, 0.616513, 1.411899), ( 0.219122, 1.612593, 1.257849), False),
@@ -1950,6 +1951,11 @@ def add_creature_armature(skeleton_type, context):
     except KeyError:
         raise ValueError(f"Unknown Skeleton Type '{skeleton_type}'")
 
+    axes_obj = bpy.data.objects.new("TT_LimbEndBoneDisplay", None)
+    axes_obj.empty_display_size = 1.0
+    axes_obj.empty_display_type = 'PLAIN_AXES'
+    axes_obj.hide_render = True
+    axes_obj.hide_viewport = True
     arm_obj = create_armature("Armature", Vector((0,0,0)), context=context)
     context.view_layer.objects.active = arm_obj
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
@@ -1972,9 +1978,27 @@ def add_creature_armature(skeleton_type, context):
             b.use_connect = connected
             b.parent = bones[pj]
     def hide_bone(j, name, pj, connected, head_pos, tail_pos, limb_end):
-        print(arm_obj.data.items())
-        b = arm_obj.data.bones[bone_names[j]]
-        b.hide = limb_end
+        pb = arm_obj.pose.bones[bone_names[j]]
+        if limb_end:
+            pb.custom_shape = axes_obj
+            pb.custom_shape_scale = 0.25
+            pb.use_custom_shape_bone_size = False
+    def lock_bone(j, name, pj, connected, head_pos, tail_pos, limb_end):
+        is_child = (pj != -1)
+        pb = arm_obj.pose.bones[bone_names[j]]
+        # Only the root bone's location can be posed
+        pb.lock_location[0] = is_child
+        pb.lock_location[1] = is_child
+        pb.lock_location[2] = is_child
+        # Limb end bones can't be posed at all
+        pb.lock_rotation_w = limb_end
+        pb.lock_rotation[0] = limb_end
+        pb.lock_rotation[1] = limb_end
+        pb.lock_rotation[2] = limb_end
+        # Scaling bones is not supported at all by the Dark Engine
+        pb.lock_scale[0] = True
+        pb.lock_scale[1] = True
+        pb.lock_scale[2] = True
 
     for args in skeleton:
         add_bone(*args)
@@ -1983,6 +2007,7 @@ def add_creature_armature(skeleton_type, context):
     bpy.ops.object.mode_set(mode='POSE')
     for args in skeleton:
         hide_bone(*args)
+        lock_bone(*args)
     bpy.ops.object.mode_set(mode='OBJECT')
 
 #---------------------------------------------------------------------------#
