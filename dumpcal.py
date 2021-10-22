@@ -590,9 +590,9 @@ def dump_cal(cal_filename):
 
     bones_by_joint_id = {}
     for j in sorted(head_by_joint_id.keys()):
-        # name, parent, connected, head_pos, tail_pos, limb_end)
+        # joint_id, name, parent, connected, head_pos, tail_pos, limb_end)
         print(
-            f"{j:02d}: ('xxnamexx', "
+            f"({j:02d}, 'xxnamexx', "
             f"{parent_by_joint_id[j]}, "
             f"{is_connected_by_joint_id[j]}, "
             f"{vec_fmt(head_by_joint_id[j])}, "
