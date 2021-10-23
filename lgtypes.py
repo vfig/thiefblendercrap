@@ -299,3 +299,64 @@ class LGCALLimb(Struct):
 
 class LGCALFooter(Struct):
     scale: float32
+
+class LGCALFile:
+    header: LGCALHeader
+    p_torsos: Sequence[LGCALTorso]
+    p_limbs: Sequence[LGCALLimb]
+    footer: LGCALFooter
+
+    def __init__(self, filename='', data=None):
+        if data is None:
+            with open(filename, 'rb') as f:
+                data = f.read()
+        view = memoryview(data)
+        offset = 0
+        header = LGCALHeader.read(view, offset=offset)
+        if header.version not in (1,):
+            raise ValueError("Only version 1 .cal files are supported")
+        offset += LGCALHeader.size()
+        p_torsos = StructView(view, LGCALTorso, offset=offset, count=header.torsos)
+        offset += p_torsos.size()
+        p_limbs = StructView(view, LGCALLimb, offset=offset, count=header.limbs)
+        offset += p_limbs.size()
+        footer = LGCALFooter.read(view, offset=offset)
+        self.header = header
+        self.p_torsos = p_torsos
+        self.p_limbs = p_limbs
+        self.footer = footer
+
+    def dump(self, f=sys.stdout):
+        print("CAL:", file=f)
+        print(f"  version: {self.header.version}", file=f)
+        print(f"  torsos: {self.header.torsos}", file=f)
+        print(f"  limbs: {self.header.limbs}", file=f)
+        for i, torso in enumerate(self.p_torsos):
+            print(f"torso {i}:", file=f)
+            print(f"  joint: {torso.joint}", file=f)
+            print(f"  parent: {torso.parent}", file=f)
+            print(f"  fixed_points: {torso.fixed_points}", file=f)
+            print(f"  joint_id:", file=f)
+            k = torso.fixed_points
+            for joint_id in torso.joint_id[:k]:
+                print(f"    {joint_id}", file=f)
+            print(f"  pts:", file=f)
+            for pt in torso.pts[:k]:
+                print(f"    {pt.x}, {pt.y}, {pt.z}", file=f)
+        for i, limb in enumerate(self.p_limbs):
+            print(f"limb {i}:", file=f)
+            print(f"  torso_id: {limb.torso_id}", file=f)
+            print(f"  bend: {limb.bend}", file=f)
+            print(f"  segments: {limb.segments}", file=f)
+            print(f"  joint_id:", file=f)
+            k = limb.segments
+            for joint_id in limb.joint_id[:k+1]:
+                print(f"    {joint_id}", file=f)
+            print(f"  seg:", file=f)
+            for seg in limb.seg[:k]:
+                print(f"    {seg}")
+            print(f"  seg_len:", file=f)
+            for seg_len in limb.seg_len[:k]:
+                print(f"    {seg_len}", file=f)
+        print(f"scale: {self.footer.scale}", file=f)
+        print(file=f)

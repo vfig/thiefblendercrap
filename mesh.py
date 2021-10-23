@@ -6,11 +6,13 @@ import mathutils
 import os, os.path
 import random
 import struct
+import sys
 import zlib
 
 from bpy.props import EnumProperty, IntProperty, PointerProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
 from mathutils import Vector
+from typing import Sequence
 from .binstruct import *
 from .lgtypes import *
 
@@ -58,12 +60,179 @@ def create_armature(name, location, context=None, link=True, display_type='OCTAH
         coll.objects.link(o)
     return o
 
+class DarkSkeleton:
+    joint_ids: Sequence[int]
+    head_pos: Sequence[Vector]
+    tail_pos: Sequence[Vector]
+    parent_joint_id: Sequence[int]
+    is_connected: Sequence[bool]
+    is_limb_end: Sequence[bool]
+
+    @classmethod
+    def from_cal(cls, filename):
+        cal = LGCALFile(filename)
+        assert cal.footer.scale==1.0, "TODO: handle .cal scale other than 1"
+
+        joint_ids = set()
+        head_pos = [Vector((0,0,0)) for _ in range(32)] # armature-local space
+        tail_pos = [Vector((1,0,0)) for _ in range(32)] # armature-local space
+        parent_joint_id = [-1]*32
+        is_connected = [False]*32
+        is_limb_end = [False]*32
+
+        for torso_id, torso in enumerate(cal.p_torsos):
+            if torso.parent == -1:
+                j = torso.joint
+                # Some skeletons (burrick, spider, ...) have multiple root
+                # torsos defined with the same joint id (presumably from before
+                # they increased the torso's fixed-point maximum to 16). We just
+                # ignore that; the rest of the skeleton will continue to
+                # import correctly.
+                if j not in joint_ids:
+                    head_pos[j] = Vector((0,0,0))
+                    tail_pos[j] = Vector((1,0,0))
+                    parent_joint_id[j] = -1
+            else:
+                j = torso.joint
+                pj = cal.p_torsos[torso.parent].joint
+                assert pj in joint_ids, f"parent joint {pj} (from torso {torso_id}) has not been loaded"
+                # head_pos will have already been loaded from the parent torso's fixed points
+                tail_pos[j] = head_pos[j] + Vector((1,0,0))
+                parent_joint_id[j] = pj
+            # TODO: average all the fixed points of a torso (or all from multiple torsos with
+            #       the same joint) and use that as the torso tail. it will look nicer.
+            #       but if that point is too close to the head, then just use a relative (1,0,0)
+            joint_ids.add(j)
+            is_connected[j] = False
+            is_limb_end[j] = False
+            root = head_pos[j]
+            k = torso.fixed_points
+            parts = zip(
+                torso.joint_id[:k],
+                torso.pts[:k])
+            for j2, pt in parts:
+                assert j2 not in joint_ids, f"joint {j2} (from torso {torso_id} fixed point) already loaded"
+                # Each fixed point could be:
+                #    a) another torso (e.g. Humanoid Abdomen)
+                #    b) a limb-root (e.g. Humanoid LHip, LShldr)
+                #    c) never mentioned again (e.g. Apparition Toe)
+                # So we need to ensure a full definition exists for its joint,
+                # even though in (a) and (b) we will overwrite half of this.
+                joint_ids.add(j2)
+                try:
+                    parent_joint_id[j2] = j
+                except:
+                    print(j2, pt)
+                    raise
+                head_pos[j2] = root+Vector(pt)
+                tail_pos[j2] = head_pos[j2]+Vector((1,0,0))
+                is_connected[j2] = False
+                is_limb_end[j2] = False
+
+        for limb_id, limb in enumerate(cal.p_limbs):
+            j = limb.joint_id[0]
+            assert j in joint_ids, f"joint {j} (from limb {limb_id}) not loaded"
+            head = head_pos[j]
+            k = limb.segments
+            parts = zip(
+                limb.joint_id[:k+1],
+                limb.seg[:k] + [limb.seg[k-1]], # finger etc. bones, tail gets wrist vector
+                limb.seg_len[:k] + [0.25])      # finger etc. bones, get fixed length
+            pj = j
+            for i, (j, seg, seg_len) in enumerate(parts):
+                first = (i==0)
+                last = (i==limb.segments-1)
+                head_pos[j] = head
+                tail = head+(seg_len*Vector(seg))
+                tail_pos[j] = tail
+                head = tail
+                if not first:
+                    assert j not in joint_ids, f"joint {j} (from limb {limb_id} segment {i}) already loaded"
+                    joint_ids.add(j)
+                    parent_joint_id[j] = pj
+                    is_connected[j] = True
+                    is_limb_end[j] = last
+                pj = j
+
+        sk = DarkSkeleton()
+        sk.joint_ids = sorted(joint_ids)
+        sk.head_pos = head_pos
+        sk.tail_pos = tail_pos
+        sk.parent_joint_id = parent_joint_id
+        sk.is_connected = is_connected
+        sk.is_limb_end = is_limb_end
+        return sk
+
+def do_import_cal(context, cal_filename):
+    sk = DarkSkeleton.from_cal(cal_filename)
+
+    # TODO: identify the skeleton type by topology, and pull joint names from
+    #       there.
+    HUMAN_JOINTS = [
+        'LToe',     #  0
+        'RToe',     #  1
+        'LAnkle',   #  2
+        'RAnkle',   #  3
+        'LKnee',    #  4
+        'RKnee',    #  5
+        'LHip',     #  6
+        'RHip',     #  7
+        'Butt',     #  8
+        'Neck',     #  9
+        'LShldr',   # 10
+        'RShldr',   # 11
+        'LElbow',   # 12
+        'RElbow',   # 13
+        'LWrist',   # 14
+        'RWrist',   # 15
+        'LFinger',  # 16
+        'RFinger',  # 17
+        'Abdomen',  # 18
+        'Head',     # 19
+        ]
+
+    # Create an armature for it
+    arm_obj = create_armature("Armature", Vector((0,0,0)), context=context, display_type='WIRE')
+    context.view_layer.objects.active = arm_obj
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    edit_bones = arm_obj.data.edit_bones
+    bones_by_joint_id = {}
+    for j in sk.joint_ids:
+        bone_name = HUMAN_JOINTS[j]
+        #print(j, bone_name, head_by_joint_id[j], tail_by_joint_id[j])
+        b = edit_bones.new(bone_name)
+        b.head = sk.head_pos[j]
+        b.tail = sk.tail_pos[j]
+        # TODO -- roll is all set to zero, but some of the bones are
+        # getting created _not_ actually flat in world space??
+        # BUT: check if that matches the imported skeleton anyway? with motions
+        # etc, and see if they seem to match e.g. sword roll angle.
+        # may need to use .align_roll()?
+        # TODO: check extreme poses in game versus in blender to see if
+        # a difference in roll is visible.
+        bones_by_joint_id[j] = b
+        # TODO -- should we not create bones for FINGER, TOE?? they dont get
+        # their own transforms... (i dont think - can experiment with that
+        # when doing motion export). BUT they can be used as anchor points for
+        # detailattachements and so on, so their positions are important!
+        # SO: should create bones for them regardless (so that their
+        # positions are clear), but they need to be non-deform bones. also
+        # might want to change the appearance of them?
+        # TODO: copy behaviour from the create-armature code!
+    for j in sk.joint_ids:
+        bone_name = HUMAN_JOINTS[j]
+        b = bones_by_joint_id[j]
+        b.use_connect = sk.is_connected[j]
+        pj = sk.parent_joint_id[j]
+        if pj != -1:
+            b.parent = bones_by_joint_id[pj]
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return arm_obj
+
 def do_import_mesh(context, bin_filename):
     cal_filename = os.path.splitext(bin_filename)[0]+'.cal'
     with open(bin_filename, 'rb') as f:
         bin_data = f.read()
-    with open(cal_filename, 'rb') as f:
-        cal_data = f.read()
     dump_filename = os.path.splitext(bin_filename)[0]+'.dump'
     dumpf = open(dump_filename, 'w')
 
@@ -179,54 +348,14 @@ def do_import_mesh(context, bin_filename):
     for i, w in enumerate(p_weights):
         print(f"  {i}: {w}", file=dumpf)
 
-    # Parse the .cal file
-    cal_view = memoryview(cal_data)
-    offset = 0
-    cal_header = LGCALHeader.read(cal_view, offset=offset)
-    if cal_header.version not in (1,):
-        raise ValueError("Only version 1 .cal files are supported")
-    offset += LGCALHeader.size()
-    p_torsos = StructView(cal_view, LGCALTorso, offset=offset, count=cal_header.torsos)
-    offset += p_torsos.size()
-    p_limbs = StructView(cal_view, LGCALLimb, offset=offset, count=cal_header.limbs)
-    offset += p_limbs.size()
-    cal_footer = LGCALFooter.read(cal_view, offset=offset)
-
-    print("CAL:", file=dumpf)
-    print(f"  version: {cal_header.version}", file=dumpf)
-    print(f"  torsos: {cal_header.torsos}", file=dumpf)
-    print(f"  limbs: {cal_header.limbs}", file=dumpf)
-    for i, torso in enumerate(p_torsos):
-        print(f"torso {i}:", file=dumpf)
-        print(f"  joint: {torso.joint}", file=dumpf)
-        print(f"  parent: {torso.parent}", file=dumpf)
-        print(f"  fixed_points: {torso.fixed_points}", file=dumpf)
-        print(f"  joint_id:", file=dumpf)
-        k = torso.fixed_points
-        for joint_id in torso.joint_id[:k]:
-            print(f"    {joint_id}", file=dumpf)
-        print(f"  pts:", file=dumpf)
-        for pt in torso.pts[:k]:
-            print(f"    {pt.x}, {pt.y}, {pt.z}", file=dumpf)
-    for i, limb in enumerate(p_limbs):
-        print(f"limb {i}:", file=dumpf)
-        print(f"  torso_id: {limb.torso_id}", file=dumpf)
-        print(f"  bend: {limb.bend}", file=dumpf)
-        print(f"  segments: {limb.segments}", file=dumpf)
-        print(f"  joint_id:", file=dumpf)
-        k = limb.segments
-        for joint_id in limb.joint_id[:k+1]:
-            print(f"    {joint_id}", file=dumpf)
-        print(f"  seg:", file=dumpf)
-        for seg in limb.seg[:k]:
-            print(f"    {seg}")
-        print(f"  seg_len:", file=dumpf)
-        for seg_len in limb.seg_len[:k]:
-            print(f"    {seg_len}", file=dumpf)
-    print(f"scale: {cal_footer.scale}", file=dumpf)
-    print(file=dumpf)
-
+    # TODO: we are still dumping the .cal here for convenience, but get rid
+    # of this later
+    cal = LGCALFile(cal_filename)
+    cal.dump(dumpf)
     dumpf.close()
+    # BUT AAARGH! we actually _need_ the skeleton -- joint positions -- in order
+    # to position the mesh parts correctly! This is a mess. Sort it out!
+    sk = DarkSkeleton.from_cal(cal_filename)
 
     # test: check that only stretchy segments have pgons in their smatsegs:
     # UNTRUE! segment 9 (head) is non-stretchy, but has 30 pgons!
@@ -242,61 +371,10 @@ def do_import_mesh(context, bin_filename):
             else:
                 print(f"non-stretchy seg {seg_id} smatseg {smatseg_id} has {smatseg.pgons} pgons")
 
-    # Find the origin point of every joint
-    head_by_joint_id = {}
-    tail_by_joint_id = {}
-    parent_by_joint_id = {}
-    is_connected_by_joint_id = {}
-    for torso in p_torsos:
-        if torso.parent == -1:
-            j = torso.joint
-            assert j not in head_by_joint_id
-            assert j not in tail_by_joint_id
-            head_by_joint_id[j] = Vector((0,0,0))
-            tail_by_joint_id[j] = Vector((1,0,0))
-            assert j not in parent_by_joint_id
-            parent_by_joint_id[j] = -1
-        else:
-            j = torso.joint
-            assert j in head_by_joint_id
-            assert j not in tail_by_joint_id
-            tail_by_joint_id[j] = head_by_joint_id[j]+Vector((1,0,0))
-            assert j not in parent_by_joint_id
-            parent_by_joint_id[j] = p_torsos[torso.parent].joint
-        is_connected_by_joint_id[j] = False
-        root = head_by_joint_id[torso.joint]
-        k = torso.fixed_points
-        parts = zip(
-            torso.joint_id[:k],
-            torso.pts[:k])
-        for j, pt in parts:
-            assert j not in head_by_joint_id
-            head_by_joint_id[j] = root+Vector(pt)
-    for limb in p_limbs:
-        j = limb.joint_id[0]
-        assert j in head_by_joint_id
-        head = head_by_joint_id[j]
-        k = limb.segments
-        parts = zip(
-            limb.joint_id[:k+1],
-            limb.seg[:k] + [limb.seg[k-1]], # finger etc. bones, tail gets wrist vector
-            limb.seg_len[:k] + [0.25])      # finger etc. bones, get fixed length
-        pj = j
-        for i, (j, seg, seg_len) in enumerate(parts):
-            head_by_joint_id[j] = head
-            tail = head+seg_len*Vector(seg)
-            tail_by_joint_id[j] = tail
-            head = tail
-            assert j not in parent_by_joint_id
-            if i==0:
-                parent_by_joint_id[j] = p_torsos[limb.torso_id].joint
-                is_connected_by_joint_id[j] = False
-            else:
-                parent_by_joint_id[j] = pj
-                is_connected_by_joint_id[j] = True
-            pj = j
-    assert sorted(head_by_joint_id.keys())==sorted(tail_by_joint_id.keys())
-    #print("Bone positions:")
+    # TODO: if importing the .cal too, identify the skeleton type by topology,
+    #       and pull joint names from there. if _not_ importing the .cal, then
+    #       the user must select the skeleton type so the vertex group names
+    #       will be correct.
     HUMAN_JOINTS = [
         'LToe',     #  0
         'RToe',     #  1
@@ -318,17 +396,7 @@ def do_import_mesh(context, bin_filename):
         'RFinger',  # 17
         'Abdomen',  # 18
         'Head',     # 19
-        'LShldrIn', # 20
-        'RShldrIn', # 21
-        'LWeap',    # 22
-        'RWeap',    # 23
         ]
-    for j in sorted(head_by_joint_id.keys()):
-        h = head_by_joint_id[j]
-        t = tail_by_joint_id[j]
-        #print(f"joint {j}: head {h.x},{h.y},{h.z}; tail {t.x},{t.y},{t.z}")
-        #create_empty(f"{HUMAN_JOINTS[j]} (Joint {j})", h, context=context)
-    #print()
 
     # Build segment/material/joint tables for later lookup
     segment_by_vert_id = {}
@@ -361,7 +429,7 @@ def do_import_mesh(context, bin_filename):
     for i in range(len(vertices)):
         v = vertices[i]
         j = joint_by_vert_id[i]
-        head = head_by_joint_id[j]
+        head = sk.head_pos[j]
         vertices[i] = head+v
     faces = [tuple(p.vert) for p in p_pgons]
     name = f"TEST"
@@ -498,42 +566,8 @@ def do_import_mesh(context, bin_filename):
             vi = smatseg.vert_start+i
             group.add([vi], 1.0, 'REPLACE')
 
-    # Create an armature for it
-    arm_obj = create_armature("Human", Vector((0,0,0)), context=context, display_type='WIRE')
-    context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    edit_bones = arm_obj.data.edit_bones
-    bones_by_joint_id = {}
-    for j in sorted(head_by_joint_id.keys()):
-        bone_name = HUMAN_JOINTS[j]
-        #print(j, bone_name, head_by_joint_id[j], tail_by_joint_id[j])
-        b = edit_bones.new(bone_name)
-        b.head = head_by_joint_id[j]
-        b.tail = tail_by_joint_id[j]
-        # TODO -- roll is all set to zero, but some of the bones are
-        # getting created _not_ actually flat in world space??
-        # BUT: check if that matches the imported skeleton anyway? with motions
-        # etc, and see if they seem to match e.g. sword roll angle.
-        # may need to use .align_roll()?
-        # TODO: check extreme poses in game versus in blender to see if
-        # a difference in roll is visible.
-        b.roll = 0.0
-        bones_by_joint_id[j] = b
-        # TODO -- should we not create bones for FINGER, TOE?? they dont get
-        # their own transforms... (i dont think - can experiment with that
-        # when doing motion export). BUT they can be used as anchor points for
-        # detailattachements and so on, so their positions are important!
-        # SO: should create bones for them regardless (so that their
-        # positions are clear), but they need to be non-deform bones. also
-        # might want to change the appearance of them?
-    for j in sorted(head_by_joint_id.keys()):
-        bone_name = HUMAN_JOINTS[j]
-        b = edit_bones[bone_name]
-        pj = parent_by_joint_id[j]
-        if pj != -1:
-            b.use_connect = is_connected_by_joint_id[j]
-            b.parent = bones_by_joint_id[pj]
-    bpy.ops.object.mode_set(mode='OBJECT')
+
+    arm_obj = do_import_cal(context, cal_filename)
 
     # Add an armature modifier
     arm_mod = mesh_obj.modifiers.new(name='Armature', type='ARMATURE')
