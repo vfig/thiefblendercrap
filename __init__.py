@@ -11,11 +11,15 @@ if "bpy" in locals():
     import importlib as imp
     imp.reload(brushes)
     imp.reload(mesh)
+    imp.reload(lgtypes)
+    imp.reload(binstruct)
     #imp.reload(mission)
     print("thieftools: reloaded.");
 else:
     from . import brushes
     from . import mesh
+    from . import lgtypes
+    from . import binstruct
     #from . import mission
     print("thieftools: loaded.");
 
