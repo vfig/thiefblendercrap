@@ -60,6 +60,9 @@ def create_armature(name, location, context=None, link=True, display_type='OCTAH
         coll.objects.link(o)
     return o
 
+
+MAX_JOINT_COUNT = 40
+
 class DarkSkeleton:
     # Stores the skeleton as a sequence of tuples:
     # [ (joint_id, name, parent, connected, head_pos, tail_pos, limb_end), ... ]
@@ -78,17 +81,20 @@ class DarkSkeleton:
     def __iter__(self):
         return iter(self.joint_info)
 
+    def topology(self):
+        """Return a value used only for comparing topology with other skeletons."""
+        return tuple(sorted((t[2], t[0]) for t in self.joint_info))
+
     @classmethod
-    def from_cal(cls, filename):
+    def from_cal(cls, filename, report_fn=None):
         cal = LGCALFile(filename)
-        assert cal.footer.scale==1.0, "TODO: handle .cal scale other than 1"
 
         joint_ids = set()
-        head_pos = [Vector((0,0,0)) for _ in range(32)] # armature-local space
-        tail_pos = [Vector((1,0,0)) for _ in range(32)] # armature-local space
-        parent_joint_id = [-1]*32
-        is_connected = [False]*32
-        is_limb_end = [False]*32
+        head_pos = [Vector((0,0,0)) for _ in range(MAX_JOINT_COUNT)] # armature-local space
+        tail_pos = [Vector((1,0,0)) for _ in range(MAX_JOINT_COUNT)] # armature-local space
+        parent_joint_id = [-1]*MAX_JOINT_COUNT
+        is_connected = [False]*MAX_JOINT_COUNT
+        is_limb_end = [False]*MAX_JOINT_COUNT
 
         for torso_id, torso in enumerate(cal.p_torsos):
             if torso.parent == -1:
@@ -109,39 +115,43 @@ class DarkSkeleton:
                 # head_pos will have already been loaded from the parent torso's fixed points
                 tail_pos[j] = head_pos[j] + Vector((1,0,0))
                 parent_joint_id[j] = pj
-            # TODO: average all the fixed points of a torso (or all from multiple torsos with
-            #       the same joint) and use that as the torso tail. it will look nicer.
-            #       but if that point is too close to the head, then just use a relative (1,0,0)
             joint_ids.add(j)
             is_connected[j] = False
             is_limb_end[j] = False
             root = head_pos[j]
             k = torso.fixed_points
-            parts = zip(
+            parts = list(zip(
                 torso.joint_id[:k],
-                torso.pts[:k])
+                torso.pts[:k]))
+            # Calculate an average of the torso's fixed points, and put its tail
+            # there instead.
+            if parts and torso.parent!=-1:
+                avg = Vector((0,0,0))
+                for _, pt in parts:
+                    avg += Vector(pt)
+                avg = (avg/len(parts))
+                if avg.length>=0.25:
+                    tail_pos[j] = root+avg
             for j2, pt in parts:
                 assert j2 not in joint_ids, f"joint {j2} (from torso {torso_id} fixed point) already loaded"
                 # Each fixed point could be:
                 #    a) another torso (e.g. Humanoid Abdomen)
                 #    b) a limb-root (e.g. Humanoid LHip, LShldr)
-                #    c) never mentioned again (e.g. Apparition Toe)
+                #    c) never mentioned again (e.g. Burrick Tail, Apparition Toe)
                 # So we need to ensure a full definition exists for its joint,
                 # even though in (a) and (b) we will overwrite half of this.
                 joint_ids.add(j2)
-                try:
-                    parent_joint_id[j2] = j
-                except:
-                    print(j2, pt)
-                    raise
+                parent_joint_id[j2] = j
                 head_pos[j2] = root+Vector(pt)
                 tail_pos[j2] = head_pos[j2]+Vector((1,0,0))
                 is_connected[j2] = False
-                is_limb_end[j2] = False
+                is_limb_end[j2] = True
 
         for limb_id, limb in enumerate(cal.p_limbs):
             j = limb.joint_id[0]
             assert j in joint_ids, f"joint {j} (from limb {limb_id}) not loaded"
+            is_connected[j] = False
+            is_limb_end[j] = False
             head = head_pos[j]
             k = limb.segments
             parts = zip(
@@ -164,36 +174,35 @@ class DarkSkeleton:
                     is_limb_end[j] = last
                 pj = j
 
-        # TODO: look up by topology
-        joint_name = [
-            'LToe',     #  0
-            'RToe',     #  1
-            'LAnkle',   #  2
-            'RAnkle',   #  3
-            'LKnee',    #  4
-            'RKnee',    #  5
-            'LHip',     #  6
-            'RHip',     #  7
-            'Butt',     #  8
-            'Neck',     #  9
-            'LShldr',   # 10
-            'RShldr',   # 11
-            'LElbow',   # 12
-            'RElbow',   # 13
-            'LWrist',   # 14
-            'RWrist',   # 15
-            'LFinger',  # 16
-            'RFinger',  # 17
-            'Abdomen',  # 18
-            'Head',     # 19
-            ]
+        # Build a dummy skeleton first, to get its topology value; then look
+        # for a matching topology in the predefined list.
+        dummy_sk = DarkSkeleton("Dummy", [
+                ( j, "Dummy", parent_joint_id[j], is_connected[j],
+                  head_pos[j], tail_pos[j], is_limb_end[j] )
+                for j in joint_ids])
+        topo = dummy_sk.topology()
+        matching_sk = None
+        for sk in SKELETONS.values():
+            if topo==sk.topology():
+                matching_sk = sk
+                break
+        joint_name = [str(i) for i in range(MAX_JOINT_COUNT)]
+        if matching_sk:
+            skeleton_name = sk.name
+            for (j, name, pj, conn, head, tail, limb_end) in sk:
+                joint_name[j] = name
+        else:
+            # Import the skeleton anyway, but warn about it.
+            if report_fn:
+                report_fn({'WARNING'}, 'Did not recognise skeleton topology')
+            skeleton_name = "UnrecognisedSkeleton"
 
+        # Build the skeleton again, now with the right name and joint names.
         joint_info = [
             ( j, joint_name[j], parent_joint_id[j], is_connected[j],
               head_pos[j], tail_pos[j], is_limb_end[j] )
             for j in joint_ids]
-        # TODO: get the name from the topology match
-        return DarkSkeleton("Humanoid", joint_info)
+        return DarkSkeleton(skeleton_name, joint_info)
 
 def do_import_cal(context, cal_filename):
     sk = DarkSkeleton.from_cal(cal_filename)
@@ -324,8 +333,8 @@ def do_import_mesh(context, bin_filename):
     cal = LGCALFile(cal_filename)
     cal.dump(dumpf)
     dumpf.close()
-    # BUT AAARGH! we actually _need_ the skeleton -- joint positions -- in order
-    # to position the mesh parts correctly! This is a mess. Sort it out!
+
+    # Read the skeleton from the .cal
     sk = DarkSkeleton.from_cal(cal_filename)
 
     # test: check that only stretchy segments have pgons in their smatsegs:
@@ -341,33 +350,6 @@ def do_import_mesh(context, bin_filename):
                 print(f"stretchy seg {seg_id}, smatseg {smatseg_id} has {smatseg.pgons} pgons")
             else:
                 print(f"non-stretchy seg {seg_id} smatseg {smatseg_id} has {smatseg.pgons} pgons")
-
-    # TODO: if importing the .cal too, identify the skeleton type by topology,
-    #       and pull joint names from there. if _not_ importing the .cal, then
-    #       the user must select the skeleton type so the vertex group names
-    #       will be correct.
-    HUMAN_JOINTS = [
-        'LToe',     #  0
-        'RToe',     #  1
-        'LAnkle',   #  2
-        'RAnkle',   #  3
-        'LKnee',    #  4
-        'RKnee',    #  5
-        'LHip',     #  6
-        'RHip',     #  7
-        'Butt',     #  8
-        'Neck',     #  9
-        'LShldr',   # 10
-        'RShldr',   # 11
-        'LElbow',   # 12
-        'RElbow',   # 13
-        'LWrist',   # 14
-        'RWrist',   # 15
-        'LFinger',  # 16
-        'RFinger',  # 17
-        'Abdomen',  # 18
-        'Head',     # 19
-        ]
 
     # Build segment/material/joint tables for later lookup
     segment_by_vert_id = {}
@@ -444,13 +426,17 @@ def do_import_mesh(context, bin_filename):
     # Create the object
     mesh_obj = create_object(name, mesh, Vector((0,0,0)), context=context)
 
+    # Create vertex groups for each joint, with matching name
     print("Vertex groups:")
+    joint_name = [str(i) for i in range(MAX_JOINT_COUNT)]
+    for (j, name, pj, conn, head, tail, limb_end) in sk:
+        joint_name[j] = name
     weight_by_vert_id = {}
     for seg_id, seg in enumerate(p_segs):
         print(f"  seg {seg_id} flags {seg.flags} smatsegs {seg.smatsegs}")
         j = seg.joint_id
         is_stretchy = bool(seg.flags & 1)
-        group_name = HUMAN_JOINTS[j]
+        group_name = joint_name[j]
         try:
             group = mesh_obj.vertex_groups[group_name]
         except KeyError:
@@ -539,8 +525,8 @@ def do_import_mesh(context, bin_filename):
             vi = smatseg.vert_start+i
             group.add([vi], 1.0, 'REPLACE')
 
-
-    arm_obj = do_import_cal(context, cal_filename)
+    # Create the armature
+    arm_obj = create_armature_from_skeleton(sk, context)
 
     # Add an armature modifier
     arm_mod = mesh_obj.modifiers.new(name='Armature', type='ARMATURE')
@@ -1519,7 +1505,6 @@ SKELETONS = {
         (38, 'RTip',      4, True,  (-1.594714, 0.146513,-0.380262), (-1.743467, 0.075830,-0.568349), True),
         (39, 'Sac',       0, False, ( 0.205546,-0.004777, 2.322020), ( 1.205546,-0.004777, 2.322020), True),
         ]),
-
     }
 
 def create_armature_from_skeleton(sk, context):

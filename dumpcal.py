@@ -3,6 +3,7 @@ import math
 import os, os.path
 import random
 import struct
+import sys
 import zlib
 
 from binstruct import *

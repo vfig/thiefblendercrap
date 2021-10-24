@@ -16,7 +16,11 @@ __all__ = (
 
 import sys
 from typing import Sequence
-from .binstruct import *
+# god python's packaging and imports suck
+if not __package__:
+    from binstruct import *
+else:
+    from .binstruct import *
 
 #---------------------------------------------------------------------------#
 # LGMM (skinned mesh .bin) data structures
