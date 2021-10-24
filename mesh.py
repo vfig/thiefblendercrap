@@ -61,12 +61,21 @@ def create_armature(name, location, context=None, link=True, display_type='OCTAH
     return o
 
 class DarkSkeleton:
-    joint_ids: Sequence[int]
-    head_pos: Sequence[Vector]
-    tail_pos: Sequence[Vector]
-    parent_joint_id: Sequence[int]
-    is_connected: Sequence[bool]
-    is_limb_end: Sequence[bool]
+    # Stores the skeleton as a sequence of tuples:
+    # [ (joint_id, name, parent, connected, head_pos, tail_pos, limb_end), ... ]
+    #    int       str   int     bool       Vector    Vector    bool
+
+    def __init__(self, joint_info):
+        self.joint_info = [
+            ( int(j), str(name), int(pj), bool(conn),
+              Vector(head), Vector(tail), bool(limb_end) )
+            for (j, name, pj, conn, head, tail, limb_end) in joint_info]
+
+    def __len__(self):
+        return len(self.joint_info)
+
+    def __iter__(self):
+        return iter(self.joint_info)
 
     @classmethod
     def from_cal(cls, filename):
@@ -141,7 +150,7 @@ class DarkSkeleton:
             pj = j
             for i, (j, seg, seg_len) in enumerate(parts):
                 first = (i==0)
-                last = (i==limb.segments-1)
+                last = (i==limb.segments)
                 head_pos[j] = head
                 tail = head+(seg_len*Vector(seg))
                 tail_pos[j] = tail
@@ -154,79 +163,39 @@ class DarkSkeleton:
                     is_limb_end[j] = last
                 pj = j
 
-        sk = DarkSkeleton()
-        sk.joint_ids = sorted(joint_ids)
-        sk.head_pos = head_pos
-        sk.tail_pos = tail_pos
-        sk.parent_joint_id = parent_joint_id
-        sk.is_connected = is_connected
-        sk.is_limb_end = is_limb_end
-        return sk
+        # TODO: look up by topology
+        joint_name = [
+            'LToe',     #  0
+            'RToe',     #  1
+            'LAnkle',   #  2
+            'RAnkle',   #  3
+            'LKnee',    #  4
+            'RKnee',    #  5
+            'LHip',     #  6
+            'RHip',     #  7
+            'Butt',     #  8
+            'Neck',     #  9
+            'LShldr',   # 10
+            'RShldr',   # 11
+            'LElbow',   # 12
+            'RElbow',   # 13
+            'LWrist',   # 14
+            'RWrist',   # 15
+            'LFinger',  # 16
+            'RFinger',  # 17
+            'Abdomen',  # 18
+            'Head',     # 19
+            ]
+
+        joint_info = [
+            ( j, joint_name[j], parent_joint_id[j], is_connected[j],
+              head_pos[j], tail_pos[j], is_limb_end[j] )
+            for j in joint_ids]
+        return DarkSkeleton(joint_info)
 
 def do_import_cal(context, cal_filename):
     sk = DarkSkeleton.from_cal(cal_filename)
-
-    # TODO: identify the skeleton type by topology, and pull joint names from
-    #       there.
-    HUMAN_JOINTS = [
-        'LToe',     #  0
-        'RToe',     #  1
-        'LAnkle',   #  2
-        'RAnkle',   #  3
-        'LKnee',    #  4
-        'RKnee',    #  5
-        'LHip',     #  6
-        'RHip',     #  7
-        'Butt',     #  8
-        'Neck',     #  9
-        'LShldr',   # 10
-        'RShldr',   # 11
-        'LElbow',   # 12
-        'RElbow',   # 13
-        'LWrist',   # 14
-        'RWrist',   # 15
-        'LFinger',  # 16
-        'RFinger',  # 17
-        'Abdomen',  # 18
-        'Head',     # 19
-        ]
-
-    # Create an armature for it
-    arm_obj = create_armature("Armature", Vector((0,0,0)), context=context, display_type='WIRE')
-    context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    edit_bones = arm_obj.data.edit_bones
-    bones_by_joint_id = {}
-    for j in sk.joint_ids:
-        bone_name = HUMAN_JOINTS[j]
-        #print(j, bone_name, head_by_joint_id[j], tail_by_joint_id[j])
-        b = edit_bones.new(bone_name)
-        b.head = sk.head_pos[j]
-        b.tail = sk.tail_pos[j]
-        # TODO -- roll is all set to zero, but some of the bones are
-        # getting created _not_ actually flat in world space??
-        # BUT: check if that matches the imported skeleton anyway? with motions
-        # etc, and see if they seem to match e.g. sword roll angle.
-        # may need to use .align_roll()?
-        # TODO: check extreme poses in game versus in blender to see if
-        # a difference in roll is visible.
-        bones_by_joint_id[j] = b
-        # TODO -- should we not create bones for FINGER, TOE?? they dont get
-        # their own transforms... (i dont think - can experiment with that
-        # when doing motion export). BUT they can be used as anchor points for
-        # detailattachements and so on, so their positions are important!
-        # SO: should create bones for them regardless (so that their
-        # positions are clear), but they need to be non-deform bones. also
-        # might want to change the appearance of them?
-        # TODO: copy behaviour from the create-armature code!
-    for j in sk.joint_ids:
-        bone_name = HUMAN_JOINTS[j]
-        b = bones_by_joint_id[j]
-        b.use_connect = sk.is_connected[j]
-        pj = sk.parent_joint_id[j]
-        if pj != -1:
-            b.parent = bones_by_joint_id[pj]
-    bpy.ops.object.mode_set(mode='OBJECT')
+    arm_obj = create_armature_from_skeleton(sk, context)
     return arm_obj
 
 def do_import_mesh(context, bin_filename):
@@ -425,11 +394,13 @@ def do_import_mesh(context, bin_filename):
     # Build the bare mesh
     vertices = [Vector(v) for v in p_verts]
     # Offset each vert by the joint its attached to
+    joint_pos = {j: head
+        for (j, name, pj, conn, head, tail, limb_end) in sk}
     assert len(joint_by_vert_id)==len(p_verts)
     for i in range(len(vertices)):
         v = vertices[i]
         j = joint_by_vert_id[i]
-        head = sk.head_pos[j]
+        head = joint_pos[j]
         vertices[i] = head+v
     faces = [tuple(p.vert) for p in p_pgons]
     name = f"TEST"
@@ -1252,7 +1223,7 @@ SKELETONS = {
     # Joints:
     # (joint_id, name, parent, connected, head_pos, tail_pos, limb_end)
 
-    "SK_HUMANOID": [
+    "SK_HUMANOID": DarkSkeleton([
         ( 0, 'LToe',     2, True,  ( 0.884971, 0.245466,-3.349379), ( 1.132570, 0.241114,-3.383671), True),
         ( 1, 'RToe',     3, True,  ( 0.884971,-0.363442,-3.332439), ( 1.133693,-0.370478,-3.356683), True),
         ( 2, 'LAnkle',   4, True,  ( 0.108441, 0.259114,-3.241831), ( 0.884971, 0.245466,-3.349379), False),
@@ -1273,17 +1244,17 @@ SKELETONS = {
         (17, 'RFinger', 15, True,  ( 1.306753,-5.192559, 0.963154), ( 1.386063,-5.428709, 0.942111), True),
         (18, 'Abdomen',  8, False, ( 0.090587, 0.041403, 0.487539), ( 1.090587, 0.041403, 0.487539), False),
         (19, 'Head',     9, True,  ( 0.142746, 0.055724, 2.665782), ( 0.159690, 0.043230, 2.914894), True),
-        ],
+        ]),
 
-    "SK_PLAYER_ARM": [
+    "SK_PLAYER_ARM": DarkSkeleton([
         ( 0, 'Butt',   -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ( 1, 'Shldr',   0, False, ( 0.276273,-0.583319, 1.471145), ( 0.026511,-1.489041, 1.286486), False),
         ( 2, 'Elbow',   1, True,  ( 0.026511,-1.489041, 1.286486), ( 0.363334,-2.383466, 1.213473), False),
         ( 3, 'Wrist',   2, True,  ( 0.363334,-2.383466, 1.213473), (-0.441815,-4.966849, 3.078860), False),
         ( 4, 'Finger',  3, True,  (-0.441815,-4.966849, 3.078860), (-0.503060,-5.163358, 3.220753), True),
-        ],
+        ]),
 
-    "SK_PLAYER_BOWARM": [
+    "SK_PLAYER_BOWARM": DarkSkeleton([
         ( 0, 'Butt',   -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ( 1, 'Shldr',   0, False, ( 0.483372, 0.705298, 1.615229), ( 1.483372, 0.705298, 1.615229), False),
         ( 2, 'Elbow',   1, False, ( 0.250679, 1.844825, 1.438993), ( 1.250679, 1.844825, 1.438993), False),
@@ -1292,9 +1263,9 @@ SKELETONS = {
         ( 5, 'Top',     4, True,  ( 0.674318, 2.914177, 3.885759), ( 0.680907, 2.890232, 4.134522), True),
         ( 6, 'BotMid',  3, False, ( 0.600050, 3.075381, 0.839002), ( 0.565506, 3.006636,-0.365237), False),
         ( 7, 'BotTom',  6, True,  ( 0.565506, 3.006636,-0.365237), ( 0.558349, 2.992394,-0.614728), True),
-        ],
+        ]),
 
-    "SK_BURRICK": [
+    "SK_BURRICK": DarkSkeleton([
         ( 0, 'LToe',     2, True,  ( 1.335589, 0.972176,-3.005818), ( 1.569843, 0.953108,-3.091031), True),
         ( 1, 'RToe',     3, True,  ( 1.349016,-1.180253,-2.989248), ( 1.584376,-1.171291,-3.073065), True),
         ( 2, 'LAnkle',   4, True,  ( 0.797779, 1.015953,-2.810183), ( 1.335589, 0.972176,-3.005818), False),
@@ -1316,10 +1287,10 @@ SKELETONS = {
         (18, 'Abdomen',  8, False, ( 0.907647, 0.026340, 0.317664), ( 1.907647, 0.026340, 0.317664), False),
         (19, 'Head',     9, True,  ( 5.143918,-0.026617, 1.288440), ( 5.378386,-0.034514, 1.374824), True),
         (20, 'Tail',     8, False, (-4.658150, 0.000000,-1.001281), (-3.658150, 0.000000,-1.001281), True),
-        ],
+        ]),
 
     # Yes, the spider skeleton faces backwards. Deal with it.
-    "SK_SPIDER": [
+    "SK_SPIDER": DarkSkeleton([
         ( 0, 'Base',     -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ( 1, 'LMand',     0, False, (-0.598144,-0.189434,-0.134901), (-0.752332,-0.252489,-0.005184), False),
         ( 2, 'LMElbow',   1, True,  (-0.752332,-0.252489,-0.005184), (-0.945764,-0.099278,-0.167966), False),
@@ -1359,9 +1330,9 @@ SKELETONS = {
         (36, 'L4Finger', 28, True,  ( 1.341830,-3.219061,-1.110226), ( 1.376633,-3.326726,-1.333154), True),
         (37, 'LTip',      2, True,  (-0.945764,-0.099278,-0.167966), (-1.109349, 0.030293,-0.305630), True),
         (38, 'RTip',      4, True,  (-0.953029, 0.090079,-0.167966), (-1.116090,-0.047048,-0.298760), True),
-        ],
+        ]),
 
-    "SK_BUGBEAST": [
+    "SK_BUGBEAST": DarkSkeleton([
         ( 0, 'LToe',     2, True,  ( 1.170711, 0.518669,-3.742350), ( 1.417519, 0.520483,-3.782134), True),
         ( 1, 'RToe',     3, True,  ( 1.180363,-0.434027,-3.739797), ( 1.427355,-0.429722,-3.778223), True),
         ( 2, 'LAnkle',   4, True,  ( 0.326978, 0.512466,-3.606343), ( 1.170711, 0.518669,-3.742350), False),
@@ -1384,12 +1355,12 @@ SKELETONS = {
         (19, 'Head',     9, True,  ( 0.409234, 0.057085, 3.074788), ( 0.419321, 0.065486, 3.324443), True),
         (20, 'LClaw',   16, True,  ( 0.575506, 4.319257, 1.837476), ( 0.616994, 4.562920, 1.799962), True),
         (21, 'RClaw',   17, True,  ( 1.415684,-3.975024, 2.197463), ( 1.479910,-4.214535, 2.165688), True),
-        ],
+        ]),
 
     # TODO: when importing/creating CRAYMAN armatures, special-case the left shoulder/elbow/wrist
     #       so the bones are connected as per usual; but when exporting, recognise the topology
     #       from the pincher fork, and make sure to export the correct torsos vs limbs.
-    "SK_CRAYMAN": [
+    "SK_CRAYMAN": DarkSkeleton([
         ( 0, 'LToe',      2, True,  ( 1.017140, 0.450631,-3.251434), ( 1.263947, 0.452445,-3.291219), True),
         ( 1, 'RToe',      3, True,  ( 1.025526,-0.377092,-3.249217), ( 1.272518,-0.372787,-3.287643), True),
         ( 2, 'LAnkle',    4, True,  ( 0.284086, 0.445242,-3.133269), ( 1.017140, 0.450631,-3.251434), False),
@@ -1412,9 +1383,9 @@ SKELETONS = {
         (19, 'Head',      9, True,  ( 0.355552, 0.049597, 2.671442), ( 0.365639, 0.057998, 2.921097), True),
         (20, 'BPincher', 12, False, ( 0.409548, 2.635859, 1.412012), ( 0.714571, 4.804078, 0.584941), False),
         (21, 'BTip',     20, True,  ( 0.714571, 4.804078, 0.584941), ( 0.747151, 5.035669, 0.496600), True),
-        ],
+        ]),
 
-    "SK_CONSTANTINE": [
+    "SK_CONSTANTINE": DarkSkeleton([
         ( 0, 'LToe',     2, True,  ( 1.061637, 0.729181,-3.187923), ( 1.307049, 0.749264,-3.231159), True),
         ( 1, 'RToe',     3, True,  ( 0.994403,-0.895230,-3.193205), ( 1.232736,-0.940769,-3.253401), True),
         ( 2, 'LAnkle',  20, True,  ( 0.198115, 0.658517,-3.035788), ( 1.061637, 0.729181,-3.187923), False),
@@ -1438,9 +1409,9 @@ SKELETONS = {
         (20, 'LDogLeg',  4, True,  (-0.596783, 0.264132,-2.144972), ( 0.198115, 0.658517,-3.035788), False),
         (21, 'RDogLeg',  5, True,  (-0.503117,-0.591822,-2.074647), ( 0.296578,-0.761894,-3.016956), False),
         (22, 'Tail',     8, False, (-4.157607, 0.016612, 0.509623), (-3.157607, 0.016612, 0.509623), True),
-        ],
+        ]),
 
-    "SK_APPARITION": [
+    "SK_APPARITION": DarkSkeleton([
         # Toe is just a torso fixed point, with no torso nor limb; it cannot be posed, nor deform the mesh.
         # TODO: look into the motion file format, to see if, actually, this toe or limb_end joints can
         #       be posed.
@@ -1457,11 +1428,11 @@ SKELETONS = {
         (17, 'RFinger', 15, True,  ( 0.509001,-3.064059, 1.091953), ( 0.559891,-3.306792, 1.060470), True),
         (18, 'Abdomen',  8, False, ( 0.088609, 0.040500, 0.476893), ( 1.088609, 0.040500, 0.476893), False),
         (19, 'Head',     9, True,  ( 0.139629, 0.054508, 2.607577), ( 0.156573, 0.042014, 2.856689), True),
-        ],
+        ]),
 
     # There's no .cal for the sweel, so these positions are just a best guess.
     # TODO: there *are* sweel motions, so maybe extract a possible rest pose from those?
-    "SK_SWEEL": [
+    "SK_SWEEL": DarkSkeleton([
         ( 0, 'Base',    -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ( 1, 'Back',     0, False, ( 0.000000, 0.000000, 1.000000), ( 0.000000, 0.000000, 2.000000), False),
         ( 2, 'Shoulder', 1, True,  ( 0.000000, 0.000000, 2.000000), ( 0.000000, 0.000000, 3.000000), False),
@@ -1469,9 +1440,9 @@ SKELETONS = {
         ( 4, 'Head',     3, True,  ( 0.000000, 0.000000, 4.000000), ( 0.000000, 0.000000, 4.250000), True),
         ( 5, 'Tail',     0, False, (-1.000000, 0.000000, 0.000000), (-2.000000, 0.000000, 0.000000), False),
         ( 6, 'Tip',      5, True,  (-2.000000, 0.000000, 0.000000), (-2.250000, 0.000000, 0.000000), True),
-        ],
+        ]),
 
-    "SK_ROPE": [
+    "SK_ROPE": DarkSkeleton([
         ( 0, 'Node_0', -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ( 1, 'Node_1',  0, False, ( 0.004206, 0.000000,-1.009076), (-0.000000,-0.002121,-2.031790), False),
         ( 2, 'Node_2',  1, True,  (-0.000000,-0.002121,-2.031790), (-0.000000,-0.002121,-3.013595), False),
@@ -1481,9 +1452,9 @@ SKELETONS = {
         ( 6, 'Node_6',  5, True,  ( 0.004206, 0.002121,-5.999917), ( 0.002103, 0.000000,-7.036266), False),
         ( 7, 'Node_7',  6, True,  ( 0.002103, 0.000000,-7.036266), (-0.000372,-0.001032,-8.010067), False),
         ( 8, 'Node_8',  7, True,  (-0.000372,-0.001032,-8.010067), (-0.001007,-0.001297,-8.260067), True),
-        ],
+        ]),
 
-    "SK_ROBOT": [
+    "SK_ROBOT": DarkSkeleton([
         ( 0, 'LToe',     2, True,  ( 0.839878, 1.231792,-3.288423), ( 1.023777, 1.207722,-3.456060), True),
         ( 1, 'RToe',     3, True,  ( 0.946882,-1.287747,-3.284290), ( 1.136831,-1.268632,-3.445703), True),
         ( 2, 'LAnkle',   4, True,  (-0.878642, 1.456727,-1.721873), ( 0.839878, 1.231792,-3.288423), False),
@@ -1502,9 +1473,9 @@ SKELETONS = {
         (15, 'LWrist',  13, True,  ( 2.044902, 1.977960, 1.276250), ( 2.294887, 1.979025, 1.273736), True),
         (16, 'RWrist',  14, True,  ( 2.002214,-1.905006, 1.282021), ( 2.252186,-1.907471, 1.284889), True),
         (17, 'Head',    10, True,  (-0.021752, 0.015703, 4.358021), (-0.021752, 0.015703, 4.608021), True),
-        ],
+        ]),
 
-    "SK_SPIDER_BOT": [
+    "SK_SPIDER_BOT": DarkSkeleton([
         ( 0, 'Base',     -1, False, ( 0.000000, 0.000000, 0.000000), ( 1.000000, 0.000000, 0.000000), False),
         ( 1, 'LMand',     0, False, (-0.966854,-0.234567, 0.003028), (-1.375582,-0.418715,-0.110450), False),
         ( 2, 'LMElbow',   1, True,  (-1.375582,-0.418715,-0.110450), (-1.598338,-0.288490,-0.382587), False),
@@ -1545,16 +1516,11 @@ SKELETONS = {
         (37, 'LTip',      2, True,  (-1.598338,-0.288490,-0.382587), (-1.746836,-0.201677,-0.564004), True),
         (38, 'RTip',      4, True,  (-1.594714, 0.146513,-0.380262), (-1.743467, 0.075830,-0.568349), True),
         (39, 'Sac',       0, False, ( 0.205546,-0.004777, 2.322020), ( 1.205546,-0.004777, 2.322020), True),
-        ],
+        ]),
 
     }
 
-def add_creature_armature(skeleton_type, context):
-    try:
-        skeleton = SKELETONS[skeleton_type]
-    except KeyError:
-        raise ValueError(f"Unknown Skeleton Type '{skeleton_type}'")
-
+def create_armature_from_skeleton(sk, context):
     axes_obj = bpy.data.objects.new("TT_LimbEndBoneDisplay", None)
     axes_obj.empty_display_size = 1.0
     axes_obj.empty_display_type = 'PLAIN_AXES'
@@ -1573,7 +1539,6 @@ def add_creature_armature(skeleton_type, context):
         b.head = head_pos
         b.tail = tail_pos
         b.use_deform = (not limb_end)
-        print(j, b)
         bones[j] = b
         bone_names[j] = b.name
     def connect_bone(j, name, pj, connected, head_pos, tail_pos, limb_end):
@@ -1604,15 +1569,16 @@ def add_creature_armature(skeleton_type, context):
         pb.lock_scale[1] = True
         pb.lock_scale[2] = True
 
-    for args in skeleton:
+    for args in sk:
         add_bone(*args)
-    for args in skeleton:
+    for args in sk:
         connect_bone(*args)
     bpy.ops.object.mode_set(mode='POSE')
-    for args in skeleton:
+    for args in sk:
         hide_bone(*args)
         lock_bone(*args)
     bpy.ops.object.mode_set(mode='OBJECT')
+    return arm_obj
 
 #---------------------------------------------------------------------------#
 # Operators
@@ -1671,6 +1637,6 @@ class TTAddArmatureOperator(Operator):
             self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
             return {'CANCELLED'}
 
-        print(f"You chose {self.skeleton_type}!")
-        add_creature_armature(self.skeleton_type, context)
+        sk = SKELETONS[self.skeleton_type]
+        create_armature_from_skeleton(sk, context)
         return {'FINISHED'}
