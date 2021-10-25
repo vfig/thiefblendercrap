@@ -6,8 +6,7 @@ __all__ = (
     'uint16',
     'uint32',
     'float32',
-    'bytes4',
-    'bytes16',
+    'ByteString',
     'Array',
     'Struct',
     'StructView',
@@ -45,8 +44,9 @@ uint8 = make_primitive_type('uint8', int, 'B')
 uint16 = make_primitive_type('uint16', int, 'H')
 uint32 = make_primitive_type('uint32', int, 'L')
 float32 = make_primitive_type('float32', float, 'f')
-bytes4 = make_primitive_type('bytes4', bytes, '4s')
-bytes16 = make_primitive_type('bytes16', bytes, '16s')
+
+def ByteString(length):
+    return make_primitive_type(f'ByteString({length})', bytes, f'{length}s')
 
 class ArrayInstance:
     typeref = None

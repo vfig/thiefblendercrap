@@ -41,21 +41,21 @@ class LGVector(Struct):
         return (0.0,0.0,0.0)
 
 class LGMMHeader(Struct):
-    magic: bytes4       # 'LGMM'
-    version: uint32     # 1 or 2
-    radius: float32     # bounding radius (always 0 on disk?)
-    flags: uint32       # always 0?
-    app_data: uint32    # always 0?
-    layout: uint8       # 0: in material order; 1: in segment order
-    segs: uint8         # count of segments
-    smatrs: uint8       # count of single-material regions
-    smatsegs: uint8     # count of single-material segments
-    pgons: uint16       # count of polygons
-    verts: uint16       # count of vertices
-    weights: uint16     # count of weights
+    magic: ByteString(4)    # 'LGMM'
+    version: uint32         # 1 or 2
+    radius: float32         # bounding radius (always 0 on disk?)
+    flags: uint32           # always 0?
+    app_data: uint32        # always 0?
+    layout: uint8           # 0: in material order; 1: in segment order
+    segs: uint8             # count of segments
+    smatrs: uint8           # count of single-material regions
+    smatsegs: uint8         # count of single-material segments
+    pgons: uint16           # count of polygons
+    verts: uint16           # count of vertices
+    weights: uint16         # count of weights
     pad: uint16
-    map_off: uint32     # offset to mappings (uint8) from seg/smatr to smatsegs
-    seg_off: uint32     # relative to start of the model, used to generate pointers
+    map_off: uint32         # offset to mappings (uint8) from seg/smatr to smatsegs
+    seg_off: uint32         # relative to start of the model, used to generate pointers
     smatr_off: uint32
     smatseg_off: uint32
     pgon_off: uint32
@@ -140,7 +140,7 @@ class LGMMPolygon(Struct):
             )
 
 class LGMMSMatrV1(Struct):
-    name: bytes16
+    name: ByteString(16)
     handle: uint32
     # union: { uv, ipal }
     uv: float32         # (when mat_type==0)
@@ -184,7 +184,7 @@ class LGMMSMatrV1(Struct):
             )
 
 class LGMMSMatrV2(Struct):
-    name: bytes16
+    name: ByteString(16)
     caps: uint32            # 1 = use alpha; 2 = use self_illum
     alpha: float32          # 0.0 = transparent; 1.0 = opaque
     self_illum: float32     # 0.0 = none; 1.0 = full self-illumination

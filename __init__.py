@@ -13,7 +13,7 @@ if "bpy" in locals():
     imp.reload(mesh)
     imp.reload(lgtypes)
     imp.reload(binstruct)
-    imp.reload(pcx)
+    imp.reload(images)
     #imp.reload(mission)
     print("thieftools: reloaded.");
 else:
@@ -21,7 +21,7 @@ else:
     from . import mesh
     from . import lgtypes
     from . import binstruct
-    from . import pcx
+    from . import images
     #from . import mission
     print("thieftools: loaded.");
 
@@ -69,13 +69,14 @@ class TOOLS_PT_thieftools_debug(Panel):
         box.label(text="MESH")
         op = layout.operator("object.tt_debug_import_mesh")
         op.filename = r"e:/dev/thief/blender/bincal/t2/pirate.bin"
-
         op = layout.operator("object.tt_debug_export_mesh")
         op.filename = "e:/dev/thief/blender/thieftools/test_data/face.bin"
 
         row = layout.row(align=True)
         box = row.box()
-        box.label(text="PCX")
+        box.label(text="Images")
+        op = layout.operator("object.tt_debug_import_gif")
+        op.filename = "e:/dev/thief/blender/thieftools/test_data/mecserv.gif"
         op = layout.operator("object.tt_debug_import_pcx")
         op.filename = "e:/dev/thief/blender/thieftools/test_data/walfresf.pcx"
 
@@ -98,14 +99,16 @@ def register():
     bpy.utils.register_class(mesh.TTDebugExportMeshOperator)
     bpy.utils.register_class(TOOLS_PT_thieftools_debug)
     bpy.utils.register_class(mesh.TTAddArmatureOperator)
-    bpy.utils.register_class(pcx.TTDebugImportPCXOperator)
+    bpy.utils.register_class(images.TTDebugImportGIFOperator)
+    bpy.utils.register_class(images.TTDebugImportPCXOperator)
     bpy.types.VIEW3D_MT_armature_add.append(thief_test_menu_func)
     print("thieftools: registered.");
 
 
 def unregister():
     bpy.types.VIEW3D_MT_armature_add.remove(thief_test_menu_func)
-    bpy.utils.unregister_class(pcx.TTDebugImportPCXOperator)
+    bpy.utils.unregister_class(images.TTDebugImportPCXOperator)
+    bpy.utils.unregister_class(images.TTDebugImportGIFOperator)
     bpy.utils.unregister_class(mesh.TTAddArmatureOperator)
     bpy.utils.unregister_class(TOOLS_PT_thieftools_debug)
     bpy.utils.unregister_class(mesh.TTDebugImportMeshOperator)
