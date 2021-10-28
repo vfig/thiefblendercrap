@@ -96,6 +96,10 @@ class Struct:
             raise TypeError(f"{self.__class__.__name__} has no fields defined")
         if values is None:
             values = self.default_values()
+        elif isinstance(values, self.__class__):
+            inst = values
+            values = [getattr(inst, name)
+                for name, typeref in hints.items()]
         if len(values)!=len(hints):
             raise ValueError(f"Expected {len(self.hints)} values")
         for (name, typeref), value in zip(hints.items(), values):
