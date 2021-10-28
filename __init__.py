@@ -14,7 +14,7 @@ if "bpy" in locals():
     imp.reload(lgtypes)
     imp.reload(binstruct)
     imp.reload(images)
-    #imp.reload(mission)
+    imp.reload(mission)
     print("thieftools: reloaded.");
 else:
     from . import brushes
@@ -22,7 +22,7 @@ else:
     from . import lgtypes
     from . import binstruct
     from . import images
-    #from . import mission
+    from . import mission
     print("thieftools: loaded.");
 
 
@@ -50,12 +50,12 @@ class TOOLS_PT_thieftools_debug(Panel):
     def draw(self, context):
         layout = self.layout
 
-        #row = layout.row(align=True)
-        #box = row.box()
-        #box.label(text="MISSION")
-        #row = box.row(align=True)
-        #op = row.operator("object.tt_debug_import_mission", text="Import (debug)")
-        #op.filename = "e:\\dev\\thief\\blender\\data\\miss1.mis"
+        row = layout.row(align=True)
+        box = row.box()
+        box.label(text="MISSION")
+        row = box.row(align=True)
+        op = row.operator("object.tt_debug_import_mission", text="Import (debug)")
+        op.filename = "e:\\dev\\thief\\blender\\data\\miss1.mis"
 
         row = layout.row(align=True)
         box = row.box()
@@ -94,7 +94,7 @@ def thief_test_menu_func(self, context):
 def register():
     bpy.utils.register_class(brushes.TTDebugBrushesToBooleansOperator)
     bpy.utils.register_class(brushes.TTDebugDeleteAllBrushesOperator)
-    #bpy.utils.register_class(mission.TTDebugImportMissionOperator)
+    bpy.utils.register_class(mission.TTDebugImportMissionOperator)
     bpy.utils.register_class(mesh.TTDebugImportMeshOperator)
     bpy.utils.register_class(mesh.TTDebugExportMeshOperator)
     bpy.utils.register_class(TOOLS_PT_thieftools_debug)
@@ -113,7 +113,7 @@ def unregister():
     bpy.utils.unregister_class(TOOLS_PT_thieftools_debug)
     bpy.utils.unregister_class(mesh.TTDebugImportMeshOperator)
     bpy.utils.unregister_class(mesh.TTDebugExportMeshOperator)
-    #bpy.utils.unregister_class(mission.DebugImportMissionOperator)
+    bpy.utils.unregister_class(mission.DebugImportMissionOperator)
     bpy.utils.unregister_class(brushes.TTDebugDeleteAllBrushesOperator)
     bpy.utils.unregister_class(brushes.TTDebugBrushesToBooleansOperator)
     print("thieftools: unregistered.");

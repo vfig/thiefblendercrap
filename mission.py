@@ -1,19 +1,16 @@
 import bpy
-import bmesh
-import base64
 import math
 import mathutils
-import random
-import struct
-import zlib
+import os
+import sys
 
-from array import array
-from dataclasses import dataclass
-from itertools import islice
 from bpy.props import IntProperty, PointerProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
+from collections import OrderedDict
 from mathutils import Vector
-from mathutils.bvhtree import BVHTree
+from typing import Mapping
+from .binstruct import *
+from .lgtypes import *
 
 #---------------------------------------------------------------------------#
 # Operators
@@ -34,62 +31,107 @@ class TTDebugImportMissionOperator(Operator):
 
         print(f"filename: {self.filename}")
 
-        do_mission_file(self.filename)
+        do_mission(self.filename)
 
         #context.view_layer.objects.active = o
         #o.select_set(True)
 
         return {'FINISHED'}
 
-def do_mission_file(filename):
-    with open(filename, 'rb') as f:
-        data = f.read()
-        do_mission(data)
+def byte_str(b):
+    return b.partition(b'\x00')[0].decode('ascii')
 
-def do_mission(data):
-    assert(type(data) is bytes)
-    #unpack_from(FMT_TAGFILE_HEADER
-    t = TagFileHeader()
+class LGDBVersion(Struct):
+    major: uint32
+    minor: uint32
 
-def structclass(cls):
-    print(">>  >>  >>  >>  >>  >>  >>  >>  >>  ")
-    parts = []
-    for name, fieldtype in cls.__annotations__.items():
+class LGDBFileHeader(Struct):
+    table_offset: uint32
+    version: LGDBVersion
+    pad: Array(uint8, 256)
+    deadbeef: ByteString(4)
+
+class LGDBTOCEntry(Struct):
+    name: ByteString(12)
+    offset: uint32
+    size: uint32
+
+class LGDBChunkHeader(Struct):
+    name: ByteString(12)
+    version: LGDBVersion
+    pad: uint32
+
+class LGDBFile:
+    header: LGDBFileHeader
+
+    def __init__(self, filename='', data=None):
+        if data is None:
+            with open(filename, 'rb') as f:
+                data = f.read()
+        view = memoryview(data)
+        # Read the header.
+        offset = 0
+        header = LGDBFileHeader.read(view)
+        if header.deadbeef != b'\xDE\xAD\xBE\xEF':
+            raise ValueError("File is not a .mis/.cow/.gam/.vbr")
+        if (header.version.major, header.version.minor) not in ((0, 1), ):
+            raise ValueError("Only version 0.1 .mis/.cow/.gam/.vbr files are supported")
+        # Read the table of contents.
+        offset = header.table_offset
+        toc_count = uint32.read(view, offset=offset)
+        offset += uint32.size()
+        p_entries = StructView(view, LGDBTOCEntry, offset=offset, count=toc_count)
+        toc = OrderedDict()
+        for entry in p_entries:
+            key = byte_str(entry.name)
+            toc[key] = entry
+
+        self.header = header
+        self.toc = toc
+        self.view = view
+
+    def __len__(self):
+        return len(self.toc)
+
+    def __getitem__(self, name):
+        entry = self.toc[name]
+        return self.view[entry.offset:entry.offset+entry.size]
+
+    def __iter__(self):
+        return iter(self.toc.keys())
+
+    def get(self, name, default=None):
         try:
-            fmt = fieldtype._struct_format
-        except AttributeError:
-            raise TypeError(f"Field '{name}' is not structclass-compatible ({fieldtype})")
-        else:
-            parts.append(fmt)
-        print(f"{name}: {fieldtype!r}")
-    fmt = ''.join(parts)
-    size = struct.calcsize(fmt)
-    cls._struct_format = fmt
-    cls._struct_size = size
-    print(f"Format: {fmt} ({size} bytes)")
-    print("--  --  --  --  --  --  --  --  --  ")
-    return dataclass(cls)
+            return self.__getitem__(name)
+        except KeyError:
+            return default
 
-class int16(int):
-    _struct_format = "h"
+    def keys(self):
+        return self.toc.keys()
 
-class int32(int):
-    _struct_format = "i"
+    def values(self):
+        for name in self.toc.keys():
+            yield self[name]
 
-class uint16(int):
-    _struct_format = "H"
+    def items(self):
+        return zip(self.keys(), self.values())
 
-class uint32(int):
-    _struct_format = "I"
+def hex_str(bytestr):
+    return " ".join(format(b, "02x") for b in bytestr)
 
-@structclass
-class TagVersion:
-    major : uint32
-    minor : uint32
+def do_mission(filename):
+    #dump_filename = os.path.splitext(mis_filename)[0]+'.dump'
+    #dumpf = open(dump_filename, 'w')
+    dumpf = sys.stdout
 
-@structclass
-class TagFileHeader:
-    table_offset : uint32
-    version : TagVersion
-    pad : ??? how do we do fixed-size arrays?
-    deadbeef : ???
+    # Parse the .bin file
+    mis = LGDBFile(filename)
+    print(f"table_offset: {mis.header.table_offset}", file=dumpf)
+    print(f"version: {mis.header.version.major}.{mis.header.version.minor}", file=dumpf)
+    print(f"deadbeef: {mis.header.deadbeef!r}", file=dumpf)
+    print("Chunks:")
+    for i, name in enumerate(mis):
+        print(f"  {i}: {name}", file=dumpf)
+
+    foo = mis['FILE_TYPE']
+    print(hex_str(foo))
