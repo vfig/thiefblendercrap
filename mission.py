@@ -281,6 +281,29 @@ def do_worldrep(view, context, dumpf):
     print(f"  size: {header.data_size}", file=dumpf)
     print(f"  cell_count: {header.cell_count}", file=dumpf)
 
+    # TODO: import the entire worldrep into one mesh (with options to
+    #       skip jorge & sky polys); as we read each cell, append its
+    #       vertices and indices (adjusted by a global index total) to
+    #       the list.
+    #
+    #       uv_layer 0 will be for texture coordinate; uv_layer 1 will
+    #       be for lightmap coordinates.
+    #       this means we will need to construct each lightmap material
+    #       with nodes: UV Map -> Image Texture -> BSDF.
+    #
+    #       as we read each cell, we should pack its lightmap (skipping
+    #       the animlight portions for now) into an image texture, and
+    #       write out the uv scale+offset that needed. this probably
+    #       means managing _multiple_ lightmap textures/materials, if
+    #       the lightmaps are too big to fit in a 4Kx4K texture (the max
+    #       that newdark permits; i might want to start smaller, too).
+    #       feels like this might need to be a post pass (or passes).
+    #
+    #       however, to get started more easily: begin by just creating
+    #       one material per poly (lol), uv_layer 0, and creating an
+    #       image texture for its lightmap. this will ensure i can actually
+    #       interpret the data correctly, before i try to do it efficiently.
+
     cells = []
     for cell_index in range(header.cell_count):
         print(f"Reading cell {cell_index} at offset 0x{offset:08x}")
@@ -291,8 +314,6 @@ def do_worldrep(view, context, dumpf):
         print(f"    num_polys: {cell.header.num_polys}", file=dumpf)
         print(f"    num_render_polys: {cell.header.num_render_polys}", file=dumpf)
         print(f"    num_portal_polys: {cell.header.num_portal_polys}", file=dumpf)
-        if (cell.header.num_render_polys+cell.header.num_portal_polys)!=cell.header.num_polys:
-            print(f"    !!! some other polys?", file=dumpf)
         print(f"    num_planes: {cell.header.num_planes}", file=dumpf)
         print(f"    medium: {cell.header.medium}", file=dumpf)
         print(f"    flags: {cell.header.flags}", file=dumpf)
