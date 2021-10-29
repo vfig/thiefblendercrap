@@ -171,3 +171,9 @@ class StructView:
 
     def size(self):
         return self.count*self.stride
+
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return f"StructView({self.typeref.__name__}, offset=0x{self.offset:08x}, count={self.count}, size=0x{self.size():08x})"

@@ -111,6 +111,27 @@ class LGWRPlane(Struct):
     normal: LGVector
     distance: float32
 
+class LGWRLightMapInfo(Struct):
+    uv_base: Array(int16, 2)
+    pixel_width: int16
+    height: uint8
+    width: uint8
+    data_ptr: uint32            # Always zero on disk
+    dynamic_light_ptr: uint32   # Always zero on disk
+    anim_light_bitmask: uint32
+
+    def entry_count(self):
+        light_count = 1
+        mask = self.anim_light_bitmask
+        while mask!=0:
+            if mask&1: light_count += 1
+            mask >>= 1
+        return self.height*self.pixel_width*light_count
+
+
+LGWRLightmapEntry = uint16
+LGWRRGBLightmapEntry = uint32
+
 class LGWRCell:
     # Note: this is _not_ a Struct subclass, because its array sizes are
     #       dynamic based on its other field values. So these type hints
@@ -122,8 +143,11 @@ class LGWRCell:
     vertex_offset: uint32
     p_vertex_list: Sequence[uint8]
     p_plane_list: Sequence[LGWRPlane]
-    p_anim_lights: Sequence[LGWRPlane]
-    # TODO: the rest!
+    p_anim_lights: Sequence[uint16]
+    p_light_list: Sequence[LGWRLightMapInfo]
+    lightmap_data: Sequence[bytes]
+    num_light_indices: int32
+    p_light_indices: Sequence[uint16]
 
     @classmethod
     def read(cls, view, offset=0):
@@ -131,8 +155,6 @@ class LGWRCell:
         initial_offset = offset
         cell.header = LGWRCellHeader.read(view, offset=offset)
         offset += cell.header.size()
-        #cell.vertices = Array(LGVector, cell.header.num_vertices).read(view, offset=offset)
-        #offset += cell.vertices.size()
         cell.p_vertices = StructView(view, LGVector, offset=offset, count=cell.header.num_vertices)
         offset += cell.p_vertices.size()
         cell.p_polys = StructView(view, LGWRPoly, offset=offset, count=cell.header.num_polys)
@@ -145,9 +167,23 @@ class LGWRCell:
         offset += cell.p_index_list.size()
         cell.p_plane_list = StructView(view, LGWRPlane, offset=offset, count=cell.header.num_planes)
         offset += cell.p_plane_list.size()
-        cell.p_anim_lights = StructView(view, LGWRPlane, offset=offset, count=cell.header.num_anim_lights)
+        cell.p_anim_lights = StructView(view, uint16, offset=offset, count=cell.header.num_anim_lights)
         offset += cell.p_anim_lights.size()
-        # TODO: light list and such... phew! this is a messy structure!
+        cell.p_light_list = StructView(view, LGWRLightMapInfo, offset=offset, count=cell.header.num_render_polys)
+        offset += cell.p_light_list.size()
+        cell.lightmap_data = []
+        for info in cell.p_light_list:
+            # WR lightmap data is uint8; WRRGB is uint16 (xR5G5B5)
+            entry_type = uint8
+            lightmap_size = entry_type.size()*info.entry_count()
+            lightmap_data = view[offset:offset+lightmap_size]
+            offset += lightmap_size
+            cell.lightmap_data.append(lightmap_data)
+        cell.num_light_indices = int32.read(view, offset=offset)
+        offset += int32.size()
+        cell.p_light_indices = StructView(view, uint16, offset=offset, count=cell.num_light_indices)
+        offset += cell.p_light_indices.size()
+        # Done!
         cell._calculated_size = offset-initial_offset
         return cell
 
@@ -188,6 +224,7 @@ class LGDBFile:
 
     def __getitem__(self, name):
         entry = self.toc[name]
+        print(f"Reading {name}: offset 0x{entry.offset:08x}, size 0x{entry.data_size:08x}")
         return self.view[entry.offset:entry.offset+entry.data_size]
 
     def __iter__(self):
@@ -213,9 +250,9 @@ def hex_str(bytestr):
     return " ".join(format(b, "02x") for b in bytestr)
 
 def do_mission(filename, context):
-    #dump_filename = os.path.splitext(mis_filename)[0]+'.dump'
-    #dumpf = open(dump_filename, 'w')
-    dumpf = sys.stdout
+    dump_filename = os.path.splitext(filename)[0]+'.dump'
+    dumpf = open(dump_filename, 'w')
+    #dumpf = sys.stdout
 
     # Parse the .bin file
     mis = LGDBFile(filename)
@@ -226,17 +263,11 @@ def do_mission(filename, context):
     for i, name in enumerate(mis):
         print(f"  {i}: {name}", file=dumpf)
 
-    foo = mis['FILE_TYPE']
-    print(hex_str(foo))
-
-    # TODO: WRRGB with t2?
+    # TODO: WRRGB with t2? what about newdark 32-bit lighting?
     worldrep = mis['WR']
-    # other useful chunks maybe: FAMILY, AMBIENT, DARKMISS
-    do_worldrep(worldrep, context)
+    do_worldrep(worldrep, context, dumpf)
 
-def do_worldrep(view, context):
-    dumpf = sys.stdout
-
+def do_worldrep(view, context, dumpf):
     offset = 0
     header = LGWRHeader.read(view, offset=offset)
     offset += header.size()
@@ -251,14 +282,17 @@ def do_worldrep(view, context):
     print(f"  cell_count: {header.cell_count}", file=dumpf)
 
     cells = []
-    for i in range(1): # TODO: header.cell_count
+    for cell_index in range(header.cell_count):
+        print(f"Reading cell {cell_index} at offset 0x{offset:08x}")
         cell = LGWRCell.read(view, offset)
         offset += cell.size()
-        print(f"  Cell {i}:", file=dumpf)
+        print(f"  Cell {cell_index}:", file=dumpf)
         print(f"    num_vertices: {cell.header.num_vertices}", file=dumpf)
         print(f"    num_polys: {cell.header.num_polys}", file=dumpf)
         print(f"    num_render_polys: {cell.header.num_render_polys}", file=dumpf)
         print(f"    num_portal_polys: {cell.header.num_portal_polys}", file=dumpf)
+        if (cell.header.num_render_polys+cell.header.num_portal_polys)!=cell.header.num_polys:
+            print(f"    !!! some other polys?", file=dumpf)
         print(f"    num_planes: {cell.header.num_planes}", file=dumpf)
         print(f"    medium: {cell.header.medium}", file=dumpf)
         print(f"    flags: {cell.header.flags}", file=dumpf)
@@ -279,13 +313,9 @@ def do_worldrep(view, context):
         for i, poly in enumerate(cell.p_polys):
             is_render = (i<cell.header.num_render_polys)
             is_portal = (i>=(cell.header.num_polys-cell.header.num_portal_polys))
-            # Hmm, not sure about this. This comes from DarkUtils writeup,
-            # but it claims "surface" (here "render") polys are only for
-            # translucent polys like water surfaces. BUT its only the render
-            # poly struct that has uvs? i dunno.
-            if is_render: poly_type = 'render'
-            elif is_portal: poly_type = 'portal'
-            else: poly_type = 'wall'
+            if is_render and not is_portal: poly_type = 'render'
+            elif is_portal and not is_render: poly_type = 'portal'
+            else: poly_type = 'render,portal' # typically a water surface
             print(f"      {i}: ({poly_type})", end='', file=dumpf)
             for j in range(poly.num_vertices):
                 k = poly_start_index+j
@@ -296,6 +326,12 @@ def do_worldrep(view, context):
         print(f"    p_plane_list: {cell.p_plane_list}", file=dumpf)
         print(f"    p_anim_lights: {cell.p_anim_lights}", file=dumpf)
 
+        print(f"    p_light_list: {cell.p_light_list}", file=dumpf)
+        for i, lightmap_data in enumerate(cell.lightmap_data):
+            print(f"      {i}: 0x{len(lightmap_data):08x} bytes", file=dumpf)
+        print(f"    num_light_indices: {cell.num_light_indices}", file=dumpf)
+        print(f"    p_light_indices: {cell.p_light_indices}", file=dumpf)
+
         # TEMP: hack together a mesh
         vertices = [Vector(v) for v in cell.p_vertices]
         faces = []
@@ -303,6 +339,7 @@ def do_worldrep(view, context):
         for i, poly in enumerate(cell.p_polys):
             is_render = (i<cell.header.num_render_polys)
             is_portal = (i>=(cell.header.num_polys-cell.header.num_portal_polys))
+            if not is_render: continue
             face = []
             for j in range(poly.num_vertices):
                 k = poly_start_index+j
@@ -310,7 +347,7 @@ def do_worldrep(view, context):
                 face.append(vi)
             faces.append(face)
             poly_start_index += poly.num_vertices
-        name = "Cell"
+        name = f"Cell {cell_index}"
         mesh = bpy.data.meshes.new(f"{name} mesh")
         mesh.from_pydata(vertices, [], faces)
         mesh.validate(verbose=True)
