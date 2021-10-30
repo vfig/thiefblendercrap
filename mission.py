@@ -101,8 +101,10 @@ class LGWRPoly(Struct):
     padding: uint8
 
 class LGWRRenderPoly(Struct):
-    uv: Array(LGVector, 2)
-    uv_base: Array(uint16, 2)
+    tex_u: LGVector
+    tex_v: LGVector
+    u_base: uint16
+    v_base: uint16
     texture_id: uint8
     texture_anchor: uint8
     cached_surface: uint16
@@ -114,7 +116,8 @@ class LGWRPlane(Struct):
     distance: float32
 
 class LGWRLightMapInfo(Struct):
-    uv_base: Array(int16, 2)
+    u_base: int16
+    v_base: int16
     pixel_width: int16
     height: uint8
     width: uint8
@@ -185,8 +188,27 @@ class LGWRCell:
         offset += int32.size()
         cell.p_light_indices = StructView(view, uint16, offset=offset, count=cell.num_light_indices)
         offset += cell.p_light_indices.size()
-        # Done!
+        # Done reading!
         cell._calculated_size = offset-initial_offset
+        # Oh, but for sanity, lets build a table of polygon vertices, so
+        # we dont have to deal with vertex-indices or vertex-index-indices
+        # anywhere else. Except maybe for dumping.
+        poly_indices = []
+        poly_vertices = []
+        start_index = 0
+        for pi, poly in enumerate(cell.p_polys):
+            indices = []
+            vertices = []
+            for j in range(poly.num_vertices):
+                k = start_index+j
+                vi = cell.p_index_list[k]
+                indices.append(vi)
+                vertices.append(cell.p_vertices[vi])
+            start_index += poly.num_vertices
+            poly_indices.append(indices)
+            poly_vertices.append(vertices)
+        cell.poly_indices = poly_indices
+        cell.poly_vertices = poly_vertices
         return cell
 
     def size(self):
@@ -313,6 +335,62 @@ def create_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
     # could maybe instead wrangle our own DiffuseBSDFWrapper?
     return mat
 
+def poly_calculate_uvs(cell, pi):
+    poly = cell.p_polys[pi]
+    render = cell.p_render_polys[pi]
+    vertices = cell.poly_vertices[pi]
+
+    # ugh
+    #mxs_real uv;
+    #mxs_vector *p_uvec, *p_vvec, *anchor;
+    #mxs_real u_base, v_base;
+    #mxs_real u2, v2;
+
+    # TODO: figure out the uv scales here
+    #mxs_real u_scale, v_scale;
+    #u_scale = two_to_n(6 - hw.tex->wlog);
+    #v_scale = two_to_n(6 - hw.tex->hlog);
+    u_scale = 1.0
+    v_scale = 1.0
+
+    p_uvec = Vector(render.tex_u)
+    p_vvec = Vector(render.tex_v)
+    # TODO: i think anchor is a vertex index, not a vertex-index index!
+    #       but if this goes wrong, then we know otherwise
+    #anchor = &(cur_pool[r_vertex_list[voff + render->texture_anchor]]);
+    anchor = Vector(vertices[render.texture_anchor])
+    uv = p_uvec.dot(p_vvec)
+    u_base = float(render.u_base)*u_scale/(16.0*256.0) # u translation
+    v_base = float(render.v_base)*v_scale/(16.0*256.0) # v translation
+    u2 = p_uvec.length_squared
+    v2 = p_vvec.length_squared
+    uv_list = []
+    if uv == 0.0:
+        uvec = p_uvec*u_scale/u2;
+        vvec = p_vvec*v_scale/v2;
+        for i in range(poly.num_vertices):
+            wvec = Vector(vertices[i])
+            delta = wvec-anchor
+            u = delta.dot(uvec)+u_base
+            v = delta.dot(vvec)+v_base
+            uv_list.append((u,v))
+    else:
+        #mxs_real uvu, uvv, denom;
+        denom = 1.0/(u2*v2 - (uv*uv));
+        u2 *= v_scale*denom
+        v2 *= u_scale*denom
+        uvu = u_scale*denom*uv
+        uvv = v_scale*denom*uv
+        for i in range(poly.num_vertices):
+            wvec = Vector(vertices[i])
+            delta = wvec-anchor
+            du = delta.dot(p_uvec)
+            dv = delta.dot(p_vvec)
+            u = u_base+v2*du-uvu*dv
+            v = v_base+u2*dv-uvv*du
+            uv_list.append((u,v))
+    return uv_list
+
 def do_worldrep(view, context, dumpf):
     offset = 0
     header = LGWRHeader.read(view, offset=offset)
@@ -374,22 +452,34 @@ def do_worldrep(view, context, dumpf):
             print(f"      {i}: {v.x:06f},{v.y:06f},{v.z:06f}", file=dumpf)
         print(f"    p_polys: {cell.p_polys}", file=dumpf)
         print(f"    p_render_polys: {cell.p_render_polys}", file=dumpf)
+        for i, rpoly in enumerate(cell.p_render_polys):
+            print(f"      render_poly {i}:", file=dumpf)
+            print(f"        tex_u: {rpoly.tex_u.x:06f},{rpoly.tex_u.y:06f},{rpoly.tex_u.z:06f}", file=dumpf)
+            print(f"        tex_v: {rpoly.tex_v.x:06f},{rpoly.tex_v.y:06f},{rpoly.tex_v.z:06f}", file=dumpf)
+            print(f"        u,v_base: 0x{rpoly.u_base:04x},0x{rpoly.v_base:04x}", file=dumpf)
+            print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
+            print(f"        texture_anchor: {rpoly.texture_anchor}", file=dumpf)
+            # Skip printing  cached_surface, texture_mag, center.
         print(f"    index_count: {cell.index_count}", file=dumpf)
         print(f"    p_index_list: {cell.p_index_list}", file=dumpf)
-        poly_start_index = 0
-        for i, poly in enumerate(cell.p_polys):
-            is_render = (i<cell.header.num_render_polys)
-            is_portal = (i>=(cell.header.num_polys-cell.header.num_portal_polys))
+        for pi, poly in enumerate(cell.p_polys):
+            is_render = (pi<cell.header.num_render_polys)
+            is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
             if is_render and not is_portal: poly_type = 'render'
             elif is_portal and not is_render: poly_type = 'portal'
             else: poly_type = 'render,portal' # typically a water surface
-            print(f"      {i}: ({poly_type})", end='', file=dumpf)
+            print(f"      {pi}: ({poly_type})", end='', file=dumpf)
             for j in range(poly.num_vertices):
-                k = poly_start_index+j
-                vi = cell.p_index_list[k]
+                vi = cell.poly_indices[pi][j]
                 print(f" {vi}", end='', file=dumpf)
             print(file=dumpf)
-            poly_start_index += poly.num_vertices
+            print(f"      {pi} uvs:", end='', file=dumpf)
+            if is_render:
+                uv_list = poly_calculate_uvs(cell, pi)
+                for j in range(poly.num_vertices):
+                    u, v = uv_list[j]
+                    print(f" ({u:0.2f},{v:0.2f}),", end='', file=dumpf)
+                print(file=dumpf)
         print(f"    p_plane_list: {cell.p_plane_list}", file=dumpf)
         print(f"    p_anim_lights: {cell.p_anim_lights}", file=dumpf)
 
@@ -400,24 +490,30 @@ def do_worldrep(view, context, dumpf):
         print(f"    p_light_indices: {cell.p_light_indices}", file=dumpf)
 
         # TEMP: hack together a mesh
+        # TODO: okay, we need to do something about the uvs. first, we are not
+        #       yet splitting the vertices. thats... kinda fine, kinda not.
+        #       its fine because blender worries about that by putting things
+        #       into loops and whatever. but its not fine for the uvs, because
+        #       we need to somehow build uvs-by-loop-index, so we need a unique
+        #       way of referencing each poly-vertex, because itll have unique
+        #       lightmap uvs!
+        #       maaaybe (poly_index, vertex_index) is okay, because each loop
+        #       references those?? but are those actually unique? idk...
         vertices = [Vector(v) for v in cell.p_vertices]
         uvs = [Vector((0.0,0.0)) for v in cell.p_vertices]
         faces = []
         images = []
         materials = []
-        poly_start_index = 0
         for pi, poly in enumerate(cell.p_polys):
             is_render = (pi<cell.header.num_render_polys)
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
             if not is_render: continue
             face = []
             for j in range(poly.num_vertices):
-                k = poly_start_index+j
-                vi = cell.p_index_list[k]
+                vi = cell.poly_indices[pi][j]
                 face.append(vi)
                 #uvs[vi] = ???
             faces.append(face)
-            poly_start_index += poly.num_vertices
 
             # Hack together a lightmap texture + material for this poly
             image = create_lightmap_for_cell_poly(cell, cell_index, pi)
