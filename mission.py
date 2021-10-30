@@ -6,6 +6,8 @@ import sys
 
 from bpy.props import IntProperty, PointerProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
+from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
+from bpy_extras.image_utils import load_image
 from collections import OrderedDict
 from mathutils import Vector
 from typing import Mapping, Sequence
@@ -267,6 +269,50 @@ def do_mission(filename, context):
     worldrep = mis['WR']
     do_worldrep(worldrep, context, dumpf)
 
+def create_lightmap_for_cell_poly(cell, cell_index, pi):
+    name = f"Lightmap.Cell{cell_index}.Poly{pi}"
+    # TEMP: dont recreate the image if it already exists. this is so
+    #       that i can re-run this over and over for getting uv mapping
+    #       right, without adding to image/material spam
+    #       of course for the actual import we want new images, but then
+    #       we should be atlasing already
+    image = bpy.data.images.get(name)
+    if image is not None: return image
+    # Blat the lightmap pixels into an image, very inefficiently.
+    info = cell.p_light_list[pi]
+    lightmap_data = cell.lightmap_data[pi]
+    width = info.width
+    height = info.height
+    pixels = []
+    for y in reversed(range(height)): # TODO: reversed?
+        # TODO: this is all only cromulent for uint8, ofc.
+        ofs = y*info.pixel_width
+        row = lightmap_data[ofs:ofs+width]
+        for b in row:
+            i = b/255.0
+            pixels.extend([i, i, i, 1.0])
+    image = bpy.data.images.new(name, width, height, alpha=True)
+    image.pixels = pixels
+    return image
+
+def create_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
+    # Create a material
+    name = f"Lightmap.Cell{cell_index}.Poly{pi}"
+    # TEMP: dont recreate the material if it already exists. for the actual
+    #       import, we want to be managing materials a little better than
+    #       one per poly!
+    mat = bpy.data.materials.get(name)
+    if mat is not None: return mat
+    # Create a material that uses the 'UV' uv_layer for its texcoords
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    principled = PrincipledBSDFWrapper(mat, is_readonly=False)
+    principled.base_color = (1.0, 0.5, 0.0) # TODO: temp orange
+    principled.base_color_texture.image = lightmap_image
+    # TODO: roughness and stuff.
+    # could maybe instead wrangle our own DiffuseBSDFWrapper?
+    return mat
+
 def do_worldrep(view, context, dumpf):
     offset = 0
     header = LGWRHeader.read(view, offset=offset)
@@ -305,7 +351,7 @@ def do_worldrep(view, context, dumpf):
     #       interpret the data correctly, before i try to do it efficiently.
 
     cells = []
-    for cell_index in range(header.cell_count):
+    for cell_index in range(100): # TODO: was range(header.cell_count):
         print(f"Reading cell {cell_index} at offset 0x{offset:08x}")
         cell = LGWRCell.read(view, offset)
         offset += cell.size()
@@ -355,21 +401,41 @@ def do_worldrep(view, context, dumpf):
 
         # TEMP: hack together a mesh
         vertices = [Vector(v) for v in cell.p_vertices]
+        uvs = [Vector((0.0,0.0)) for v in cell.p_vertices]
         faces = []
+        images = []
+        materials = []
         poly_start_index = 0
-        for i, poly in enumerate(cell.p_polys):
-            is_render = (i<cell.header.num_render_polys)
-            is_portal = (i>=(cell.header.num_polys-cell.header.num_portal_polys))
+        for pi, poly in enumerate(cell.p_polys):
+            is_render = (pi<cell.header.num_render_polys)
+            is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
             if not is_render: continue
             face = []
             for j in range(poly.num_vertices):
                 k = poly_start_index+j
                 vi = cell.p_index_list[k]
                 face.append(vi)
+                #uvs[vi] = ???
             faces.append(face)
             poly_start_index += poly.num_vertices
+
+            # Hack together a lightmap texture + material for this poly
+            image = create_lightmap_for_cell_poly(cell, cell_index, pi)
+            images.append(image)
+            mat = create_material_for_cell_poly(cell, cell_index, pi, image)
+            materials.append(mat)
+
         name = f"Cell {cell_index}"
-        mesh = bpy.data.meshes.new(f"{name} mesh")
+        mesh = bpy.data.meshes.new(name=f"{name} mesh")
         mesh.from_pydata(vertices, [], faces)
         mesh.validate(verbose=True)
-        create_object(name, mesh, (0,0,0), context=context, link=True)
+        uv_layer = (mesh.uv_layers.get('UV')
+            or mesh.uv_layers.new(name='UV'))
+        for loop, uvloop in zip(mesh.loops, uv_layer.data):
+            vi = loop.vertex_index
+            uvloop.uv = uvs[vi]
+        for i, mat in enumerate(materials):
+            mesh.materials.append(mat)
+        for i, polygon in enumerate(mesh.polygons):
+            polygon.material_index = i
+        o = create_object(name, mesh, (0,0,0), context=context, link=True)
