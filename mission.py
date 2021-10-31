@@ -458,6 +458,9 @@ def lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
     principled = PrincipledBSDFWrapper(mat, is_readonly=False)
     principled.base_color = (1.0, 0.5, 0.0) # TODO: temp orange
     principled.base_color_texture.image = lightmap_image
+    # TODO: this isnt working. it causes a KeyError when the wrapper tries
+    #       to set up the uvmap node, or something. i think maybe it can
+    #       only work after the mesh/object has been fully set up maybe?
     #principled.base_color_texture.texcoords = 'Lightmap'
     principled.metallic = 0.0
     principled.specular = 0.0
@@ -511,28 +514,16 @@ def poly_calculate_lightmap_uvs(cell, pi, texture_size):
     render = cell.p_render_polys[pi]
     vertices = cell.poly_vertices[pi]
     info = cell.p_light_list[pi]
-
     p_uvec = Vector(render.tex_u)
     p_vvec = Vector(render.tex_v)
     anchor = Vector(vertices[render.texture_anchor])
     uv = p_uvec.dot(p_vvec)
-
-    fudge = 1
-    # For RGB_LIGHTING, fudge = 2
-    # For RGB_888, fudge = 4
-    # BUT in fact i am not using hw.lm->wlog, so maybe i dont need to
-    # use any fudge at all?
-    u_scale = fudge*4.0/info.width
+    u_scale = 4.0/info.width
     v_scale = 4.0/info.height
-
-    # okay, hack to try to make this right. cause i dont quite understand
-    # yet why it is not! (isnt the texture width relevant?)
-
     atlas_u0 = 0.5
     atlas_v0 = 0.5
     u_base = u_scale*(float(render.u_base)/(16.0*256.0)+(atlas_u0-float(info.u_base))/4.0) # u translation
     v_base = v_scale*(float(render.v_base)/(16.0*256.0)+(atlas_v0-float(info.v_base))/4.0) # v translation
-
     u2 = p_uvec.length_squared
     v2 = p_vvec.length_squared
     uv_list = []
@@ -598,6 +589,12 @@ def do_worldrep(chunk, textures, context, dumpf):
     #       one material per poly (lol), uv_layer 0, and creating an
     #       image texture for its lightmap. this will ensure i can actually
     #       interpret the data correctly, before i try to do it efficiently.
+    #
+    #       So.... because lightmaps are unique, and (i think) aligned with
+    #       textures, we could during import merge both lightmaps and texture
+    #       samples into one big atlas? that way we end up with unique texels
+    #       for each poly, and the combined result will be ready for export
+    #       as a single model, without the blender baking shenanigans? dunno.
 
     cells = []
     for cell_index in range(100): # TODO: was range(header.cell_count):
@@ -645,19 +642,6 @@ def do_worldrep(chunk, textures, context, dumpf):
                 vi = cell.poly_indices[pi][j]
                 print(f" {vi}", end='', file=dumpf)
             print(file=dumpf)
-            # dump UVs for cell 38
-            if cell_index != 38: continue
-            if not is_render: continue
-            texture_id = cell.p_render_polys[pi].texture_id
-            texture_image = None if texture_id in (0,249) else textures[texture_id]
-            texture_size = texture_image.size if texture_image else (64, 64)
-            poly_texture_uvs = poly_calculate_texture_uvs(cell, pi, texture_size)
-            poly_lightmap_uvs = poly_calculate_lightmap_uvs(cell, pi, texture_size)
-            print(f"      {pi} uvs:", file=dumpf)
-            for j in range(poly.num_vertices):
-                u0, v0 = poly_texture_uvs[j]
-                u1, v1 = poly_lightmap_uvs[j]
-                print(f"        vertex {j}: tx {u0:0.3f},{v0:0.3f}; lm {u1:0.3f},{v1:0.3f}", file=dumpf)
         print(f"    p_plane_list: {cell.p_plane_list}", file=dumpf)
         print(f"    p_anim_lights: {cell.p_anim_lights}", file=dumpf)
         print(f"    p_light_list: {cell.p_light_list}", file=dumpf)
