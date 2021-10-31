@@ -306,7 +306,7 @@ def create_lightmap_for_cell_poly(cell, cell_index, pi):
     width = info.width
     height = info.height
     pixels = []
-    for y in reversed(range(height)): # TODO: reversed?
+    for y in range(height): # TODO: reversed?
         # TODO: this is all only cromulent for uint8, ofc.
         ofs = y*info.pixel_width
         row = lightmap_data[ofs:ofs+width]
@@ -339,25 +339,36 @@ def poly_calculate_uvs(cell, pi):
     poly = cell.p_polys[pi]
     render = cell.p_render_polys[pi]
     vertices = cell.poly_vertices[pi]
+    info = cell.p_light_list[pi]
 
-    # ugh
-    #mxs_real uv;
-    #mxs_vector *p_uvec, *p_vvec, *anchor;
-    #mxs_real u_base, v_base;
-    #mxs_real u2, v2;
+    # TODO: we dont know the texture dimensions! so hardcode here
+    # something that is right in some of the sample:
+    tex_width = 64
+    tex_height = 64
 
     # TODO: figure out the uv scales here
     #mxs_real u_scale, v_scale;
     #u_scale = two_to_n(6 - hw.tex->wlog);
     #v_scale = two_to_n(6 - hw.tex->hlog);
-    u_scale = 1.0
-    v_scale = 1.0
-
+    # TODO:
+    # wlog, hlog are log2 of the *texture* width/height (possibly scale included)
+    # i think.
+    # since most of what we have in front of us is 64x64 textures at scale 16,
+    # i suppose we try using that...
+    # ??? try to find 'correct' values manually
+    u_scale = 0.25
+    v_scale = 0.5
+    # yeah, these are roughly the right scale for these windows
+    # (but the offset is wrong, so maybe the scale is slightly off due to
+    #  the log2(row) vs log2(w) thing? or i just have the offset calculation
+    #  wrong, idk!!)
+    #
+    # TODO: in any case, because the *texture size* and tex_u/tex_v vectors
+    #       are the basis for lightmap uvs as well, it makes sense to get
+    #       texture loading happening first!
+    #
     p_uvec = Vector(render.tex_u)
     p_vvec = Vector(render.tex_v)
-    # TODO: i think anchor is a vertex index, not a vertex-index index!
-    #       but if this goes wrong, then we know otherwise
-    #anchor = &(cur_pool[r_vertex_list[voff + render->texture_anchor]]);
     anchor = Vector(vertices[render.texture_anchor])
     uv = p_uvec.dot(p_vvec)
     u_base = float(render.u_base)*u_scale/(16.0*256.0) # u translation
@@ -375,7 +386,6 @@ def poly_calculate_uvs(cell, pi):
             v = delta.dot(vvec)+v_base
             uv_list.append((u,v))
     else:
-        #mxs_real uvu, uvv, denom;
         denom = 1.0/(u2*v2 - (uv*uv));
         u2 *= v_scale*denom
         v2 *= u_scale*denom
@@ -456,7 +466,8 @@ def do_worldrep(view, context, dumpf):
             print(f"      render_poly {i}:", file=dumpf)
             print(f"        tex_u: {rpoly.tex_u.x:06f},{rpoly.tex_u.y:06f},{rpoly.tex_u.z:06f}", file=dumpf)
             print(f"        tex_v: {rpoly.tex_v.x:06f},{rpoly.tex_v.y:06f},{rpoly.tex_v.z:06f}", file=dumpf)
-            print(f"        u,v_base: 0x{rpoly.u_base:04x},0x{rpoly.v_base:04x}", file=dumpf)
+            print(f"        u_base: {rpoly.u_base} (0x{rpoly.u_base:04x})", file=dumpf)
+            print(f"        v_base: {rpoly.v_base} (0x{rpoly.v_base:04x})", file=dumpf)
             print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
             print(f"        texture_anchor: {rpoly.texture_anchor}", file=dumpf)
             # Skip printing  cached_surface, texture_mag, center.
@@ -484,8 +495,14 @@ def do_worldrep(view, context, dumpf):
         print(f"    p_anim_lights: {cell.p_anim_lights}", file=dumpf)
 
         print(f"    p_light_list: {cell.p_light_list}", file=dumpf)
-        for i, lightmap_data in enumerate(cell.lightmap_data):
-            print(f"      {i}: 0x{len(lightmap_data):08x} bytes", file=dumpf)
+        for i, info in enumerate(cell.p_light_list):
+            print(f"      lightmapinfo {i}:", file=dumpf)
+            print(f"        u_base: {info.u_base} (0x{info.u_base:04x})", file=dumpf)
+            print(f"        v_base: {info.v_base} (0x{info.v_base:04x})", file=dumpf)
+            print(f"        pixel_width: {info.pixel_width}", file=dumpf)
+            print(f"        height: {info.height}", file=dumpf)
+            print(f"        width: {info.width}", file=dumpf)
+            print(f"        anim_light_bitmask: 0x{info.anim_light_bitmask:08x}", file=dumpf)
         print(f"    num_light_indices: {cell.num_light_indices}", file=dumpf)
         print(f"    p_light_indices: {cell.p_light_indices}", file=dumpf)
 
@@ -500,7 +517,8 @@ def do_worldrep(view, context, dumpf):
         #       maaaybe (poly_index, vertex_index) is okay, because each loop
         #       references those?? but are those actually unique? idk...
         vertices = [Vector(v) for v in cell.p_vertices]
-        uvs = [Vector((0.0,0.0)) for v in cell.p_vertices]
+        uvs = []
+        edges = []
         faces = []
         images = []
         materials = []
@@ -508,11 +526,17 @@ def do_worldrep(view, context, dumpf):
             is_render = (pi<cell.header.num_render_polys)
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
             if not is_render: continue
+            poly_uvs = poly_calculate_uvs(cell, pi)
             face = []
+            poly_indices = cell.poly_indices[pi]
             for j in range(poly.num_vertices):
-                vi = cell.poly_indices[pi][j]
+                vi = poly_indices[j]
+                vi2 = (poly_indices[j+1] if j<(poly.num_vertices-1)
+                       else poly_indices[0])
                 face.append(vi)
-                #uvs[vi] = ???
+                edges.append((vi, vi2))
+                uvs.append(poly_uvs[j])
+                # TODO: normals too! the plane normal (or we can 'shade flat' i guess)
             faces.append(face)
 
             # Hack together a lightmap texture + material for this poly
@@ -527,9 +551,8 @@ def do_worldrep(view, context, dumpf):
         mesh.validate(verbose=True)
         uv_layer = (mesh.uv_layers.get('UV')
             or mesh.uv_layers.new(name='UV'))
-        for loop, uvloop in zip(mesh.loops, uv_layer.data):
-            vi = loop.vertex_index
-            uvloop.uv = uvs[vi]
+        for loop, uvloop, uv in zip(mesh.loops, uv_layer.data, uvs):
+            uvloop.uv = uv
         for i, mat in enumerate(materials):
             mesh.materials.append(mat)
         for i, polygon in enumerate(mesh.polygons):
