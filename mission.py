@@ -12,6 +12,7 @@ from collections import OrderedDict
 from mathutils import Vector
 from typing import Mapping, Sequence
 from .binstruct import *
+from .images import load_gif, load_pcx
 from .lgtypes import *
 
 def create_object(name, mesh, location, context=None, link=True):
@@ -71,8 +72,21 @@ class LGDBChunkHeader(Struct):
     version: LGDBVersion
     pad: uint32
 
+class LGTXLISTHeader(Struct):
+    length: uint32
+    tex_count: uint32
+    fam_count: uint32
+
+class LGTXLISTTex(Struct):
+    flags: uint8
+    fam_id: uint8
+    pad: uint16
+    name: ByteString(16)
+
+class LGTXLISTFam(Struct):
+    name: ByteString(16)
+
 class LGWRHeader(Struct):
-    chunk: LGDBChunkHeader
     data_size: uint32
     cell_count: uint32
 
@@ -214,6 +228,15 @@ class LGWRCell:
     def size(self):
         return self._calculated_size
 
+class LGDBChunk:
+    header: LGDBChunkHeader
+    data: Sequence[bytes]
+
+    def __init__(self, view, offset, data_size):
+        self.header = LGDBChunkHeader.read(view, offset=offset)
+        offset += self.header.size()
+        self.data = view[offset:offset+data_size]
+
 class LGDBFile:
     header: LGDBFileHeader
 
@@ -248,8 +271,10 @@ class LGDBFile:
 
     def __getitem__(self, name):
         entry = self.toc[name]
-        print(f"Reading {name}: offset 0x{entry.offset:08x}, size 0x{entry.data_size:08x}")
-        return self.view[entry.offset:entry.offset+entry.data_size]
+        chunk = LGDBChunk(self.view, entry.offset, entry.data_size)
+        if byte_str(chunk.header.name) != name:
+            raise ValueError(f"{name} chunk name is invalid")
+        return chunk
 
     def __iter__(self):
         return iter(self.toc.keys())
@@ -283,13 +308,96 @@ def do_mission(filename, context):
     print(f"table_offset: {mis.header.table_offset}", file=dumpf)
     print(f"version: {mis.header.version.major}.{mis.header.version.minor}", file=dumpf)
     print(f"deadbeef: {mis.header.deadbeef!r}", file=dumpf)
-    print("Chunks:")
+    print("Chunks:", file=dumpf)
     for i, name in enumerate(mis):
         print(f"  {i}: {name}", file=dumpf)
+
+    txlist = mis['TXLIST']
+    do_txlist(txlist, context, dumpf)
+    return # TODO: only go back to worldrep once we can load textures!
 
     # TODO: WRRGB with t2? what about newdark 32-bit lighting?
     worldrep = mis['WR']
     do_worldrep(worldrep, context, dumpf)
+
+def do_txlist(chunk, context, dumpf):
+    if (chunk.header.version.major, chunk.header.version.minor) \
+    not in [(1, 0)]:
+        raise ValueError("Only version 1.0 TXLIST chunk is supported")
+    view = chunk.data
+    offset = 0
+    header = LGTXLISTHeader.read(view, offset=offset)
+    offset += header.size()
+    print(f"TXLIST:", file=dumpf)
+    print(f"  length: {header.length}", file=dumpf)
+    p_fams = StructView(view, LGTXLISTFam, offset=offset, count=header.fam_count)
+    offset += p_fams.size()
+    print(f"  fam_count: {header.fam_count}", file=dumpf)
+    for i, fam in enumerate(p_fams):
+        name = byte_str(fam.name)
+        print(f"    {i}: {name}", file=dumpf)
+    p_texs = StructView(view, LGTXLISTTex, offset=offset, count=header.tex_count)
+    offset += p_texs.size()
+    print(f"  tex_count: {header.tex_count}", file=dumpf)
+    for i, tex in enumerate(p_texs):
+        name = byte_str(tex.name)
+        print(f"    {i}: fam {tex.fam_id}, {name}, flags 0x{tex.flags:02x}, pad 0x{tex.pad:04x}", file=dumpf)
+
+    # Load all the textures into Blender images (except poor Jorge, who always
+    # gets left out):
+    tex_search_paths = ['e:/dev/thief/TG1.26/__unpacked/res/fam']
+    tex_extensions = ['.dds', '.png', '.tga', '.bmp', '.pcx', '.gif', '.cel']
+    ext_sort_order = {ext: i for (i, ext) in enumerate(tex_extensions)}
+    def load_tex(fam_name, tex_name):
+        fam_name = fam_name.lower()
+        tex_name = tex_name.lower()
+        # Don't load the image if it has already been loaded.
+        image_name = f"fam_{fam_name}_{tex_name}"
+        image = bpy.data.images.get(image_name, None)
+        if image: return image
+        # Find the candidate files (all matching types in all search paths)
+        print(f"Searching for fam/{fam_name}/{tex_name}...")
+        candidates = [] # (sort_key, full_path) tuples
+        for path in tex_search_paths:
+            fam_path = os.path.join(path, fam_name)
+            print(f"  in path: {fam_path}")
+            for entry in os.scandir(fam_path):
+                if not entry.is_file(): continue
+                name, ext = os.path.splitext(entry.name.lower())
+                if name != tex_name: continue
+                sort_key = ext_sort_order.get(ext, None)
+                if sort_key is None: continue
+                print(f"    Candidate: {entry.name}")
+                candidates.append((sort_key, entry.path))
+        if not candidates:
+            raise ValueError(f"Cannot find texture {fam_name}/{tex_name}")
+        candidates.sort()
+        filename = candidates[0][1]
+        # Load the winning file
+        print(f"Loading: {filename}...")
+        ext = os.path.splitext(filename.lower())[1]
+        if ext in ('.png', '.tga', '.bmp'):
+            image = bpy.data.images.load(filename)
+        elif ext == '.pcx':
+            image = load_pcx(filename)
+        elif ext == '.gif':
+            image = load_gif(filename)
+        else:
+            raise NotImplementedError(f"{ext} images not yet supported!")
+        image.name = image_name
+        return image
+
+    textures = []
+    for i, tex in enumerate(p_texs):
+        if tex.fam_id==0:
+            textures.append(None) # TODO: Jorge, is that you?
+        else:
+            fam = p_fams[tex.fam_id-1]
+            fam_name = byte_str(fam.name)
+            tex_name = byte_str(tex.name)
+            image = load_tex(fam_name, tex_name)
+            textures.append(image)
+    return textures
 
 def create_lightmap_for_cell_poly(cell, cell_index, pi):
     name = f"Lightmap.Cell{cell_index}.Poly{pi}"
@@ -401,17 +509,16 @@ def poly_calculate_uvs(cell, pi):
             uv_list.append((u,v))
     return uv_list
 
-def do_worldrep(view, context, dumpf):
+def do_worldrep(chunk, context, dumpf):
+    if (chunk.version.major, chunk.version.minor) \
+    not in [(0, 23), (0, 24)]:
+        raise ValueError("Only version 0.23 and 0.24 WR chunk is supported")
+    view = chunk.data
     offset = 0
     header = LGWRHeader.read(view, offset=offset)
     offset += header.size()
-    if byte_str(header.chunk.name) != 'WR':
-        raise ValueError("WR chunk name is invalid")
-    if (header.chunk.version.major, header.chunk.version.minor) \
-    not in [(0, 23), (0, 24)]:
-        raise ValueError("Only version 0.23 and 0.24 WR chunk is supported")
     print(f"WR chunk:", file=dumpf)
-    print(f"  version: {header.chunk.version.major}.{header.chunk.version.minor}", file=dumpf)
+    print(f"  version: {chunk.header.version.major}.{chunk.header.version.minor}", file=dumpf)
     print(f"  size: {header.data_size}", file=dumpf)
     print(f"  cell_count: {header.cell_count}", file=dumpf)
 
