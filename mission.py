@@ -412,8 +412,10 @@ def texture_material_for_cell_poly(cell, cell_index, pi, texture_image):
     principled = PrincipledBSDFWrapper(mat, is_readonly=False)
     principled.base_color = (1.0, 0.5, 0.0) # TODO: temp orange
     principled.base_color_texture.image = texture_image
-    # TODO: roughness and stuff.
-    # could maybe instead wrangle our own DiffuseBSDFWrapper?
+    principled.base_color_texture.texcoords = 'UV'
+    principled.metallic = 0.0
+    principled.specular = 0.0
+    principled.roughness = 1.0
     return mat
 
 def lightmap_image_for_cell_poly(cell, cell_index, pi):
@@ -431,7 +433,7 @@ def lightmap_image_for_cell_poly(cell, cell_index, pi):
     width = info.width
     height = info.height
     pixels = []
-    for y in range(height): # TODO: reversed?
+    for y in reversed(range(height)):
         # TODO: this is all only cromulent for uint8, ofc.
         ofs = y*info.pixel_width
         row = lightmap_data[ofs:ofs+width]
@@ -450,57 +452,24 @@ def lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
     #       one per poly!
     mat = bpy.data.materials.get(name)
     if mat is not None: return mat
-    # Create a material that uses the 'UV' uv_layer for its texcoords
+    # Create a material that uses the 'Lightmap' uv_layer for its texcoords
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     principled = PrincipledBSDFWrapper(mat, is_readonly=False)
     principled.base_color = (1.0, 0.5, 0.0) # TODO: temp orange
     principled.base_color_texture.image = lightmap_image
-    # TODO: roughness and stuff.
-    # could maybe instead wrangle our own DiffuseBSDFWrapper?
+    #principled.base_color_texture.texcoords = 'Lightmap'
+    principled.metallic = 0.0
+    principled.specular = 0.0
+    principled.roughness = 1.0
     return mat
 
-def poly_calculate_texture_uvs(cell, pi):
+def poly_calculate_texture_uvs(cell, pi, texture_size):
     poly = cell.p_polys[pi]
     render = cell.p_render_polys[pi]
     vertices = cell.poly_vertices[pi]
-    uv_list = []
-    for i in range(poly.num_vertices):
-        uv_list.append((0.0,0.0))
-    return uv_list
-
-def poly_calculate_lightmap_uvs(cell, pi):
-    poly = cell.p_polys[pi]
-    render = cell.p_render_polys[pi]
-    vertices = cell.poly_vertices[pi]
-    info = cell.p_light_list[pi]
-
-    # TODO: we dont know the texture dimensions! so hardcode here
-    # something that is right in some of the sample:
-    tex_width = 64
-    tex_height = 64
-
-    # TODO: figure out the uv scales here
-    #mxs_real u_scale, v_scale;
-    #u_scale = two_to_n(6 - hw.tex->wlog);
-    #v_scale = two_to_n(6 - hw.tex->hlog);
-    # TODO:
-    # wlog, hlog are log2 of the *texture* width/height (possibly scale included)
-    # i think.
-    # since most of what we have in front of us is 64x64 textures at scale 16,
-    # i suppose we try using that...
-    # ??? try to find 'correct' values manually
-    u_scale = 0.25
-    v_scale = 0.5
-    # yeah, these are roughly the right scale for these windows
-    # (but the offset is wrong, so maybe the scale is slightly off due to
-    #  the log2(row) vs log2(w) thing? or i just have the offset calculation
-    #  wrong, idk!!)
-    #
-    # TODO: in any case, because the *texture size* and tex_u/tex_v vectors
-    #       are the basis for lightmap uvs as well, it makes sense to get
-    #       texture loading happening first!
-    #
+    u_scale = 64.0/texture_size[0]
+    v_scale = 64.0/texture_size[1]
     p_uvec = Vector(render.tex_u)
     p_vvec = Vector(render.tex_v)
     anchor = Vector(vertices[render.texture_anchor])
@@ -518,6 +487,7 @@ def poly_calculate_lightmap_uvs(cell, pi):
             delta = wvec-anchor
             u = delta.dot(uvec)+u_base
             v = delta.dot(vvec)+v_base
+            v = 1.0-v # Blender's V coordinate is bottom-up
             uv_list.append((u,v))
     else:
         denom = 1.0/(u2*v2 - (uv*uv));
@@ -532,6 +502,64 @@ def poly_calculate_lightmap_uvs(cell, pi):
             dv = delta.dot(p_vvec)
             u = u_base+v2*du-uvu*dv
             v = v_base+u2*dv-uvv*du
+            v = 1.0-v # Blender's V coordinate is bottom-up
+            uv_list.append((u,v))
+    return uv_list
+
+def poly_calculate_lightmap_uvs(cell, pi, texture_size):
+    poly = cell.p_polys[pi]
+    render = cell.p_render_polys[pi]
+    vertices = cell.poly_vertices[pi]
+    info = cell.p_light_list[pi]
+
+    p_uvec = Vector(render.tex_u)
+    p_vvec = Vector(render.tex_v)
+    anchor = Vector(vertices[render.texture_anchor])
+    uv = p_uvec.dot(p_vvec)
+
+    fudge = 1
+    # For RGB_LIGHTING, fudge = 2
+    # For RGB_888, fudge = 4
+    # BUT in fact i am not using hw.lm->wlog, so maybe i dont need to
+    # use any fudge at all?
+    u_scale = fudge*4.0/info.width
+    v_scale = 4.0/info.height
+
+    # okay, hack to try to make this right. cause i dont quite understand
+    # yet why it is not! (isnt the texture width relevant?)
+
+    atlas_u0 = 0.5
+    atlas_v0 = 0.5
+    u_base = u_scale*(float(render.u_base)/(16.0*256.0)+(atlas_u0-float(info.u_base))/4.0) # u translation
+    v_base = v_scale*(float(render.v_base)/(16.0*256.0)+(atlas_v0-float(info.v_base))/4.0) # v translation
+
+    u2 = p_uvec.length_squared
+    v2 = p_vvec.length_squared
+    uv_list = []
+    if uv == 0.0:
+        uvec = p_uvec*u_scale/u2;
+        vvec = p_vvec*v_scale/v2;
+        for i in range(poly.num_vertices):
+            wvec = Vector(vertices[i])
+            delta = wvec-anchor
+            u = delta.dot(uvec)+u_base
+            v = delta.dot(vvec)+v_base
+            v = 1.0-v # Blender's V coordinate is bottom-up
+            uv_list.append((u,v))
+    else:
+        denom = 1.0/(u2*v2 - (uv*uv));
+        u2 *= v_scale*denom
+        v2 *= u_scale*denom
+        uvu = u_scale*denom*uv
+        uvv = v_scale*denom*uv
+        for i in range(poly.num_vertices):
+            wvec = Vector(vertices[i])
+            delta = wvec-anchor
+            du = delta.dot(p_uvec)
+            dv = delta.dot(p_vvec)
+            u = u_base+v2*du-uvu*dv
+            v = v_base+u2*dv-uvv*du
+            v = 1.0-v # Blender's V coordinate is bottom-up
             uv_list.append((u,v))
     return uv_list
 
@@ -617,16 +645,21 @@ def do_worldrep(chunk, textures, context, dumpf):
                 vi = cell.poly_indices[pi][j]
                 print(f" {vi}", end='', file=dumpf)
             print(file=dumpf)
-            # print(f"      {pi} uvs:", end='', file=dumpf)
-            # if is_render:
-            #     uv_list = poly_calculate_lightmap_uvs(cell, pi)
-            #     for j in range(poly.num_vertices):
-            #         u, v = uv_list[j]
-            #         print(f" ({u:0.2f},{v:0.2f}),", end='', file=dumpf)
-            #     print(file=dumpf)
+            # dump UVs for cell 38
+            if cell_index != 38: continue
+            if not is_render: continue
+            texture_id = cell.p_render_polys[pi].texture_id
+            texture_image = None if texture_id in (0,249) else textures[texture_id]
+            texture_size = texture_image.size if texture_image else (64, 64)
+            poly_texture_uvs = poly_calculate_texture_uvs(cell, pi, texture_size)
+            poly_lightmap_uvs = poly_calculate_lightmap_uvs(cell, pi, texture_size)
+            print(f"      {pi} uvs:", file=dumpf)
+            for j in range(poly.num_vertices):
+                u0, v0 = poly_texture_uvs[j]
+                u1, v1 = poly_lightmap_uvs[j]
+                print(f"        vertex {j}: tx {u0:0.3f},{v0:0.3f}; lm {u1:0.3f},{v1:0.3f}", file=dumpf)
         print(f"    p_plane_list: {cell.p_plane_list}", file=dumpf)
         print(f"    p_anim_lights: {cell.p_anim_lights}", file=dumpf)
-
         print(f"    p_light_list: {cell.p_light_list}", file=dumpf)
         for i, info in enumerate(cell.p_light_list):
             print(f"      lightmapinfo {i}:", file=dumpf)
@@ -654,14 +687,20 @@ def do_worldrep(chunk, textures, context, dumpf):
         lightmap_uvs = []
         edges = []
         faces = []
-        images = []
         materials = []
         for pi, poly in enumerate(cell.p_polys):
             is_render = (pi<cell.header.num_render_polys)
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
             if not is_render: continue
-            poly_texture_uvs = poly_calculate_texture_uvs(cell, pi)
-            poly_lightmap_uvs = poly_calculate_lightmap_uvs(cell, pi)
+
+            # TODO: yeah we should reuse materials, but too bad!!
+            texture_id = cell.p_render_polys[pi].texture_id
+            # Assume Jorge and SKY_HACK are 64x64:
+            texture_image = None if texture_id in (0,249) else textures[texture_id]
+            texture_size = texture_image.size if texture_image else (64, 64)
+
+            poly_texture_uvs = poly_calculate_texture_uvs(cell, pi, texture_size)
+            poly_lightmap_uvs = poly_calculate_lightmap_uvs(cell, pi, texture_size)
             face = []
             poly_indices = cell.poly_indices[pi]
             for j in range(poly.num_vertices):
@@ -676,19 +715,18 @@ def do_worldrep(chunk, textures, context, dumpf):
             faces.append(face)
 
             # Hack together a texture material for this poly
-            # TODO: yeah we should reuse materials, but too bad!!
-            texture_id = cell.p_render_polys[pi].texture_id
-            if texture_id == 249: # SKY_HACK
-                image = None
-            else:
-                image = textures[texture_id]
-            mat = texture_material_for_cell_poly(cell, cell_index, pi, image)
+            mat = texture_material_for_cell_poly(cell, cell_index, pi, texture_image)
             materials.append(mat)
             # Hack together a lightmap texture + material for this poly
-            image = lightmap_image_for_cell_poly(cell, cell_index, pi)
-            images.append(image)
-            mat = lightmap_material_for_cell_poly(cell, cell_index, pi, image)
+            lightmap_image = lightmap_image_for_cell_poly(cell, cell_index, pi)
+            mat = lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image)
             materials.append(mat)
+
+        # TODO: because i cant figure out how to set up the shader inputs
+        #       properly yet, lets just put the lightmap uvs into the
+        #       'UV' layer, okay? at least then we can see if the
+        #       lightmap uvs are okay or not!
+        texture_uvs = lightmap_uvs[:]
 
         name = f"Cell {cell_index}"
         mesh = bpy.data.meshes.new(name=f"{name} mesh")
@@ -706,5 +744,5 @@ def do_worldrep(chunk, textures, context, dumpf):
         for i, mat in enumerate(materials):
             mesh.materials.append(mat)
         for i, polygon in enumerate(mesh.polygons):
-            polygon.material_index = i*2 # TODO: odd numbers are lightmaps right now
+            polygon.material_index = i*2+1 # TODO: odd numbers are lightmaps right now
         o = create_object(name, mesh, (0,0,0), context=context, link=True)
