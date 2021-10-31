@@ -313,12 +313,11 @@ def do_mission(filename, context):
         print(f"  {i}: {name}", file=dumpf)
 
     txlist = mis['TXLIST']
-    do_txlist(txlist, context, dumpf)
-    return # TODO: only go back to worldrep once we can load textures!
+    textures = do_txlist(txlist, context, dumpf)
 
     # TODO: WRRGB with t2? what about newdark 32-bit lighting?
     worldrep = mis['WR']
-    do_worldrep(worldrep, context, dumpf)
+    do_worldrep(worldrep, textures, context, dumpf)
 
 def do_txlist(chunk, context, dumpf):
     if (chunk.header.version.major, chunk.header.version.minor) \
@@ -399,7 +398,25 @@ def do_txlist(chunk, context, dumpf):
             textures.append(image)
     return textures
 
-def create_lightmap_for_cell_poly(cell, cell_index, pi):
+def texture_material_for_cell_poly(cell, cell_index, pi, texture_image):
+    # Create a material
+    name = f"Texture.Cell{cell_index}.Poly{pi}"
+    # TEMP: dont recreate the material if it already exists. for the actual
+    #       import, we want to be managing materials a little better than
+    #       one per poly!
+    mat = bpy.data.materials.get(name)
+    if mat is not None: return mat
+    # Create a material that uses the 'UV' uv_layer for its texcoords
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    principled = PrincipledBSDFWrapper(mat, is_readonly=False)
+    principled.base_color = (1.0, 0.5, 0.0) # TODO: temp orange
+    principled.base_color_texture.image = texture_image
+    # TODO: roughness and stuff.
+    # could maybe instead wrangle our own DiffuseBSDFWrapper?
+    return mat
+
+def lightmap_image_for_cell_poly(cell, cell_index, pi):
     name = f"Lightmap.Cell{cell_index}.Poly{pi}"
     # TEMP: dont recreate the image if it already exists. this is so
     #       that i can re-run this over and over for getting uv mapping
@@ -425,7 +442,7 @@ def create_lightmap_for_cell_poly(cell, cell_index, pi):
     image.pixels = pixels
     return image
 
-def create_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
+def lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
     # Create a material
     name = f"Lightmap.Cell{cell_index}.Poly{pi}"
     # TEMP: dont recreate the material if it already exists. for the actual
@@ -443,7 +460,16 @@ def create_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
     # could maybe instead wrangle our own DiffuseBSDFWrapper?
     return mat
 
-def poly_calculate_uvs(cell, pi):
+def poly_calculate_texture_uvs(cell, pi):
+    poly = cell.p_polys[pi]
+    render = cell.p_render_polys[pi]
+    vertices = cell.poly_vertices[pi]
+    uv_list = []
+    for i in range(poly.num_vertices):
+        uv_list.append((0.0,0.0))
+    return uv_list
+
+def poly_calculate_lightmap_uvs(cell, pi):
     poly = cell.p_polys[pi]
     render = cell.p_render_polys[pi]
     vertices = cell.poly_vertices[pi]
@@ -509,8 +535,8 @@ def poly_calculate_uvs(cell, pi):
             uv_list.append((u,v))
     return uv_list
 
-def do_worldrep(chunk, context, dumpf):
-    if (chunk.version.major, chunk.version.minor) \
+def do_worldrep(chunk, textures, context, dumpf):
+    if (chunk.header.version.major, chunk.header.version.minor) \
     not in [(0, 23), (0, 24)]:
         raise ValueError("Only version 0.23 and 0.24 WR chunk is supported")
     view = chunk.data
@@ -591,13 +617,13 @@ def do_worldrep(chunk, context, dumpf):
                 vi = cell.poly_indices[pi][j]
                 print(f" {vi}", end='', file=dumpf)
             print(file=dumpf)
-            print(f"      {pi} uvs:", end='', file=dumpf)
-            if is_render:
-                uv_list = poly_calculate_uvs(cell, pi)
-                for j in range(poly.num_vertices):
-                    u, v = uv_list[j]
-                    print(f" ({u:0.2f},{v:0.2f}),", end='', file=dumpf)
-                print(file=dumpf)
+            # print(f"      {pi} uvs:", end='', file=dumpf)
+            # if is_render:
+            #     uv_list = poly_calculate_lightmap_uvs(cell, pi)
+            #     for j in range(poly.num_vertices):
+            #         u, v = uv_list[j]
+            #         print(f" ({u:0.2f},{v:0.2f}),", end='', file=dumpf)
+            #     print(file=dumpf)
         print(f"    p_plane_list: {cell.p_plane_list}", file=dumpf)
         print(f"    p_anim_lights: {cell.p_anim_lights}", file=dumpf)
 
@@ -624,7 +650,8 @@ def do_worldrep(chunk, context, dumpf):
         #       maaaybe (poly_index, vertex_index) is okay, because each loop
         #       references those?? but are those actually unique? idk...
         vertices = [Vector(v) for v in cell.p_vertices]
-        uvs = []
+        texture_uvs = []
+        lightmap_uvs = []
         edges = []
         faces = []
         images = []
@@ -633,7 +660,8 @@ def do_worldrep(chunk, context, dumpf):
             is_render = (pi<cell.header.num_render_polys)
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
             if not is_render: continue
-            poly_uvs = poly_calculate_uvs(cell, pi)
+            poly_texture_uvs = poly_calculate_texture_uvs(cell, pi)
+            poly_lightmap_uvs = poly_calculate_lightmap_uvs(cell, pi)
             face = []
             poly_indices = cell.poly_indices[pi]
             for j in range(poly.num_vertices):
@@ -642,26 +670,41 @@ def do_worldrep(chunk, context, dumpf):
                        else poly_indices[0])
                 face.append(vi)
                 edges.append((vi, vi2))
-                uvs.append(poly_uvs[j])
+            texture_uvs.extend(poly_texture_uvs)
+            lightmap_uvs.extend(poly_lightmap_uvs)
                 # TODO: normals too! the plane normal (or we can 'shade flat' i guess)
             faces.append(face)
 
+            # Hack together a texture material for this poly
+            # TODO: yeah we should reuse materials, but too bad!!
+            texture_id = cell.p_render_polys[pi].texture_id
+            if texture_id == 249: # SKY_HACK
+                image = None
+            else:
+                image = textures[texture_id]
+            mat = texture_material_for_cell_poly(cell, cell_index, pi, image)
+            materials.append(mat)
             # Hack together a lightmap texture + material for this poly
-            image = create_lightmap_for_cell_poly(cell, cell_index, pi)
+            image = lightmap_image_for_cell_poly(cell, cell_index, pi)
             images.append(image)
-            mat = create_material_for_cell_poly(cell, cell_index, pi, image)
+            mat = lightmap_material_for_cell_poly(cell, cell_index, pi, image)
             materials.append(mat)
 
         name = f"Cell {cell_index}"
         mesh = bpy.data.meshes.new(name=f"{name} mesh")
         mesh.from_pydata(vertices, [], faces)
         mesh.validate(verbose=True)
-        uv_layer = (mesh.uv_layers.get('UV')
+        texture_uv_layer = (mesh.uv_layers.get('UV')
             or mesh.uv_layers.new(name='UV'))
-        for loop, uvloop, uv in zip(mesh.loops, uv_layer.data, uvs):
-            uvloop.uv = uv
+        lightmap_uv_layer = (mesh.uv_layers.get('Lightmap')
+            or mesh.uv_layers.new(name='Lightmap'))
+        for (loop, tx_uvloop, tx_uv, lm_uvloop, lm_uv) \
+        in zip(mesh.loops, texture_uv_layer.data, texture_uvs,
+               lightmap_uv_layer.data, lightmap_uvs):
+            tx_uvloop.uv = tx_uv
+            lm_uvloop.uv = lm_uv
         for i, mat in enumerate(materials):
             mesh.materials.append(mat)
         for i, polygon in enumerate(mesh.polygons):
-            polygon.material_index = i
+            polygon.material_index = i*2 # TODO: odd numbers are lightmaps right now
         o = create_object(name, mesh, (0,0,0), context=context, link=True)
