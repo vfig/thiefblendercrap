@@ -1,6 +1,7 @@
 import bpy
 import math
 import mathutils
+import numpy
 import os
 import sys
 
@@ -596,8 +597,10 @@ def do_worldrep(chunk, textures, context, dumpf):
     #       for each poly, and the combined result will be ready for export
     #       as a single model, without the blender baking shenanigans? dunno.
 
+    atlas_builder = AtlasBuilder()
     cells = []
-    for cell_index in range(100): # TODO: was range(header.cell_count):
+    for cell_index in range(100): # TODO: use the full range
+    #for cell_index in range(header.cell_count):
         print(f"Reading cell {cell_index} at offset 0x{offset:08x}")
         cell = LGWRCell.read(view, offset)
         offset += cell.size()
@@ -703,6 +706,7 @@ def do_worldrep(chunk, textures, context, dumpf):
             materials.append(mat)
             # Hack together a lightmap texture + material for this poly
             lightmap_image = lightmap_image_for_cell_poly(cell, cell_index, pi)
+            atlas_builder.add(lightmap_image)
             mat = lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image)
             materials.append(mat)
 
@@ -730,3 +734,152 @@ def do_worldrep(chunk, textures, context, dumpf):
         for i, polygon in enumerate(mesh.polygons):
             polygon.material_index = i*2+1 # TODO: odd numbers are lightmaps right now
         o = create_object(name, mesh, (0,0,0), context=context, link=True)
+
+    # After all cells complete:
+    # TODO: debug: dump the atlas
+    placements = atlas_builder.close()
+    atlas_size = (1024, 1024) # TODO - hardcoded here D:
+    atlas_data = numpy.zeros((atlas_size[0],atlas_size[1],4), dtype=numpy.float64)
+    print("Atlas:")
+    colors = [(r/255.0,g/255.0,b/255.0,1.0) for (r,g,b) in
+        [(237,20,91), (246,142,86), (60,184,120), (166,124,82),
+        (255,245,104), (109,207,246), (168,100,168), (194,194,194)] ]
+    for i, (x,y,image,rotated) in enumerate(placements):
+        color = colors[i%len(colors)]
+        w,h = image.size
+        if rotated: w,h = h,w
+        tag = "(rotated)" if rotated else ""
+        print(f"  {i}: {x},{y} - {x+w},{y+h} {tag}")
+        atlas_data[ y:y+h, x:x+w ] = color
+    atlas_image = bpy.data.images.new(name="Atlas",
+        width=atlas_size[0], height=atlas_size[1])
+    atlas_image.pixels = atlas_data.reshape((-1,))
+
+"""
+    # blitting (y, x; remember y is bottom up in blender, which is fine)
+    atlas = bpy.data.images.new(name='Atlas', width=256, height=256, alpha=False, float_buffer=False)
+    px0 = np.array(im0.pixels)
+    px1 = np.array(im1.pixels)
+    pxa = np.array(atlas.pixels)
+    px0.shape = (64,64,4)
+    px1.shape = (64,64,4)
+    pxa.shape = (256,256,4)
+    pxa[ 0:64, 0:64, : ] = px0
+    pxa[ 0:64, 64:128, : ] = px1
+    atlas.pixels = pxa.reshape((-1,))
+    # equivalent to: pxa.flatten(), but i think .flatten() always copies?
+
+    # reading raw rgb bytes into an array
+    raw = open('e:/temp/rails.raw', 'rb').read()
+    rgb = np.frombuffer(raw, dtype=np.uint8) # can take count, offset kw
+    rgb.shape = (256,256,3)
+    # rgb[0][0] is: array([158, 151, 141], dtype=uint8)
+
+    # expanding to rgba
+    rgba = np.insert(rgb, 3, 255, axis=2)
+    # rgba.shape is: (256, 256, 4)
+    # rgba[0][0] is: array([158, 151, 141, 255], dtype=uint8)
+
+    # expanding paletted data to rgb(a):
+    # here using rgb ega half-palette with uint8, but this could be rgba floats
+    pal = np.array([[0,0,0],[0,0,128],[0,128,0],[0,128,128],[128,0,0],[128,0,128],[128,64,0],[128,128,128]], dtype='uint8')
+    # paletted 2x11 image:
+    imp = np.array([
+        [0,1,2,3,4,5,4,3,2,1,0],
+        [7,6,5,4,3,2,3,4,5,6,7]], dtype='uint8')
+    # imp.shape is: (2, 11)
+    rgb = pal[imp]
+    # rgb.shape is: (2, 11, 3)
+    # rgb is:
+    #     array([[[  0,   0,   0],
+    #             [  0,   0, 128],
+    #             [  0, 128,   0],
+    #             [  0, 128, 128],
+    #             [128,   0,   0],
+    #             [128,   0, 128],
+    #             [128,   0,   0],
+    #             [  0, 128, 128],
+    #             [  0, 128,   0],
+    #             [  0,   0, 128],
+    #             [  0,   0,   0]],
+    #
+    #            [[128, 128, 128],
+    #             [128,  64,   0],
+    #             [128,   0, 128],
+    #             [128,   0,   0],
+    #             [  0, 128, 128],
+    #             [  0, 128,   0],
+    #             [  0, 128, 128],
+    #             [128,   0,   0],
+    #             [128,   0, 128],
+    #             [128,  64,   0],
+    #             [128, 128, 128]]], dtype=uint8)
+
+    # for 16-bit 1555 rgb -> 24-bit 888 rgb, probably check out:
+    # numpy.bitwise_and() and numpy.right_shift()
+"""
+
+class AtlasBuilder:
+    def __init__(self):
+        self.images = []
+
+    def add(self, image):
+        w,h = (int(image.size[0]), int(image.size[1]))
+        rotated = False
+        if h>w:
+            w,h = h,w
+            rotated = True
+        handle = len(self.images)
+        self.images.append((w, h, handle, image, rotated))
+
+    def close(self):
+        # Build the atlas
+        self.images = sorted(self.images, reverse=True)
+        atlas_size = (1024, 1024)
+        cursor_x = 0
+        cursor_y = 0
+        row_height = 0
+        placements = [None]*len(self.images)
+        # used_width is the amount of space used by placements in each scanline
+        # (from the bottom up).
+        #
+        # To fit the images into the atlas, we place it at the cursor, if it
+        # will fit. If not, we reset the cursor to the left edge, and move it
+        # up by the row height; then reset the row height to zero. The row
+        # height is the max height of the images placed on that row.
+        #
+        # The placements are the (x,y) tuples of the anchor where the
+        # corresponding image was placed.
+        #
+        for (w, h, handle, image, rotated) in self.images:
+            if w>atlas_size[0]:
+                raise ValueError(f"No space to fit image {handle} of {w}x{h}")
+            available_w = atlas_size[0]-cursor_x
+            if w>available_w:
+                cursor_x = 0
+                cursor_y += row_height
+                row_height = 0
+            available_h = atlas_size[1]-cursor_y
+            if h>available_h:
+                raise ValueError(f"No space to fit image {handle} of {w}x{h}")
+            print(f"Placing image {handle} of {w}x{h} at {cursor_x},{cursor_y}.")
+            placements[handle] = (cursor_x,cursor_y,image,rotated)
+            cursor_x += w
+            row_height = max(row_height, h)
+        # TODO: blit the images into the atlas!
+        return placements
+
+        # # blitting (y, x; remember y is bottom up in blender, which is fine)
+        # atlas = bpy.data.images.new(name='Atlas', width=256, height=256, alpha=False, float_buffer=False)
+        # px0 = np.array(im0.pixels)
+        # px1 = np.array(im1.pixels)
+        # pxa = np.array(atlas.pixels)
+        # px0.shape = (64,64,4)
+        # px1.shape = (64,64,4)
+        # pxa.shape = (256,256,4)
+        # pxa[ 0:64, 0:64, : ] = px0
+        # pxa[ 0:64, 64:128, : ] = px1
+        # atlas.pixels = pxa.reshape((-1,))
+        # # equivalent to: pxa.flatten(), but i think .flatten() always copies?
+
+
