@@ -10,8 +10,9 @@ from bpy.types import Object, Operator, Panel, PropertyGroup
 from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
 from bpy_extras.image_utils import load_image
 from collections import OrderedDict
+from dataclasses import dataclass
 from mathutils import Vector
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Tuple
 from .binstruct import *
 from .images import load_gif, load_pcx
 from .lgtypes import *
@@ -597,10 +598,7 @@ def do_worldrep(chunk, textures, context, dumpf):
     #       for each poly, and the combined result will be ready for export
     #       as a single model, without the blender baking shenanigans? dunno.
 
-    atlas_builder = AtlasBuilder()
-    cells = []
-    for cell_index in range(100): # TODO: use the full range
-    #for cell_index in range(header.cell_count):
+    for cell_index in range(header.cell_count):
         print(f"Reading cell {cell_index} at offset 0x{offset:08x}")
         cell = LGWRCell.read(view, offset)
         offset += cell.size()
@@ -659,6 +657,42 @@ def do_worldrep(chunk, textures, context, dumpf):
         print(f"    num_light_indices: {cell.num_light_indices}", file=dumpf)
         print(f"    p_light_indices: {cell.p_light_indices}", file=dumpf)
 
+    # We need to build up a single mesh. We need:
+    #
+    # - Vertex positions: (float, float, float)
+    # - Edges: (v-index, v-index)
+    # - Faces: (v-index, v-index, v-index, ...)
+    # - Texture UVs: (float, float) per edge (belonging to first vertex)
+    # - Lightmap UVs: (float, float) per edge (belonging to first vertex)
+    # - Materials: [texture_mat, ..., lightmap_atlas_mat, ...]
+    # - Material indices: (int) per face
+    #
+    # Note on materials:
+    #
+    #   The maximal set of texture materials is known in advance, as it is
+    #   limited to those in the TXLIST (in olddark, a maximum of 256). For
+    #   lightmaps, you'd hope they fit in a single atlas, but until you try
+    #   to pack them all in, you don't know for sure. And if we bake the
+    #   terrain textures and lightmaps together, on a whole map that would
+    #   almost certainly require multiple atlas (even though that's an approach
+    #   that only makes sense for worldrep->model workflows on not-whole-maps).
+    #
+    #   Regardless, atlassing lightmaps means we cannot know UVs as we walk
+    #   through the worldrep for the first time; instead we need to grab a
+    #   handle for the UVs, and give the atlas builder the offset:size of the
+    #   lightmap data in the view. Then once the worldrep has been walked, we
+    #   can pack the atlas(es), and get the actual material and UVs from the
+    #   builder.
+    #
+    #   And if we are baking terrain textures and lightmaps together, the same
+    #   situation applies to terrain textures. This suggests that the builder
+    #   should be responsible for collating both terrain textures and lightmaps,
+    #   and that we use handles for all UVs and for material indices.
+
+    atlas_builder = AtlasBuilder()
+    cells = []
+    for cell_index in range(100): # TODO: use the full range
+    #for cell_index in range(header.cell_count):
         # TEMP: hack together a mesh
         # TODO: okay, we need to do something about the uvs. first, we are not
         #       yet splitting the vertices. thats... kinda fine, kinda not.
@@ -882,4 +916,57 @@ class AtlasBuilder:
         # atlas.pixels = pxa.reshape((-1,))
         # # equivalent to: pxa.flatten(), but i think .flatten() always copies?
 
+@dataclass
+class TerrainDef:
+    tex_id: int
 
+@dataclass
+class LightmapDef:
+    buffer: bytes   # Typically a memoryview slice.
+    #format: LM_WHITE8, LM_RGB555, LM_RGB888
+
+@dataclass
+class BuiltMaterial:
+    mat_index: int
+    uv_offset: Tuple[float, float]
+    uv_scale: Tuple[float, float]
+
+class MaterialBuilder:
+    """
+    Give textures and lightmaps to me, and I will give you a handle. Once
+    building is complete, you can then exchange that handle for a material
+    index and a UV offset/scale transform.
+    """
+    # TODO: how do we deal with animlights?
+    # TODO: how do we pass in terrain texture info? names/filenames/images/data
+    # TODO: how do we pass in options (bake together / not)?
+    # TODO: how do we handle Jorge and SKY_HACK?
+
+    def __init__(self):
+        self.open = True
+        # Handles are indices into these lists:
+        self.terrain_defs = [] # one per handle
+        self.lightmap_defs = [] # one per handle
+        self.terrain_bms = [] # one per handle
+        self.lightmap_bms = [] # one per handle
+
+    def add_poly_materials(terrain_def, lightmap_def):
+        assert self.open, "Cannot add to MaterialBuilder after close()"
+        handle = len(self.terrain_defs)
+        self.terrain_defs.append(terrain_def)
+        self.lightmap_defs.append(lightmap_def)
+        self.terrain_bms.append(BuiltMaterial(0, (0.0,0.0), (1.0,1.0)))
+        self.lightmap_bms.append(BuiltMaterial(0, (0.0,0.0), (1.0,1.0)))
+        return handle
+
+    def close():
+        assert self.open, "Cannot close MaterialBuilder after close()"
+        self.open = False
+        # TODO: atlas lightmaps, load terrain textures, and so on
+        ...
+
+    def get_terrain_material(handle) -> BuiltMaterial:
+        return self.terrain_bms[handle]
+
+    def get_lightmap_material(handle) -> BuiltMaterial:
+        return self.lightmap_bms[handle]
