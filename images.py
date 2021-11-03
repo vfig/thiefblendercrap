@@ -251,7 +251,7 @@ def load_pcx(filename):
     width = header.x_max-header.x_min+1
     height = header.y_max-header.y_min+1
     scanline = bytearray(header.bytes_per_row)
-    scanlines = []
+    image_data = bytearray()
     for y in range(height):
         x = 0
         while x<header.bytes_per_row:
@@ -271,27 +271,30 @@ def load_pcx(filename):
                 x += 1
         if x>header.bytes_per_row:
             raise ValueError(f"Error in PCX at 0x{offset:08x}")
-        scanlines.append(bytes(scanline))
+        image_data.extend(scanline)
     # Check for an rgb palette
     rgb_palette_size = 3*256
-    rgb_palette = bytearray(rgb_palette_size)
     if offset<len(view) and (offset+rgb_palette_size)<len(view):
         b = view[offset]
         offset += 1
         if b==0x0C:
-            rgb_palette[:] = view[offset:offset+rgb_palette_size]
+            rgb_palette = numpy.frombuffer(view, dtype=numpy.uint8,
+                count=rgb_palette_size, offset=offset)
             offset += rgb_palette_size
     else:
         raise ValueError(f"PCX without an RGB palette is not supported")
 
-    # Construct a blender image (which has to be bottom-up)
-    float_palette = [(b/255.0) for b in rgb_palette]
-    pixels = []
-    for row in reversed(scanlines):
-        for x in range(width):
-            i = 3*row[x]
-            pixels.extend(float_palette[i:i+3])
-            pixels.append(1.0)
+    # Expand the rgb palette to rgba floats:
+    float_palette = numpy.array(rgb_palette, dtype=float)/255.0
+    float_palette.shape = (-1, 3)
+    float_palette = numpy.insert(float_palette, 3, 1.0, axis=1)
+
+    # Construct a blender image: flat array, y-up, of rgba floats:
+    pixels = numpy.frombuffer(image_data, dtype=numpy.uint8)
+    pixels.shape = (height, width)
+    pixels = pixels[::-1]
+    pixels = float_palette[pixels] # This still feels like magic!
+    pixels.shape = (-1,)
     name = os.path.basename(filename)
     image = bpy.data.images.new(name, width, height, alpha=True)
     image.pixels = pixels
