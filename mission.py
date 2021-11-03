@@ -1,7 +1,7 @@
 import bpy
 import math
 import mathutils
-import numpy
+import numpy as np
 import os
 import sys
 
@@ -199,21 +199,21 @@ class LGWRCell:
         for info in cell.p_light_list:
             # WR lightmap data is uint8; WRRGB is uint16 (xR5G5B5)
             entry_type = uint8
-            entry_numpy_type = numpy.uint8
+            entry_numpy_type = np.uint8
             width = info.width
             height = info.height
             count = info.lightmap_count()
             lightmap_size = entry_type.size()*info.lightmap_size()
             assert info.byte_width==(info.width*entry_type.size()), "lightmap byte_width is wrong!"
-            w = numpy.frombuffer(view, dtype=entry_numpy_type,
+            w = np.frombuffer(view, dtype=entry_numpy_type,
                 count=count*height*width, offset=offset)
             offset += lightmap_size
             # Expand the lightmap into rgba floats
             w.shape = (count, height, width, 1)
-            w = numpy.flip(w, axis=1)
-            wf = numpy.array(w, dtype=float)/255.0
-            rgbf = numpy.repeat(wf, repeats=3, axis=3)
-            rgbaf = numpy.insert(rgbf, 3, 1.0, axis=3)
+            w = np.flip(w, axis=1)
+            wf = np.array(w, dtype=float)/255.0
+            rgbf = np.repeat(wf, repeats=3, axis=3)
+            rgbaf = np.insert(rgbf, 3, 1.0, axis=3)
             # TODO: unify the lightmap data types
             cell.lightmaps.append(rgbaf)
         cell.num_light_indices = int32.read(view, offset=offset)
@@ -877,7 +877,7 @@ def do_worldrep(chunk, textures, context, dumpf):
     #             [128, 128, 128]]], dtype=uint8)
 
     # for 16-bit 1555 rgb -> 24-bit 888 rgb, probably check out:
-    # numpy.bitwise_and() and numpy.right_shift()
+    # np.bitwise_and() and np.right_shift()
 
     # repeating greyscale data into rgb channels:
     a = np.array([1, 2, 3, 4, 5])
@@ -938,7 +938,7 @@ class AtlasBuilder:
         # The placements are the (x,y,w,h) tuples of the anchor where the
         # corresponding image was placed.
         #
-        atlas_data = numpy.zeros((atlas_w,atlas_h,4), dtype=float)
+        atlas_data = np.zeros((atlas_w,atlas_h,4), dtype=float)
         for image_index, (w, h, handle, image, rotated) in enumerate(self.images):
             # Find a place for the image.
             if w>atlas_w:
