@@ -1,6 +1,6 @@
 import bpy
+import numpy
 import os
-import struct
 import sys
 
 from bpy.props import StringProperty
@@ -18,8 +18,21 @@ class GIFFileHeader(Struct):
     transparent_index: uint8
     pixel_aspect: uint8
 
-def GIFColorTable(count):
-    return Array(uint8, 3*count)
+class GIFColorTable:
+    def __init__(self, count):
+        self.count = count
+
+    def read(self, view, offset=0):
+        # read rgb bytes, and convert to array of (r,g,b,a) floats
+        size = self.size()
+        rgb = numpy.frombuffer(view, dtype=numpy.uint8, count=size, offset=offset)
+        rgbf = numpy.array(rgb, dtype=float)/255.0
+        rgbf.shape = (-1, 3)
+        rgbaf = numpy.insert(rgbf, 3, 1.0, axis=1)
+        return rgbaf
+
+    def size(self):
+        return 3*self.count
 
 class GIFImageHeader(Struct):
     x: uint16
@@ -37,17 +50,18 @@ def load_gif(filename):
         data = f.read()
     view = memoryview(data)
     offset = 0
-    header = GIFFileHeader.read(view, offset=offset)
+    file_header = GIFFileHeader.read(view, offset=offset)
     offset += GIFFileHeader.size()
-    if header.tag not in (b'GIF87a', b'GIF89a'):
+    if file_header.tag not in (b'GIF87a', b'GIF89a'):
         raise ValueError("Not a valid GIF")
-    color_table_count = 1<<((header.flags&0x07)+1)
-    color_table_sorted = bool(header.flags&0x08)
-    color_depth = (header.flags&0x70)+1
-    has_color_table = bool(header.flags&0x80)
+    color_table_count = 1<<((file_header.flags&0x07)+1)
+    color_table_sorted = bool(file_header.flags&0x08)
+    color_depth = (file_header.flags&0x70)+1
+    has_color_table = bool(file_header.flags&0x80)
     if has_color_table:
-        global_color_table = GIFColorTable(color_table_count).read(view, offset=offset)
-        offset += global_color_table.size()
+        color_table_type = GIFColorTable(color_table_count)
+        global_color_table = color_table_type.read(view, offset=offset)
+        offset += color_table_type.size()
     else:
         global_color_table = None
 
@@ -61,7 +75,7 @@ def load_gif(filename):
             offset += b
             yield from block
 
-    def decompress_lzw(data, symbol_bit_width):
+    def decompress_lzw(data, symbol_bit_width, decompressed_size):
         # This is mediocre lzw decompression code that is pretty slow and quite
         # wasteful on memory usage. But it's only going to be used on a handful
         # of under-100kb gifs at a time. It's good enough.
@@ -77,7 +91,14 @@ def load_gif(filename):
             table.append(b'end_code')
             code_size = symbol_bit_width+1
             prev_code = -1
-        decompressed = bytearray()
+        decompressed = bytearray(int(decompressed_size))
+        write_cursor = 0
+        def write_bytes(b):
+            nonlocal write_cursor
+            start = write_cursor
+            end = start+len(b)
+            decompressed[ start:end ] = b
+            write_cursor = end
         try:
             data = iter(data)
             input_byte = next(data)
@@ -108,7 +129,7 @@ def load_gif(filename):
                     break
                 elif code<len(table):
                     s = table[code]
-                    decompressed.extend(s)
+                    write_bytes(s)
                     if prev_code!=-1:
                         prev_s = table[prev_code]
                         table.append(prev_s+s[:1])
@@ -116,7 +137,7 @@ def load_gif(filename):
                 elif code==len(table):
                     prev_s = table[prev_code]
                     s = prev_s+prev_s[:1]
-                    decompressed.extend(s)
+                    write_bytes(s)
                     table.append(s)
                     prev_code = code
                 else:
@@ -134,14 +155,20 @@ def load_gif(filename):
         offset += 1
         if b==GIF_IMAGE_BLOCK:
             image_header = GIFImageHeader.read(view, offset=offset)
+            if (image_header.x!=0
+            or image_header.y!=0
+            or image_header.width!=file_header.width
+            or image_header.height!=file_header.height):
+                raise ValueError(f"Nonzero image position in GIF is not supported.")
             offset += image_header.size()
             color_table_count = 1<<((image_header.flags&0x07)+1)
             color_table_sorted = bool(image_header.flags&0x20)
             is_interlaced = bool(image_header.flags&0x40)
             has_color_table = bool(image_header.flags&0x80)
             if has_color_table:
-                color_table = GIFColorTable(color_table_count).read(view, offset=offset)
-                offset += color_table.size()
+                color_table_type = GIFColorTable(color_table_count)
+                color_table = color_table_type.read(view, offset=offset)
+                offset += color_table_type.size()
             else:
                 color_table = global_color_table
             if color_table is None:
@@ -150,24 +177,20 @@ def load_gif(filename):
             symbol_bit_width = view[offset]
             offset += 1
             subblocks = iter_data_subblocks()
-            image_data = decompress_lzw(subblocks, symbol_bit_width)
-            # Construct a blender image (which has to be bottom-up)
-            float_palette = [(b/255.0) for b in color_table]
             width = image_header.width
             height = image_header.height
-            pixels = []
-            for y in reversed(range(height)):
-                ofs = y*width
-                row = image_data[ofs:ofs+width]
-                for b in row:
-                    i = 3*b
-                    pixels.extend(float_palette[i:i+3])
-                    pixels.append(1.0)
+            image_size = height*width
+            image_data = decompress_lzw(subblocks, symbol_bit_width, image_size)
+            # Construct a blender image: flat array, y-up, of rgba floats:
+            pixels = numpy.frombuffer(image_data, dtype=numpy.uint8)
+            pixels.shape = (height, width)
+            pixels = pixels[::-1]
+            pixels = color_table[pixels]
+            pixels.shape = (-1,)
             name = os.path.basename(filename)
             image = bpy.data.images.new(name, width, height, alpha=True)
             image.pixels = pixels
-            # We don't care about animated gifs, so we just return the first
-            # image.
+            # We don't care about animated gifs; just return the first image.
             return image
         elif b==GIF_EXTENSION_BLOCK:
             # We don't care about extension blocks, so skip them.
