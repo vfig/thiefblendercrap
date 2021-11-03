@@ -702,9 +702,12 @@ def do_worldrep(chunk, textures, context, dumpf):
 
             # TODO: yeah we should reuse materials, but too bad!!
             texture_id = cell.p_render_polys[pi].texture_id
-            # Assume Jorge and SKY_HACK are 64x64:
-            texture_image = None if texture_id in (0,249) else textures[texture_id]
-            texture_size = texture_image.size if texture_image else (64, 64)
+            # Assume Jorge and SKY_HACK (and any invalid texture ids) are 64x64:
+            in_range = (0<=texture_id<len(textures))
+            special = texture_id in (0,249)
+            ok = (in_range and not special)
+            texture_image = textures[texture_id] if ok else None
+            texture_size = texture_image.size if ok else (64, 64)
 
             poly_texture_uvs = poly_calculate_texture_uvs(cell, pi, texture_size)
             poly_lightmap_uvs = poly_calculate_lightmap_uvs(cell, pi, texture_size)
@@ -715,6 +718,10 @@ def do_worldrep(chunk, textures, context, dumpf):
                 vi2 = (poly_indices[j+1] if j<(poly.num_vertices-1)
                        else poly_indices[0])
                 face.append(vi)
+            # Reverse face winding order
+            face = face[::-1]
+            poly_texture_uvs = poly_texture_uvs[::-1]
+            poly_lightmap_uvs = poly_lightmap_uvs[::-1]
             texture_uvs.extend(poly_texture_uvs)
             lightmap_uvs.extend(poly_lightmap_uvs)
                 # TODO: normals too! the plane normal (or we can 'shade flat' i guess)
@@ -772,7 +779,6 @@ def do_worldrep(chunk, textures, context, dumpf):
         # Transform this poly's lightmap uvs
         lightmap_atlas_uvs = []
         for (u,v), handle in zip(lightmap_uvs, lightmap_handles):
-            print(u, v, handle)
             u, _ = math.modf(u)
             v, _ = math.modf(v)
             if u<0: u = 1.0-u
