@@ -122,6 +122,12 @@ class LGWRPoly(Struct):
     motion_index: uint8
     padding: uint8
 
+LGWRPoly_dtype = np.dtype({
+    'names':    ['flags',   'num_vertices', 'planeid',  'clut_id',  'destination',  'motion_index', 'padding'],
+    'formats':  [ np.uint8,  np.uint8,       np.uint8,   np.uint8,   np.uint16,      np.uint8,       np.uint8],
+    'aligned': False,
+    })
+
 class LGWRRenderPoly(Struct):
     tex_u: LGVector
     tex_v: LGVector
@@ -187,8 +193,40 @@ class LGWRCell:
         offset += cell.header.size()
         cell.p_vertices = StructView(view, LGVector, offset=offset, count=cell.header.num_vertices)
         offset += cell.p_vertices.size()
-        cell.p_polys = StructView(view, LGWRPoly, offset=offset, count=cell.header.num_polys)
-        offset += cell.p_polys.size()
+
+        # hmm... thinking about whether to use numpy to read the raw data or not
+        # probably best not! for vertex info, lightmaps, stuff like that, we can
+        # use frombuffer and then slap that onto a Big Numpy Array of That Stuff.
+        # but for the cell header, theres not much value in it.
+        #
+        # certainly we dont need all the data in a cell etc. for our purposes.
+        # it should suffice to keep only what we need, perhaps in a recarray,
+        # perhaps just in a bunch of individual np.arrays in a class (for the
+        # convenience of aggregating)...
+        #
+        # stuff that is variable length we can either pad out to a fixed size
+        # (storing the correct count ofc) for operating on; or we can put them
+        # all in one big flat-ish array, and store start,end indices for slicing.
+        #
+        # notes:
+        #    max vertices per poly = 32
+        #
+
+        old_p_polys = StructView(view, LGWRPoly, offset=offset, count=cell.header.num_polys)
+        old_size = old_p_polys.size()
+        old_itemsize = LGWRPoly.size()
+
+        raw = np.frombuffer(view, dtype=np.uint8, count=cell.header.num_polys*LGWRPoly_dtype.itemsize, offset=offset)
+        new_p_polys = raw.view(dtype=LGWRPoly_dtype, type=np.recarray)
+        #new_p_polys = np.frombuffer(view, dtype=LGWRPoly_dtype, count=cell.header.num_polys, offset=offset)
+        new_size = new_p_polys.nbytes
+        new_itemsize = LGWRPoly_dtype.itemsize
+
+        # print(f"old_p_polys ({old_size} bytes/{old_itemsize} each):\n  ", old_p_polys)
+        # print(f"new_p_polys ({new_size} bytes/{new_itemsize} each):\n  ", new_p_polys)
+        cell.p_polys = new_p_polys
+        offset += new_size
+
         cell.p_render_polys = StructView(view, LGWRRenderPoly, offset=offset, count=cell.header.num_render_polys)
         offset += cell.p_render_polys.size()
         cell.index_count = uint32.read(view, offset=offset)
