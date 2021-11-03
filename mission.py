@@ -44,7 +44,13 @@ class TTDebugImportMissionOperator(Operator):
 
         print(f"filename: {self.filename}")
 
-        do_mission(self.filename, context)
+        PROFILE = False
+        if PROFILE:
+            import cProfile
+            cProfile.runctx("do_mission(self.filename, context)",
+                globals(), locals(), "e:/temp/do_mission.prof")
+        else:
+            do_mission(self.filename, context)
 
         #context.view_layer.objects.active = o
         #o.select_set(True)
