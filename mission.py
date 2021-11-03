@@ -134,20 +134,23 @@ class LGWRPlane(Struct):
 class LGWRLightMapInfo(Struct):
     u_base: int16
     v_base: int16
-    pixel_width: int16
+    byte_width: int16
     height: uint8
     width: uint8
     data_ptr: uint32            # Always zero on disk
     dynamic_light_ptr: uint32   # Always zero on disk
     anim_light_bitmask: uint32
 
-    def entry_count(self):
+    def lightmap_count(self):
         light_count = 1
         mask = self.anim_light_bitmask
         while mask!=0:
             if mask&1: light_count += 1
             mask >>= 1
-        return self.height*self.pixel_width*light_count
+        return light_count
+
+    def lightmap_size(self):
+        return self.height*self.byte_width*self.lightmap_count()
 
 
 LGWRLightmapEntry = uint16
@@ -166,7 +169,7 @@ class LGWRCell:
     p_plane_list: Sequence[LGWRPlane]
     p_anim_lights: Sequence[uint16]
     p_light_list: Sequence[LGWRLightMapInfo]
-    lightmap_data: Sequence[bytes]
+    lightmaps: Sequence # of numpy arrays (lightmap_count, height, width, rgba floats)
     num_light_indices: int32
     p_light_indices: Sequence[uint16]
 
@@ -192,14 +195,26 @@ class LGWRCell:
         offset += cell.p_anim_lights.size()
         cell.p_light_list = StructView(view, LGWRLightMapInfo, offset=offset, count=cell.header.num_render_polys)
         offset += cell.p_light_list.size()
-        cell.lightmap_data = []
+        cell.lightmaps = []
         for info in cell.p_light_list:
             # WR lightmap data is uint8; WRRGB is uint16 (xR5G5B5)
             entry_type = uint8
-            lightmap_size = entry_type.size()*info.entry_count()
-            lightmap_data = view[offset:offset+lightmap_size]
+            entry_numpy_type = numpy.uint8
+            width = info.width
+            height = info.height
+            count = info.lightmap_count()
+            lightmap_size = entry_type.size()*info.lightmap_size()
+            assert info.byte_width==(info.width*entry_type.size()), "lightmap byte_width is wrong!"
+            w = numpy.frombuffer(view, dtype=entry_numpy_type,
+                count=count*height*width, offset=offset)
             offset += lightmap_size
-            cell.lightmap_data.append(lightmap_data)
+            # Expand the lightmap into rgba floats
+            w.shape = (count, height, width, 1)
+            wf = numpy.array(w, dtype=float)/255.0
+            rgbf = numpy.repeat(wf, repeats=3, axis=3)
+            rgbaf = numpy.insert(rgbf, 3, 1.0, axis=3)
+            # TODO: unify the lightmap data types
+            cell.lightmaps.append(rgbaf)
         cell.num_light_indices = int32.read(view, offset=offset)
         offset += int32.size()
         cell.p_light_indices = StructView(view, uint16, offset=offset, count=cell.num_light_indices)
@@ -420,32 +435,6 @@ def texture_material_for_cell_poly(cell, cell_index, pi, texture_image):
     principled.roughness = 1.0
     return mat
 
-def lightmap_image_for_cell_poly(cell, cell_index, pi):
-    name = f"Lightmap.Cell{cell_index}.Poly{pi}"
-    # TEMP: dont recreate the image if it already exists. this is so
-    #       that i can re-run this over and over for getting uv mapping
-    #       right, without adding to image/material spam
-    #       of course for the actual import we want new images, but then
-    #       we should be atlasing already
-    image = bpy.data.images.get(name)
-    if image is not None: return image
-    # Blat the lightmap pixels into an image, very inefficiently.
-    info = cell.p_light_list[pi]
-    lightmap_data = cell.lightmap_data[pi]
-    width = info.width
-    height = info.height
-    pixels = []
-    for y in reversed(range(height)):
-        # TODO: this is all only cromulent for uint8, ofc.
-        ofs = y*info.pixel_width
-        row = lightmap_data[ofs:ofs+width]
-        for b in row:
-            i = b/255.0
-            pixels.extend([i, i, i, 1.0])
-    image = bpy.data.images.new(name, width, height, alpha=True)
-    image.pixels = pixels
-    return image
-
 def lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
     # Create a material
     name = f"Lightmap.Cell{cell_index}.Poly{pi}"
@@ -650,7 +639,7 @@ def do_worldrep(chunk, textures, context, dumpf):
             print(f"      lightmapinfo {i}:", file=dumpf)
             print(f"        u_base: {info.u_base} (0x{info.u_base:04x})", file=dumpf)
             print(f"        v_base: {info.v_base} (0x{info.v_base:04x})", file=dumpf)
-            print(f"        pixel_width: {info.pixel_width}", file=dumpf)
+            print(f"        byte_width: {info.byte_width}", file=dumpf)
             print(f"        height: {info.height}", file=dumpf)
             print(f"        width: {info.width}", file=dumpf)
             print(f"        anim_light_bitmask: 0x{info.anim_light_bitmask:08x}", file=dumpf)
@@ -738,11 +727,12 @@ def do_worldrep(chunk, textures, context, dumpf):
             # Hack together a texture material for this poly
             mat = texture_material_for_cell_poly(cell, cell_index, pi, texture_image)
             materials.append(mat)
+
             # Hack together a lightmap texture + material for this poly
-            lightmap_image = lightmap_image_for_cell_poly(cell, cell_index, pi)
-            atlas_builder.add(lightmap_image)
-            mat = lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image)
-            materials.append(mat)
+            info = cell.p_light_list[pi]
+            atlas_builder.add(info.width, info.height, cell.lightmaps[pi][0])
+            #mat = lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image)
+            #materials.append(mat)
 
         # TODO: because i cant figure out how to set up the shader inputs
         #       properly yet, lets just put the lightmap uvs into the
@@ -766,7 +756,7 @@ def do_worldrep(chunk, textures, context, dumpf):
         for i, mat in enumerate(materials):
             mesh.materials.append(mat)
         for i, polygon in enumerate(mesh.polygons):
-            polygon.material_index = i*2+1 # TODO: odd numbers are lightmaps right now
+            polygon.material_index = i #*2+1 # TODO: odd numbers are lightmaps right now
         o = create_object(name, mesh, (0,0,0), context=context, link=True)
 
     # After all cells complete:
@@ -778,13 +768,13 @@ def do_worldrep(chunk, textures, context, dumpf):
     colors = [(r/255.0,g/255.0,b/255.0,1.0) for (r,g,b) in
         [(237,20,91), (246,142,86), (60,184,120), (166,124,82),
         (255,245,104), (109,207,246), (168,100,168), (194,194,194)] ]
-    for i, (x,y,image,rotated) in enumerate(placements):
+    for i, (x,y,w,h,image,rotated) in enumerate(placements):
+        print(f"  placement {i}: {x},{y}; {w}x{h}; {image.shape}, rotated={rotated}")
         color = colors[i%len(colors)]
-        w,h = image.size
-        if rotated: w,h = h,w
-        tag = "(rotated)" if rotated else ""
-        print(f"  {i}: {x},{y} - {x+w},{y+h} {tag}")
-        atlas_data[ y:y+h, x:x+w ] = color
+        # if rotated: w,h = h,w
+        # tag = "(rotated)" if rotated else ""
+        # print(f"  {i}: {x},{y} - {x+w},{y+h} {tag}")
+        atlas_data[ y:y+h, x:x+w ] = image
     atlas_image = bpy.data.images.new(name="Atlas",
         width=atlas_size[0], height=atlas_size[1])
     atlas_image.pixels = atlas_data.reshape((-1,))
@@ -851,20 +841,39 @@ def do_worldrep(chunk, textures, context, dumpf):
 
     # for 16-bit 1555 rgb -> 24-bit 888 rgb, probably check out:
     # numpy.bitwise_and() and numpy.right_shift()
+
+    # repeating greyscale data into rgb channels:
+    a = np.array([1, 2, 3, 4, 5])
+    a.shape = (-1, 1)
+    # a is:
+    #   array([[1],
+    #          [2],
+    #          [3],
+    #          [4],
+    #          [5]])
+    b = np.repeat(a, repeats=3, axis=1)
+    # b is:
+    #   array([[1, 1, 1],
+    #          [2, 2, 2],
+    #          [3, 3, 3],
+    #          [4, 4, 4],
+    #          [5, 5, 5]])
 """
 
 class AtlasBuilder:
     def __init__(self):
         self.images = []
 
-    def add(self, image):
-        w,h = (int(image.size[0]), int(image.size[1]))
+    def add(self, width, height, image):
+        # image must be a (height, width, 4) rgbaf array
         rotated = False
-        if h>w:
-            w,h = h,w
-            rotated = True
+        ## TODO: actually rotate the rgbaf data if we want to support rotation!!
+        # if height>width:
+        #     width,height = height,width
+        #     rotated = True
         handle = len(self.images)
-        self.images.append((w, h, handle, image, rotated))
+        assert image.shape==(height,width,4), f"image {handle} shape is {image.shape}, not {width}x{height}x4!"
+        self.images.append((width, height, handle, image, rotated))
 
     def close(self):
         # Build the atlas
@@ -886,6 +895,7 @@ class AtlasBuilder:
         # corresponding image was placed.
         #
         for (w, h, handle, image, rotated) in self.images:
+            assert image.shape==(h,w,4), f"image {handle} shape is {image.shape}, not {h}x{w}x4!"
             if w>atlas_size[0]:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
             available_w = atlas_size[0]-cursor_x
@@ -897,7 +907,7 @@ class AtlasBuilder:
             if h>available_h:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
             print(f"Placing image {handle} of {w}x{h} at {cursor_x},{cursor_y}.")
-            placements[handle] = (cursor_x,cursor_y,image,rotated)
+            placements[handle] = (cursor_x,cursor_y,w,h,image,rotated)
             cursor_x += w
             row_height = max(row_height, h)
         # TODO: blit the images into the atlas!
