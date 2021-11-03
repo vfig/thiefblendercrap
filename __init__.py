@@ -113,7 +113,7 @@ def unregister():
     bpy.utils.unregister_class(TOOLS_PT_thieftools_debug)
     bpy.utils.unregister_class(mesh.TTDebugImportMeshOperator)
     bpy.utils.unregister_class(mesh.TTDebugExportMeshOperator)
-    bpy.utils.unregister_class(mission.DebugImportMissionOperator)
+    bpy.utils.unregister_class(mission.TTDebugImportMissionOperator)
     bpy.utils.unregister_class(brushes.TTDebugDeleteAllBrushesOperator)
     bpy.utils.unregister_class(brushes.TTDebugBrushesToBooleansOperator)
     print("thieftools: unregistered.");
