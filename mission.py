@@ -435,15 +435,9 @@ def texture_material_for_cell_poly(cell, cell_index, pi, texture_image):
     principled.roughness = 1.0
     return mat
 
-def lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image):
-    # Create a material
-    name = f"Lightmap.Cell{cell_index}.Poly{pi}"
-    # TEMP: dont recreate the material if it already exists. for the actual
-    #       import, we want to be managing materials a little better than
-    #       one per poly!
-    mat = bpy.data.materials.get(name)
-    if mat is not None: return mat
+def lightmap_material_for_image(lightmap_image):
     # Create a material that uses the 'Lightmap' uv_layer for its texcoords
+    name = f"Lightmap"
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     principled = PrincipledBSDFWrapper(mat, is_readonly=False)
@@ -734,7 +728,10 @@ def do_worldrep(chunk, textures, context, dumpf):
             # Add the primary lightmap for this poly to the atlas.
             info = cell.p_light_list[pi]
             lm_handle = atlas_builder.add(info.width, info.height, cell.lightmaps[pi][0])
-            lightmap_handles.append(lm_handle)
+            # TODO: handles are one per poly, but uvs are just a flat list for
+            #       the cell! so for now, just expand the handles to be one per
+            #       poly too.
+            lightmap_handles.extend([lm_handle]*len(poly_lightmap_uvs))
 
         # Store all this cell's data.
         name = f"Cell {cell_index}"
@@ -748,11 +745,8 @@ def do_worldrep(chunk, textures, context, dumpf):
         meshes_faces_material_indices.append(material_indices)
 
     # After all cells complete:
-
-    # # TODO: okay, deal with the uvs later. lets get the meshes building again
-    # #       first
-    # atlas_builder.get_image(handle)
-    # scale, translate = atlas_builder.get_uv_transform(handle)
+    atlas_builder.close()
+    mat_lightmap = lightmap_material_for_image(atlas_builder.image)
 
     for (name, vertices, faces, materials,
          texture_uvs, lightmap_uvs, lightmap_handles, material_indices) \
@@ -774,11 +768,24 @@ def do_worldrep(chunk, textures, context, dumpf):
                 print(f"  {i}: {f}")
         assert not modified, f"Mesh {name} pydata was invalid."
 
+        # Transform this poly's lightmap uvs
+        lightmap_atlas_uvs = []
+        for (u,v), handle in zip(lightmap_uvs, lightmap_handles):
+            print(u, v, handle)
+            u, _ = math.modf(u)
+            v, _ = math.modf(v)
+            if u<0: u = 1.0-u
+            if v<0: v = 1.0-v
+            scale, translate = atlas_builder.get_uv_transform(handle)
+            u = scale[0]*u+translate[0]
+            v = scale[1]*v+translate[1]
+            lightmap_atlas_uvs.append((u,v))
+
         # TODO: because i cant figure out how to set up the shader inputs
         #       properly yet, lets just put the lightmap uvs into the
         #       'UV' layer, okay? at least then we can see if the
         #       lightmap uvs are okay or not!
-        ##texture_uvs = lightmap_uvs[:]
+        texture_uvs = lightmap_atlas_uvs[:]
 
         texture_uv_layer = (mesh.uv_layers.get('UV')
             or mesh.uv_layers.new(name='UV'))
@@ -790,11 +797,16 @@ def do_worldrep(chunk, textures, context, dumpf):
             tx_uvloop.uv = tx_uv
             lm_uvloop.uv = lm_uv
 
+        mesh.materials.append(mat_lightmap)
         for i, mat in enumerate(materials):
             mesh.materials.append(mat)
         for i, (polygon, mat_index) \
         in enumerate(zip(mesh.polygons, material_indices)):
-            polygon.material_index = mat_index
+            polygon.material_index = mat_index+1 # 0 is the lightmap
+            # TODO: because i cant figure out how to set up the shader inputs
+            #       properly yet, lets just give every face the lightmap
+            #       material!
+            polygon.material_index = 0
         o = create_object(name, mesh, (0,0,0), context=context, link=True)
 
 """
@@ -895,13 +907,13 @@ class AtlasBuilder:
         handle = len(self.images)
         assert image.shape==(height,width,4), f"image {handle} shape is {image.shape}, not {width}x{height}x4!"
         self.images.append((width, height, handle, image, rotated))
+        return handle
 
     def close(self):
         # Build the atlas
         self.images = sorted(self.images, reverse=True)
         atlas_w, atlas_h = (1024, 1024)
-        cursor_x = 0
-        cursor_y = 0
+        x = y = 0
         row_height = 0
         placements = [None]*len(self.images)
         USE_DEBUG_COLORS = False
@@ -920,7 +932,7 @@ class AtlasBuilder:
         # corresponding image was placed.
         #
         atlas_data = numpy.zeros((atlas_w,atlas_h,4), dtype=float)
-        for image_index, (w, h, handle, image, rotated) in enumerat(self.images):
+        for image_index, (w, h, handle, image, rotated) in enumerate(self.images):
             # Find a place for the image.
             if w>atlas_w:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
@@ -952,14 +964,11 @@ class AtlasBuilder:
         self.image = atlas_image
         self.placements = placements
 
-    def get_image(self, handle):
-        return self.image
-
     def get_uv_transform(self, handle):
         """return (scale_x, scale_y), (offset_x, offset_y)"""
         x,y,w,h = self.placements[handle]
-        atlas_w,atlas_h = self.atlas_image.size
-        return ( (1.0/atlas_w, 1.0/atlas_h), (x/atlas_w, y/atlas_h) )
+        atlas_w,atlas_h = self.image.size
+        return ( (w/atlas_w, h/atlas_h), (x/atlas_w, y/atlas_h) )
 
 @dataclass
 class TerrainDef:
