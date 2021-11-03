@@ -587,9 +587,11 @@ def do_worldrep(chunk, textures, context, dumpf):
     #       for each poly, and the combined result will be ready for export
     #       as a single model, without the blender baking shenanigans? dunno.
 
+    cells = []
     for cell_index in range(header.cell_count):
         print(f"Reading cell {cell_index} at offset 0x{offset:08x}")
         cell = LGWRCell.read(view, offset)
+        cells.append(cell)
         offset += cell.size()
         print(f"  Cell {cell_index}:", file=dumpf)
         print(f"    num_vertices: {cell.header.num_vertices}", file=dumpf)
@@ -649,10 +651,9 @@ def do_worldrep(chunk, textures, context, dumpf):
     # We need to build up a single mesh. We need:
     #
     # - Vertex positions: (float, float, float)
-    # - Edges: (v-index, v-index)
     # - Faces: (v-index, v-index, v-index, ...)
-    # - Texture UVs: (float, float) per edge (belonging to first vertex)
-    # - Lightmap UVs: (float, float) per edge (belonging to first vertex)
+    # - Texture UVs: (float, float) per loop (belonging to first vertex)
+    # - Lightmap UVs: (float, float) per loop (belonging to first vertex)
     # - Materials: [texture_mat, ..., lightmap_atlas_mat, ...]
     # - Material indices: (int) per face
     #
@@ -679,25 +680,26 @@ def do_worldrep(chunk, textures, context, dumpf):
     #   and that we use handles for all UVs and for material indices.
 
     atlas_builder = AtlasBuilder()
-    cells = []
-    for cell_index in range(100): # TODO: use the full range
-    #for cell_index in range(header.cell_count):
+    TEMP_LIMIT = 100 # TODO: use the full range
+    # These lists have one entry per cell:
+    meshes_name = []
+    meshes_vertices = []
+    meshes_faces = []
+    meshes_texture_materials = []
+    meshes_loop_texture_uvs = []
+    meshes_loop_lightmap_uvs = []
+    meshes_faces_lightmap_handles = []
+    meshes_faces_material_indices = []
+
+    for cell_index, cell in enumerate(cells[:TEMP_LIMIT]):
         # TEMP: hack together a mesh
-        # TODO: okay, we need to do something about the uvs. first, we are not
-        #       yet splitting the vertices. thats... kinda fine, kinda not.
-        #       its fine because blender worries about that by putting things
-        #       into loops and whatever. but its not fine for the uvs, because
-        #       we need to somehow build uvs-by-loop-index, so we need a unique
-        #       way of referencing each poly-vertex, because itll have unique
-        #       lightmap uvs!
-        #       maaaybe (poly_index, vertex_index) is okay, because each loop
-        #       references those?? but are those actually unique? idk...
         vertices = [Vector(v) for v in cell.p_vertices]
         texture_uvs = []
         lightmap_uvs = []
-        edges = []
         faces = []
         materials = []
+        material_indices = []
+        lightmap_handles = []
         for pi, poly in enumerate(cell.p_polys):
             is_render = (pi<cell.header.num_render_polys)
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
@@ -718,32 +720,66 @@ def do_worldrep(chunk, textures, context, dumpf):
                 vi2 = (poly_indices[j+1] if j<(poly.num_vertices-1)
                        else poly_indices[0])
                 face.append(vi)
-                edges.append((vi, vi2))
             texture_uvs.extend(poly_texture_uvs)
             lightmap_uvs.extend(poly_lightmap_uvs)
                 # TODO: normals too! the plane normal (or we can 'shade flat' i guess)
             faces.append(face)
 
             # Hack together a texture material for this poly
+            mat_index = pi
             mat = texture_material_for_cell_poly(cell, cell_index, pi, texture_image)
             materials.append(mat)
+            material_indices.append(mat_index)
 
-            # Hack together a lightmap texture + material for this poly
+            # Add the primary lightmap for this poly to the atlas.
             info = cell.p_light_list[pi]
-            atlas_builder.add(info.width, info.height, cell.lightmaps[pi][0])
-            #mat = lightmap_material_for_cell_poly(cell, cell_index, pi, lightmap_image)
-            #materials.append(mat)
+            lm_handle = atlas_builder.add(info.width, info.height, cell.lightmaps[pi][0])
+            lightmap_handles.append(lm_handle)
+
+        # Store all this cell's data.
+        name = f"Cell {cell_index}"
+        meshes_name.append(name)
+        meshes_vertices.append(vertices)
+        meshes_faces.append(faces)
+        meshes_texture_materials.append(materials)
+        meshes_loop_texture_uvs.append(texture_uvs)
+        meshes_loop_lightmap_uvs.append(lightmap_uvs)
+        meshes_faces_lightmap_handles.append(lightmap_handles)
+        meshes_faces_material_indices.append(material_indices)
+
+    # After all cells complete:
+
+    # # TODO: okay, deal with the uvs later. lets get the meshes building again
+    # #       first
+    # atlas_builder.get_image(handle)
+    # scale, translate = atlas_builder.get_uv_transform(handle)
+
+    for (name, vertices, faces, materials,
+         texture_uvs, lightmap_uvs, lightmap_handles, material_indices) \
+    in zip(meshes_name, meshes_vertices, meshes_faces,
+           meshes_texture_materials, meshes_loop_texture_uvs,
+           meshes_loop_lightmap_uvs, meshes_faces_lightmap_handles,
+           meshes_faces_material_indices):
+
+        # Hack together one mesh per cell.
+        mesh = bpy.data.meshes.new(name=f"{name} mesh")
+        mesh.from_pydata(vertices, [], faces)
+        modified = mesh.validate(verbose=True)
+        if modified:
+            print("Vertices:")
+            for i, v in enumerate(vertices):
+                print(f"  {i}: {v[0]:0.2f},{v[1]:0.2f},{v[2]:0.2f}")
+            print("Faces:")
+            for i, f in enumerate(faces):
+                print(f"  {i}: {f}")
+        assert not modified, f"Mesh {name} pydata was invalid."
 
         # TODO: because i cant figure out how to set up the shader inputs
         #       properly yet, lets just put the lightmap uvs into the
         #       'UV' layer, okay? at least then we can see if the
         #       lightmap uvs are okay or not!
-        texture_uvs = lightmap_uvs[:]
+        ##texture_uvs = lightmap_uvs[:]
 
-        name = f"Cell {cell_index}"
-        mesh = bpy.data.meshes.new(name=f"{name} mesh")
-        mesh.from_pydata(vertices, [], faces)
-        mesh.validate(verbose=True)
         texture_uv_layer = (mesh.uv_layers.get('UV')
             or mesh.uv_layers.new(name='UV'))
         lightmap_uv_layer = (mesh.uv_layers.get('Lightmap')
@@ -753,31 +789,13 @@ def do_worldrep(chunk, textures, context, dumpf):
                lightmap_uv_layer.data, lightmap_uvs):
             tx_uvloop.uv = tx_uv
             lm_uvloop.uv = lm_uv
+
         for i, mat in enumerate(materials):
             mesh.materials.append(mat)
-        for i, polygon in enumerate(mesh.polygons):
-            polygon.material_index = i #*2+1 # TODO: odd numbers are lightmaps right now
+        for i, (polygon, mat_index) \
+        in enumerate(zip(mesh.polygons, material_indices)):
+            polygon.material_index = mat_index
         o = create_object(name, mesh, (0,0,0), context=context, link=True)
-
-    # After all cells complete:
-    # TODO: debug: dump the atlas
-    placements = atlas_builder.close()
-    atlas_size = (1024, 1024) # TODO - hardcoded here D:
-    atlas_data = numpy.zeros((atlas_size[0],atlas_size[1],4), dtype=numpy.float64)
-    print("Atlas:")
-    colors = [(r/255.0,g/255.0,b/255.0,1.0) for (r,g,b) in
-        [(237,20,91), (246,142,86), (60,184,120), (166,124,82),
-        (255,245,104), (109,207,246), (168,100,168), (194,194,194)] ]
-    for i, (x,y,w,h,image,rotated) in enumerate(placements):
-        print(f"  placement {i}: {x},{y}; {w}x{h}; {image.shape}, rotated={rotated}")
-        color = colors[i%len(colors)]
-        # if rotated: w,h = h,w
-        # tag = "(rotated)" if rotated else ""
-        # print(f"  {i}: {x},{y} - {x+w},{y+h} {tag}")
-        atlas_data[ y:y+h, x:x+w ] = image
-    atlas_image = bpy.data.images.new(name="Atlas",
-        width=atlas_size[0], height=atlas_size[1])
-    atlas_image.pixels = atlas_data.reshape((-1,))
 
 """
     # blitting (y, x; remember y is bottom up in blender, which is fine)
@@ -863,6 +881,9 @@ def do_worldrep(chunk, textures, context, dumpf):
 class AtlasBuilder:
     def __init__(self):
         self.images = []
+        # After close, these will be set:
+        self.image = None
+        self.placements = None
 
     def add(self, width, height, image):
         # image must be a (height, width, 4) rgbaf array
@@ -878,11 +899,15 @@ class AtlasBuilder:
     def close(self):
         # Build the atlas
         self.images = sorted(self.images, reverse=True)
-        atlas_size = (1024, 1024)
+        atlas_w, atlas_h = (1024, 1024)
         cursor_x = 0
         cursor_y = 0
         row_height = 0
         placements = [None]*len(self.images)
+        USE_DEBUG_COLORS = False
+        debug_colors = [(r/255.0,g/255.0,b/255.0,1.0) for (r,g,b) in
+            [(237,20,91), (246,142,86), (60,184,120), (166,124,82),
+            (255,245,104), (109,207,246), (168,100,168), (194,194,194)] ]
         # used_width is the amount of space used by placements in each scanline
         # (from the bottom up).
         #
@@ -891,40 +916,50 @@ class AtlasBuilder:
         # up by the row height; then reset the row height to zero. The row
         # height is the max height of the images placed on that row.
         #
-        # The placements are the (x,y) tuples of the anchor where the
+        # The placements are the (x,y,w,h) tuples of the anchor where the
         # corresponding image was placed.
         #
-        for (w, h, handle, image, rotated) in self.images:
-            assert image.shape==(h,w,4), f"image {handle} shape is {image.shape}, not {h}x{w}x4!"
-            if w>atlas_size[0]:
+        atlas_data = numpy.zeros((atlas_w,atlas_h,4), dtype=float)
+        for image_index, (w, h, handle, image, rotated) in enumerat(self.images):
+            # Find a place for the image.
+            if w>atlas_w:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
-            available_w = atlas_size[0]-cursor_x
+            available_w = atlas_w-x
             if w>available_w:
-                cursor_x = 0
-                cursor_y += row_height
+                x = 0
+                y += row_height
                 row_height = 0
-            available_h = atlas_size[1]-cursor_y
+            available_h = atlas_h-y
             if h>available_h:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
-            print(f"Placing image {handle} of {w}x{h} at {cursor_x},{cursor_y}.")
-            placements[handle] = (cursor_x,cursor_y,w,h,image,rotated)
-            cursor_x += w
+            # Place and blit the image.
+            print(f"Placing image {handle} of {w}x{h} at {x},{y}.")
+            placements[handle] = (x,y,w,h)
+            if USE_DEBUG_COLORS:
+                source = colors[i%len(debug_colors)]
+            else:
+                source = image
+            atlas_data[ y:y+h, x:x+w ] = source
+            # Move the cursor along.
+            x += w
             row_height = max(row_height, h)
-        # TODO: blit the images into the atlas!
-        return placements
 
-        # # blitting (y, x; remember y is bottom up in blender, which is fine)
-        # atlas = bpy.data.images.new(name='Atlas', width=256, height=256, alpha=False, float_buffer=False)
-        # px0 = np.array(im0.pixels)
-        # px1 = np.array(im1.pixels)
-        # pxa = np.array(atlas.pixels)
-        # px0.shape = (64,64,4)
-        # px1.shape = (64,64,4)
-        # pxa.shape = (256,256,4)
-        # pxa[ 0:64, 0:64, : ] = px0
-        # pxa[ 0:64, 64:128, : ] = px1
-        # atlas.pixels = pxa.reshape((-1,))
-        # # equivalent to: pxa.flatten(), but i think .flatten() always copies?
+        # Create the atlas image.
+        atlas_image = bpy.data.images.new(name="Atlas", width=atlas_w, height=atlas_h)
+        atlas_image.pixels = atlas_data.reshape((-1,))
+
+        self.images = None # Done with the images now.
+        self.image = atlas_image
+        self.placements = placements
+
+    def get_image(self, handle):
+        return self.image
+
+    def get_uv_transform(self, handle):
+        """return (scale_x, scale_y), (offset_x, offset_y)"""
+        x,y,w,h = self.placements[handle]
+        atlas_w,atlas_h = self.atlas_image.size
+        return ( (1.0/atlas_w, 1.0/atlas_h), (x/atlas_w, y/atlas_h) )
 
 @dataclass
 class TerrainDef:
