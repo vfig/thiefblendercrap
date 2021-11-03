@@ -210,6 +210,7 @@ class LGWRCell:
             offset += lightmap_size
             # Expand the lightmap into rgba floats
             w.shape = (count, height, width, 1)
+            w = numpy.flip(w, axis=1)
             wf = numpy.array(w, dtype=float)/255.0
             rgbf = numpy.repeat(wf, repeats=3, axis=3)
             rgbaf = numpy.insert(rgbf, 3, 1.0, axis=3)
