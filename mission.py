@@ -80,13 +80,20 @@ class StructuredReader:
 
     def read(self, dtype, count=None, peek=False):
         dtype = np.dtype(dtype)
+        itemsize = dtype.itemsize
+        for dim in dtype.shape:
+            itemsize *= dim
         if count is None:
             want_array = False
             count = 1
         else:
             want_array = True
+        # TODO: clean this up, if all the calculations are working now
+        # print(f"dtype {dtype}")
+        # print(f"total should be: {count} x itemsize {dtype.itemsize} x shape {dtype.shape}")
+        # print(f"calculated itemsize {itemsize}; total size {count*itemsize}")
         start = self.offset
-        end = start+count*dtype.itemsize
+        end = start+count*itemsize
 
         # TODO: all this is to guard against me accidentally making a foolish copy.
         def root_base(arr):
@@ -100,16 +107,14 @@ class StructuredReader:
 
         a = self.array[start:end]
         assert (root_base(a) is root), "Oops, made a copy!"
-        a = a.view(dtype, type=np.recarray)
+        a = np.frombuffer(a, dtype=dtype, count=count)
+        a = a.view(type=np.recarray)
         assert (root_base(a) is root), "Oops, made a copy!"
         if not peek:
             self.offset = end
         if not want_array:
             a = a[0]
         return a
-
-def ascii(b):
-    return b.partition(b'\x00')[0].decode('ascii')
 
 def structure(cls, aligned=False):
     import sys
@@ -130,6 +135,16 @@ def structure(cls, aligned=False):
         assert field_dtype.kind!='O', f"Field {cls.__name__}:{field_name} must not be an object type"
     print(f"  Structure size={dtype.itemsize}", file=dumpf)
     return dtype
+
+def ascii(b):
+    return b.partition(b'\x00')[0].decode('ascii')
+
+def bit_count(n):
+    c = 0
+    while n!=0:
+        if n&1: c += 1
+        n >>= 1
+    return c
 
 LGVector = (float32, 3)
 
@@ -233,20 +248,6 @@ class LGWRLightMapInfo:
     dynamic_light_ptr: uint32   # Always zero on disk
     anim_light_bitmask: uint32
 
-    # TODO: these will have to be relegated to functions
-
-    def lightmap_count(self):
-        light_count = 1
-        mask = self.anim_light_bitmask
-        while mask!=0:
-            if mask&1: light_count += 1
-            mask >>= 1
-        return light_count
-
-    def lightmap_size(self):
-        return self.height*self.byte_width*self.lightmap_count()
-
-
 # TODO: am i even using these right now?
 LGWRLightmapEntry = uint16
 LGWRRGBLightmapEntry = uint32
@@ -269,13 +270,12 @@ class LGWRCell:
     # p_light_indices: Sequence[uint16]
 
     @classmethod
-    def read(cls, view, offset=0):
+    def read(cls, reader, cell_index):
+        f = reader
         cell = cls()
-        initial_offset = offset
-        cell.header = LGWRCellHeader.read(view, offset=offset)
-        offset += cell.header.size()
-        cell.p_vertices = StructView(view, LGVector, offset=offset, count=cell.header.num_vertices)
-        offset += cell.p_vertices.size()
+        print(f"Reading cell {cell_index} header at offset 0x{f.offset:08x}")
+        cell.header = f.read(LGWRCellHeader)
+        cell.p_vertices = f.read(LGVector, count=cell.header.num_vertices)
 
         # hmm... thinking about whether to use numpy to read the raw data or not
         # probably best not! for vertex info, lightmaps, stuff like that, we can
@@ -295,46 +295,24 @@ class LGWRCell:
         #    max vertices per poly = 32
         #
 
-        old_p_polys = StructView(view, LGWRPoly, offset=offset, count=cell.header.num_polys)
-        old_size = old_p_polys.size()
-        old_itemsize = LGWRPoly.size()
-
-        raw = np.frombuffer(view, dtype=np.uint8, count=cell.header.num_polys*LGWRPoly_dtype.itemsize, offset=offset)
-        new_p_polys = raw.view(dtype=LGWRPoly_dtype, type=np.recarray)
-        #new_p_polys = np.frombuffer(view, dtype=LGWRPoly_dtype, count=cell.header.num_polys, offset=offset)
-        new_size = new_p_polys.nbytes
-        new_itemsize = LGWRPoly_dtype.itemsize
-
-        # print(f"old_p_polys ({old_size} bytes/{old_itemsize} each):\n  ", old_p_polys)
-        # print(f"new_p_polys ({new_size} bytes/{new_itemsize} each):\n  ", new_p_polys)
-        cell.p_polys = new_p_polys
-        offset += new_size
-
-        cell.p_render_polys = StructView(view, LGWRRenderPoly, offset=offset, count=cell.header.num_render_polys)
-        offset += cell.p_render_polys.size()
-        cell.index_count = uint32.read(view, offset=offset)
-        offset += uint32.size()
-        cell.p_index_list = StructView(view, uint8, offset=offset, count=cell.index_count)
-        offset += cell.p_index_list.size()
-        cell.p_plane_list = StructView(view, LGWRPlane, offset=offset, count=cell.header.num_planes)
-        offset += cell.p_plane_list.size()
-        cell.p_anim_lights = StructView(view, uint16, offset=offset, count=cell.header.num_anim_lights)
-        offset += cell.p_anim_lights.size()
-        cell.p_light_list = StructView(view, LGWRLightMapInfo, offset=offset, count=cell.header.num_render_polys)
-        offset += cell.p_light_list.size()
+        print(f"Reading {cell.header.num_polys} polys at offset 0x{f.offset:08x}")
+        cell.p_polys = f.read(LGWRPoly, count=cell.header.num_polys)
+        print(f"Reading {cell.header.num_render_polys} render_polys at offset 0x{f.offset:08x}")
+        cell.p_render_polys = f.read(LGWRRenderPoly, count=cell.header.num_render_polys)
+        cell.index_count = f.read(uint32)
+        cell.p_index_list = f.read(uint8, count=cell.index_count)
+        cell.p_plane_list = f.read(LGWRPlane, count=cell.header.num_planes)
+        cell.p_anim_lights = f.read(uint16, count=cell.header.num_anim_lights)
+        cell.p_light_list = f.read(LGWRLightMapInfo, count=cell.header.num_render_polys)
         cell.lightmaps = []
         for info in cell.p_light_list:
             # WR lightmap data is uint8; WRRGB is uint16 (xR5G5B5)
-            entry_type = uint8
-            entry_numpy_type = np.uint8
+            entry_type = np.dtype(uint8)
             width = info.width
             height = info.height
-            count = info.lightmap_count()
-            lightmap_size = entry_type.size()*info.lightmap_size()
-            assert info.byte_width==(info.width*entry_type.size()), "lightmap byte_width is wrong!"
-            w = np.frombuffer(view, dtype=entry_numpy_type,
-                count=count*height*width, offset=offset)
-            offset += lightmap_size
+            count = 1+bit_count(info.anim_light_bitmask) # 1 base lightmap, plus 1 per animlight
+            assert info.byte_width==(info.width*entry_type.itemsize), "lightmap byte_width is wrong!"
+            w = f.read(entry_type, count=count*height*width)
             # Expand the lightmap into rgba floats
             w.shape = (count, height, width, 1)
             w = np.flip(w, axis=1)
@@ -343,19 +321,21 @@ class LGWRCell:
             rgbaf = np.insert(rgbf, 3, 1.0, axis=3)
             # TODO: unify the lightmap data types
             cell.lightmaps.append(rgbaf)
-        cell.num_light_indices = int32.read(view, offset=offset)
-        offset += int32.size()
-        cell.p_light_indices = StructView(view, uint16, offset=offset, count=cell.num_light_indices)
-        offset += cell.p_light_indices.size()
+        cell.num_light_indices = f.read(int32)
+        cell.p_light_indices = f.read(uint16, count=cell.num_light_indices)
         # Done reading!
-        cell._calculated_size = offset-initial_offset
         # Oh, but for sanity, lets build a table of polygon vertices, so
         # we dont have to deal with vertex-indices or vertex-index-indices
         # anywhere else. Except maybe for dumping.
         poly_indices = []
         poly_vertices = []
         start_index = 0
+
+        print(f"polys: {len(cell.p_polys)}")
+        print(f"  {cell.p_polys.num_vertices}")
+        print(cell.p_polys)
         for pi, poly in enumerate(cell.p_polys):
+            assert poly.num_vertices<=32, "you fucked up, poly has >32 verts!"
             indices = []
             vertices = []
             for j in range(poly.num_vertices):
@@ -369,9 +349,6 @@ class LGWRCell:
         cell.poly_indices = poly_indices
         cell.poly_vertices = poly_vertices
         return cell
-
-    def size(self):
-        return self._calculated_size
 
 class LGDBChunk:
     def __init__(self, f, offset, data_size):
@@ -657,10 +634,8 @@ def do_worldrep(chunk, textures, context, dumpf):
     if (chunk.header.version.major, chunk.header.version.minor) \
     not in [(0, 23), (0, 24)]:
         raise ValueError("Only version 0.23 and 0.24 WR chunk is supported")
-    view = chunk.data
-    offset = 0
-    header = LGWRHeader.read(view, offset=offset)
-    offset += header.size()
+    f = StructuredReader(buffer=chunk.data)
+    header = f.read(LGWRHeader)
     print(f"WR chunk:", file=dumpf)
     print(f"  version: {chunk.header.version.major}.{chunk.header.version.minor}", file=dumpf)
     print(f"  size: {header.data_size}", file=dumpf)
@@ -697,8 +672,8 @@ def do_worldrep(chunk, textures, context, dumpf):
 
     cells = []
     for cell_index in range(header.cell_count):
-        print(f"Reading cell {cell_index} at offset 0x{offset:08x}")
-        cell = LGWRCell.read(view, offset)
+        print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}")
+        cell = LGWRCell.read(f, cell_index)
         cells.append(cell)
         offset += cell.size()
         print(f"  Cell {cell_index}:", file=dumpf)
