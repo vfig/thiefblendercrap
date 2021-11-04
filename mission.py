@@ -81,17 +81,11 @@ class StructuredReader:
     def read(self, dtype, count=None, peek=False):
         dtype = np.dtype(dtype)
         itemsize = dtype.itemsize
-        for dim in dtype.shape:
-            itemsize *= dim
         if count is None:
             want_array = False
             count = 1
         else:
             want_array = True
-        # TODO: clean this up, if all the calculations are working now
-        # print(f"dtype {dtype}")
-        # print(f"total should be: {count} x itemsize {dtype.itemsize} x shape {dtype.shape}")
-        # print(f"calculated itemsize {itemsize}; total size {count*itemsize}")
         start = self.offset
         end = start+count*itemsize
 
@@ -273,7 +267,6 @@ class LGWRCell:
     def read(cls, reader, cell_index):
         f = reader
         cell = cls()
-        print(f"Reading cell {cell_index} header at offset 0x{f.offset:08x}")
         cell.header = f.read(LGWRCellHeader)
         cell.p_vertices = f.read(LGVector, count=cell.header.num_vertices)
 
@@ -295,9 +288,7 @@ class LGWRCell:
         #    max vertices per poly = 32
         #
 
-        print(f"Reading {cell.header.num_polys} polys at offset 0x{f.offset:08x}")
         cell.p_polys = f.read(LGWRPoly, count=cell.header.num_polys)
-        print(f"Reading {cell.header.num_render_polys} render_polys at offset 0x{f.offset:08x}")
         cell.p_render_polys = f.read(LGWRRenderPoly, count=cell.header.num_render_polys)
         cell.index_count = f.read(uint32)
         cell.p_index_list = f.read(uint8, count=cell.index_count)
@@ -331,9 +322,6 @@ class LGWRCell:
         poly_vertices = []
         start_index = 0
 
-        print(f"polys: {len(cell.p_polys)}")
-        print(f"  {cell.p_polys.num_vertices}")
-        print(cell.p_polys)
         for pi, poly in enumerate(cell.p_polys):
             assert poly.num_vertices<=32, "you fucked up, poly has >32 verts!"
             indices = []
@@ -675,7 +663,6 @@ def do_worldrep(chunk, textures, context, dumpf):
         print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}")
         cell = LGWRCell.read(f, cell_index)
         cells.append(cell)
-        offset += cell.size()
         print(f"  Cell {cell_index}:", file=dumpf)
         print(f"    num_vertices: {cell.header.num_vertices}", file=dumpf)
         print(f"    num_polys: {cell.header.num_polys}", file=dumpf)
@@ -690,22 +677,22 @@ def do_worldrep(chunk, textures, context, dumpf):
         print(f"    motion_index: {cell.header.motion_index}", file=dumpf)
         print(f"    sphere_center: {cell.header.sphere_center}", file=dumpf)
         print(f"    sphere_radius: {cell.header.sphere_radius}", file=dumpf)
-        print(f"    p_vertices: {cell.p_vertices}", file=dumpf)
+        print(f"    p_vertices: {cell.p_vertices.size}", file=dumpf)
         for i, v in enumerate(cell.p_vertices):
-            print(f"      {i}: {v.x:06f},{v.y:06f},{v.z:06f}", file=dumpf)
-        print(f"    p_polys: {cell.p_polys}", file=dumpf)
-        print(f"    p_render_polys: {cell.p_render_polys}", file=dumpf)
+            print(f"      {i}: {v[0]:06f},{v[1]:06f},{v[2]:06f}", file=dumpf)
+        print(f"    p_polys: {cell.p_polys.size}", file=dumpf)
+        print(f"    p_render_polys: {cell.p_render_polys.size}", file=dumpf)
         for i, rpoly in enumerate(cell.p_render_polys):
             print(f"      render_poly {i}:", file=dumpf)
-            print(f"        tex_u: {rpoly.tex_u.x:06f},{rpoly.tex_u.y:06f},{rpoly.tex_u.z:06f}", file=dumpf)
-            print(f"        tex_v: {rpoly.tex_v.x:06f},{rpoly.tex_v.y:06f},{rpoly.tex_v.z:06f}", file=dumpf)
+            print(f"        tex_u: {rpoly.tex_u[0]:06f},{rpoly.tex_u[1]:06f},{rpoly.tex_u[2]:06f}", file=dumpf)
+            print(f"        tex_v: {rpoly.tex_v[0]:06f},{rpoly.tex_v[1]:06f},{rpoly.tex_v[2]:06f}", file=dumpf)
             print(f"        u_base: {rpoly.u_base} (0x{rpoly.u_base:04x})", file=dumpf)
             print(f"        v_base: {rpoly.v_base} (0x{rpoly.v_base:04x})", file=dumpf)
             print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
             print(f"        texture_anchor: {rpoly.texture_anchor}", file=dumpf)
             # Skip printing  cached_surface, texture_mag, center.
         print(f"    index_count: {cell.index_count}", file=dumpf)
-        print(f"    p_index_list: {cell.p_index_list}", file=dumpf)
+        print(f"    p_index_list: {cell.p_index_list.size}", file=dumpf)
         for pi, poly in enumerate(cell.p_polys):
             is_render = (pi<cell.header.num_render_polys)
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
@@ -717,9 +704,9 @@ def do_worldrep(chunk, textures, context, dumpf):
                 vi = cell.poly_indices[pi][j]
                 print(f" {vi}", end='', file=dumpf)
             print(file=dumpf)
-        print(f"    p_plane_list: {cell.p_plane_list}", file=dumpf)
-        print(f"    p_anim_lights: {cell.p_anim_lights}", file=dumpf)
-        print(f"    p_light_list: {cell.p_light_list}", file=dumpf)
+        print(f"    p_plane_list: {cell.p_plane_list.size}", file=dumpf)
+        print(f"    p_anim_lights: {cell.p_anim_lights.size}", file=dumpf)
+        print(f"    p_light_list: {cell.p_light_list.size}", file=dumpf)
         for i, info in enumerate(cell.p_light_list):
             print(f"      lightmapinfo {i}:", file=dumpf)
             print(f"        u_base: {info.u_base} (0x{info.u_base:04x})", file=dumpf)
@@ -729,7 +716,7 @@ def do_worldrep(chunk, textures, context, dumpf):
             print(f"        width: {info.width}", file=dumpf)
             print(f"        anim_light_bitmask: 0x{info.anim_light_bitmask:08x}", file=dumpf)
         print(f"    num_light_indices: {cell.num_light_indices}", file=dumpf)
-        print(f"    p_light_indices: {cell.p_light_indices}", file=dumpf)
+        print(f"    p_light_indices: {cell.p_light_indices.size}", file=dumpf)
 
     # We need to build up a single mesh. We need:
     #
