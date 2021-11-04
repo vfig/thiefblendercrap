@@ -12,8 +12,8 @@ from bpy_extras.image_utils import load_image
 from collections import OrderedDict
 from dataclasses import dataclass
 from mathutils import Vector
+from numpy import (int8, int16, int32, uint8, uint16, uint32, float32)
 from typing import Mapping, Sequence, Tuple
-from .binstruct import *
 from .images import load_gif, load_pcx
 from .lgtypes import *
 
@@ -57,55 +57,137 @@ class TTDebugImportMissionOperator(Operator):
 
         return {'FINISHED'}
 
-def byte_str(b):
+class StructuredReader:
+    def __init__(self, filename='', mode='rb', buffer=None):
+        if filename=='' and buffer is None:
+            raise ValueError("One of 'filename' and 'buffer' must be given.")
+        if filename!='' and buffer is not None:
+            raise ValueError("Only one of 'filename' and 'buffer' must be given.")
+        if filename!='':
+            a = np.fromfile(filename, dtype=uint8)
+        else:
+            a = np.frombuffer(buffer, dtype=uint8)
+        a.flags.writeable = False
+        self.array = a
+        self.offset = 0
+        self.size = a.size
+
+    def seek(self, offset):
+        if offset<0:
+            self.offset = self.size+self.offset
+        else:
+            self.offset = offset
+
+    def read(self, dtype, count=None, peek=False):
+        dtype = np.dtype(dtype)
+        if count is None:
+            want_array = False
+            count = 1
+        else:
+            want_array = True
+        start = self.offset
+        end = start+count*dtype.itemsize
+
+        # TODO: all this is to guard against me accidentally making a foolish copy.
+        def root_base(arr):
+            if arr.base is None:
+                return arr
+            base = arr.base
+            while base.base is not None:
+                base = base.base
+            return base
+        root = root_base(self.array)
+
+        a = self.array[start:end]
+        assert (root_base(a) is root), "Oops, made a copy!"
+        a = a.view(dtype, type=np.recarray)
+        assert (root_base(a) is root), "Oops, made a copy!"
+        if not peek:
+            self.offset = end
+        if not want_array:
+            a = a[0]
+        return a
+
+def ascii(b):
     return b.partition(b'\x00')[0].decode('ascii')
 
-class LGDBVersion(Struct):
+def structure(cls, aligned=False):
+    import sys
+    dumpf = sys.stderr
+    from typing import get_type_hints
+    hints = get_type_hints(cls)
+    if len(hints)==0:
+        raise TypeError(f"{cls.__name__} has no fields defined")
+    names = []
+    formats = []
+    print(f"Constructing {cls.__name__}...", file=dumpf)
+    for name, typeref in hints.items():
+        print(f"  {name}: {typeref}", file=dumpf)
+        names.append(name)
+        formats.append(typeref)
+    dtype = np.dtype({'names': names, 'formats': formats, 'aligned': aligned})
+    for field_name, (field_dtype, field_shape) in dtype.fields.items():
+        assert field_dtype.kind!='O', f"Field {cls.__name__}:{field_name} must not be an object type"
+    print(f"  Structure size={dtype.itemsize}", file=dumpf)
+    return dtype
+
+LGVector = (float32, 3)
+
+@structure
+class LGDBVersion:
     major: uint32
     minor: uint32
 
-class LGDBFileHeader(Struct):
+@structure
+class LGDBFileHeader:
     table_offset: uint32
     version: LGDBVersion
-    pad: Array(uint8, 256)
-    deadbeef: ByteString(4)
+    pad: (uint8, 256)
+    deadbeef: (bytes, 4)
 
-class LGDBTOCEntry(Struct):
-    name: ByteString(12)
+@structure
+class LGDBTOCEntry:
+    name: (bytes, 12)
     offset: uint32
     data_size: uint32
 
-class LGDBChunkHeader(Struct):
-    name: ByteString(12)
+@structure
+class LGDBChunkHeader:
+    name: (bytes, 12)
     version: LGDBVersion
     pad: uint32
 
-class LGTXLISTHeader(Struct):
+@structure
+class LGTXLISTHeader:
     length: uint32
     tex_count: uint32
     fam_count: uint32
 
-class LGTXLISTTex(Struct):
-    flags: uint8
+@structure
+class LGTXLISTTex:
+    flags_: uint8
     fam_id: uint8
     pad: uint16
-    name: ByteString(16)
+    name: (bytes, 16)
 
-class LGTXLISTFam(Struct):
-    name: ByteString(16)
+@structure
+class LGTXLISTFam:
+    name: (bytes, 16)
 
-class LGWRHeader(Struct):
+@structure
+class LGWRHeader:
     data_size: uint32
     cell_count: uint32
 
-class LGWRCellHeader(Struct):
+@structure
+class LGWRCellHeader:
     num_vertices: uint8
     num_polys: uint8
     num_render_polys: uint8
     num_portal_polys: uint8
     num_planes: uint8
     medium: uint8
-    flags: uint8
+    flags_: uint8
     portal_vertex_list: int32
     num_vlist: uint16
     num_anim_lights: uint8
@@ -113,8 +195,9 @@ class LGWRCellHeader(Struct):
     sphere_center: LGVector
     sphere_radius: float32
 
-class LGWRPoly(Struct):
-    flags: uint8
+@structure
+class LGWRPoly:
+    flags_: uint8
     num_vertices: uint8
     planeid: uint8
     clut_id: uint8
@@ -122,13 +205,8 @@ class LGWRPoly(Struct):
     motion_index: uint8
     padding: uint8
 
-LGWRPoly_dtype = np.dtype({
-    'names':    ['flags',   'num_vertices', 'planeid',  'clut_id',  'destination',  'motion_index', 'padding'],
-    'formats':  [ np.uint8,  np.uint8,       np.uint8,   np.uint8,   np.uint16,      np.uint8,       np.uint8],
-    'aligned': False,
-    })
-
-class LGWRRenderPoly(Struct):
+@structure
+class LGWRRenderPoly:
     tex_u: LGVector
     tex_v: LGVector
     u_base: uint16
@@ -139,11 +217,13 @@ class LGWRRenderPoly(Struct):
     texture_mag: float32
     center: LGVector
 
-class LGWRPlane(Struct):
+@structure
+class LGWRPlane:
     normal: LGVector
     distance: float32
 
-class LGWRLightMapInfo(Struct):
+@structure
+class LGWRLightMapInfo:
     u_base: int16
     v_base: int16
     byte_width: int16
@@ -152,6 +232,8 @@ class LGWRLightMapInfo(Struct):
     data_ptr: uint32            # Always zero on disk
     dynamic_light_ptr: uint32   # Always zero on disk
     anim_light_bitmask: uint32
+
+    # TODO: these will have to be relegated to functions
 
     def lightmap_count(self):
         light_count = 1
@@ -165,25 +247,26 @@ class LGWRLightMapInfo(Struct):
         return self.height*self.byte_width*self.lightmap_count()
 
 
+# TODO: am i even using these right now?
 LGWRLightmapEntry = uint16
 LGWRRGBLightmapEntry = uint32
 
 class LGWRCell:
-    # Note: this is _not_ a Struct subclass, because its array sizes are
-    #       dynamic based on its other field values. So these type hints
-    #       exist only for your benefit.
-    header: LGWRCellHeader
-    p_vertices: Sequence[LGVector]
-    p_polys: Sequence[LGWRPoly]
-    p_render_polys: Sequence[LGWRRenderPoly]
-    vertex_offset: uint32
-    p_vertex_list: Sequence[uint8]
-    p_plane_list: Sequence[LGWRPlane]
-    p_anim_lights: Sequence[uint16]
-    p_light_list: Sequence[LGWRLightMapInfo]
-    lightmaps: Sequence # of numpy arrays (lightmap_count, height, width, rgba floats)
-    num_light_indices: int32
-    p_light_indices: Sequence[uint16]
+    # # Note: this is _not_ a Struct subclass, because its array sizes are
+    # #       dynamic based on its other field values. So these type hints
+    # #       exist only for your benefit.
+    # header: LGWRCellHeader
+    # p_vertices: Sequence[LGVector]
+    # p_polys: Sequence[LGWRPoly]
+    # p_render_polys: Sequence[LGWRRenderPoly]
+    # vertex_offset: uint32
+    # p_vertex_list: Sequence[uint8]
+    # p_plane_list: Sequence[LGWRPlane]
+    # p_anim_lights: Sequence[uint16]
+    # p_light_list: Sequence[LGWRLightMapInfo]
+    # lightmaps: Sequence # of numpy arrays (lightmap_count, height, width, rgba floats)
+    # num_light_indices: int32
+    # p_light_indices: Sequence[uint16]
 
     @classmethod
     def read(cls, view, offset=0):
@@ -291,50 +374,40 @@ class LGWRCell:
         return self._calculated_size
 
 class LGDBChunk:
-    header: LGDBChunkHeader
-    data: Sequence[bytes]
-
-    def __init__(self, view, offset, data_size):
-        self.header = LGDBChunkHeader.read(view, offset=offset)
-        offset += self.header.size()
-        self.data = view[offset:offset+data_size]
+    def __init__(self, f, offset, data_size):
+        f.seek(offset)
+        self.header = f.read(LGDBChunkHeader)
+        self.data = f.read(uint8, count=data_size)
 
 class LGDBFile:
-    header: LGDBFileHeader
-
     def __init__(self, filename='', data=None):
-        if data is None:
-            with open(filename, 'rb') as f:
-                data = f.read()
-        view = memoryview(data)
+        f = StructuredReader(filename=filename, buffer=data)
         # Read the header.
-        offset = 0
-        header = LGDBFileHeader.read(view)
+        header = f.read(LGDBFileHeader)
         if header.deadbeef != b'\xDE\xAD\xBE\xEF':
             raise ValueError("File is not a .mis/.cow/.gam/.vbr")
         if (header.version.major, header.version.minor) not in [(0, 1)]:
             raise ValueError("Only version 0.1 .mis/.cow/.gam/.vbr files are supported")
         # Read the table of contents.
-        offset = header.table_offset
-        toc_count = uint32.read(view, offset=offset)
-        offset += uint32.size()
-        p_entries = StructView(view, LGDBTOCEntry, offset=offset, count=toc_count)
+        f.seek(header.table_offset)
+        toc_count = f.read(uint32)
+        p_entries = f.read(LGDBTOCEntry, count=toc_count)
         toc = OrderedDict()
         for entry in p_entries:
-            key = byte_str(entry.name)
+            key = ascii(entry.name)
             toc[key] = entry
 
         self.header = header
         self.toc = toc
-        self.view = view
+        self.reader = f
 
     def __len__(self):
         return len(self.toc)
 
     def __getitem__(self, name):
         entry = self.toc[name]
-        chunk = LGDBChunk(self.view, entry.offset, entry.data_size)
-        if byte_str(chunk.header.name) != name:
+        chunk = LGDBChunk(self.reader, entry.offset, entry.data_size)
+        if ascii(chunk.header.name) != name:
             raise ValueError(f"{name} chunk name is invalid")
         return chunk
 
@@ -385,24 +458,20 @@ def do_txlist(chunk, context, dumpf):
     if (chunk.header.version.major, chunk.header.version.minor) \
     not in [(1, 0)]:
         raise ValueError("Only version 1.0 TXLIST chunk is supported")
-    view = chunk.data
-    offset = 0
-    header = LGTXLISTHeader.read(view, offset=offset)
-    offset += header.size()
+    f = StructuredReader(buffer=chunk.data)
+    header = f.read(LGTXLISTHeader)
     print(f"TXLIST:", file=dumpf)
     print(f"  length: {header.length}", file=dumpf)
-    p_fams = StructView(view, LGTXLISTFam, offset=offset, count=header.fam_count)
-    offset += p_fams.size()
+    p_fams = f.read(LGTXLISTFam, count=header.fam_count)
     print(f"  fam_count: {header.fam_count}", file=dumpf)
     for i, fam in enumerate(p_fams):
-        name = byte_str(fam.name)
+        name = ascii(fam.name)
         print(f"    {i}: {name}", file=dumpf)
-    p_texs = StructView(view, LGTXLISTTex, offset=offset, count=header.tex_count)
-    offset += p_texs.size()
+    p_texs = f.read(LGTXLISTTex, count=header.tex_count)
     print(f"  tex_count: {header.tex_count}", file=dumpf)
     for i, tex in enumerate(p_texs):
-        name = byte_str(tex.name)
-        print(f"    {i}: fam {tex.fam_id}, {name}, flags 0x{tex.flags:02x}, pad 0x{tex.pad:04x}", file=dumpf)
+        name = ascii(tex.name)
+        print(f"    {i}: fam {tex.fam_id}, {name}, flags_ 0x{tex.flags_:02x}, pad 0x{tex.pad:04x}", file=dumpf)
 
     # Load all the textures into Blender images (except poor Jorge, who always
     # gets left out):
@@ -454,8 +523,8 @@ def do_txlist(chunk, context, dumpf):
             textures.append(None) # TODO: Jorge, is that you?
         else:
             fam = p_fams[tex.fam_id-1]
-            fam_name = byte_str(fam.name)
-            tex_name = byte_str(tex.name)
+            fam_name = ascii(fam.name)
+            tex_name = ascii(tex.name)
             image = load_tex(fam_name, tex_name)
             textures.append(image)
     return textures
@@ -639,7 +708,7 @@ def do_worldrep(chunk, textures, context, dumpf):
         print(f"    num_portal_polys: {cell.header.num_portal_polys}", file=dumpf)
         print(f"    num_planes: {cell.header.num_planes}", file=dumpf)
         print(f"    medium: {cell.header.medium}", file=dumpf)
-        print(f"    flags: {cell.header.flags}", file=dumpf)
+        print(f"    flags_: {cell.header.flags_}", file=dumpf)
         print(f"    portal_vertex_list: {cell.header.portal_vertex_list}", file=dumpf)
         print(f"    num_vlist: {cell.header.num_vlist}", file=dumpf)
         print(f"    num_anim_lights: {cell.header.num_anim_lights}", file=dumpf)
