@@ -7,7 +7,6 @@ import sys
 
 from bpy.props import IntProperty, PointerProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
-from bpy_extras.node_shader_utils import PrincipledBSDFWrapper
 from bpy_extras.image_utils import load_image
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -494,41 +493,107 @@ def do_txlist(chunk, context, dumpf):
             textures.append(image)
     return textures
 
-def texture_material_for_cell_poly(cell, cell_index, pi, texture_image):
-    # Create a material
-    name = f"Texture.Cell{cell_index}.Poly{pi}"
-    # TEMP: dont recreate the material if it already exists. for the actual
-    #       import, we want to be managing materials a little better than
-    #       one per poly!
-    mat = bpy.data.materials.get(name)
-    if mat is not None: return mat
-    # Create a material that uses the 'UV' uv_layer for its texcoords
+def create_texture_material(name, texture_image, lightmap_image):
+    is_textured = (texture_image is not None)
+    is_lightmapped = (lightmap_image is not None)
+    #
+    # If lightmapped and textured:
+    #
+    #       UVMap('UVMap')              UVMap('UVLightmap')
+    #             |                               |
+    # ImageTexture(texture_image)     ImageTexture(lightmap_image)
+    #             |                               |
+    #             +----------------+--------------+
+    #                              |
+    #                     MixRGB('Multiply')
+    #                              |
+    #                        PrincipledBSDF
+    #                              |
+    #                        MaterialOutput
+    #
+    # If only textured (only lightmapped is a similar structure):
+    #
+    #                        UVMap('UVMap')
+    #                              |
+    #                  ImageTexture(texture_image)
+    #                              |
+    #                        PrincipledBSDF
+    #                              |
+    #                        MaterialOutput
+    #
+    # If neither textured nor lightmapped:
+    #
+    #                        PrincipledBSDF
+    #                              |
+    #                        MaterialOutput
+    #
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
-    principled = PrincipledBSDFWrapper(mat, is_readonly=False)
-    principled.base_color = (1.0, 0.5, 0.0) # TODO: temp orange
-    principled.base_color_texture.image = texture_image
-    principled.base_color_texture.texcoords = 'UV'
-    principled.metallic = 0.0
-    principled.specular = 0.0
-    principled.roughness = 1.0
-    return mat
-
-def lightmap_material_for_image(lightmap_image):
-    # Create a material that uses the 'Lightmap' uv_layer for its texcoords
-    name = f"Lightmap"
-    mat = bpy.data.materials.new(name=name)
-    mat.use_nodes = True
-    principled = PrincipledBSDFWrapper(mat, is_readonly=False)
-    principled.base_color = (1.0, 0.5, 0.0) # TODO: temp orange
-    principled.base_color_texture.image = lightmap_image
-    # TODO: this isnt working. it causes a KeyError when the wrapper tries
-    #       to set up the uvmap node, or something. i think maybe it can
-    #       only work after the mesh/object has been fully set up maybe?
-    #principled.base_color_texture.texcoords = 'Lightmap'
-    principled.metallic = 0.0
-    principled.specular = 0.0
-    principled.roughness = 1.0
+    tree = mat.node_tree
+    nodes = tree.nodes
+    links = tree.links
+    # Create all the nodes
+    bsdf_node = None
+    out_node = None
+    for n in nodes:
+        if n.bl_idname=='ShaderNodeBsdfPrincipled': bsdf_node = n
+        elif n.bl_idname=='ShaderNodeOutputMaterial': out_node = n
+    if out_node is None: out_node = nodes.new(type='ShaderNodeOutputMaterial')
+    if bsdf_node is None: bsdf_node = nodes.new(type='ShaderNodeBsdfPrincipled')
+    if is_textured:
+        tx_uv_node = nodes.new(type='ShaderNodeUVMap')
+        tx_img_node = nodes.new(type='ShaderNodeTexImage')
+    if is_lightmapped:
+        lm_uv_node = nodes.new(type='ShaderNodeUVMap')
+        lm_img_node = nodes.new(type='ShaderNodeTexImage')
+    if is_textured and is_lightmapped:
+        mix_node = nodes.new(type='ShaderNodeMixRGB')
+    # Configure them
+    bsdf_node.inputs['Base Color'].default_value = (1.0,0.0,1.0,1.0)
+    bsdf_node.inputs['Metallic'].default_value = 0.0
+    bsdf_node.inputs['Specular'].default_value = 0.0
+    bsdf_node.inputs['Roughness'].default_value = 1.0
+    if is_textured:
+        tx_img_node.image = texture_image
+        tx_uv_node.uv_map = 'UVMap'
+    if is_lightmapped:
+        lm_img_node.image = lightmap_image
+        lm_uv_node.uv_map = 'UVLightmap'
+    if is_textured and is_lightmapped:
+        mix_node.blend_type = 'MULTIPLY'
+        mix_node.inputs['Fac'].default_value = 1.0
+        mix_node.use_clamp = True
+    # Place them
+    def grid(x,y):
+        return (x*400.0,y*200.0)
+    out_node.location = grid(1,0)
+    bsdf_node.location = grid(0,0)
+    if is_lightmapped and is_textured:
+        mix_node.location = grid(-1,0)
+        tx_img_node.location = grid(-2,1)
+        tx_uv_node.location = grid(-3,1)
+        lm_img_node.location = grid(-2,-1)
+        lm_uv_node.location = grid(-3,-1)
+    elif is_textured:
+        tx_img_node.location = grid(-1,0)
+        tx_uv_node.location = grid(-2,0)
+    elif is_lightmapped:
+        lm_img_node.location = grid(-1,0)
+        lm_uv_node.location = grid(-2,0)
+    # Link them
+    links.new(out_node.inputs['Surface'], bsdf_node.outputs['BSDF'])
+    if is_lightmapped and is_textured:
+        links.new(bsdf_node.inputs['Base Color'], mix_node.outputs['Color'])
+        links.new(mix_node.inputs['Color1'], tx_img_node.outputs['Color'])
+        links.new(mix_node.inputs['Color2'], lm_img_node.outputs['Color'])
+        links.new(tx_img_node.inputs['Vector'], tx_uv_node.outputs['UV'])
+        links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
+    elif is_textured:
+        links.new(bsdf_node.inputs['Base Color'], lm_img_node.outputs['Color'])
+        links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
+    elif is_lightmapped:
+        links.new(bsdf_node.inputs['Base Color'], tx_img_node.outputs['Color'])
+        links.new(tx_img_node.inputs['Vector'], tx_uv_node.outputs['UV'])
     return mat
 
 def poly_calculate_texture_uvs(cell, pi, texture_size):
@@ -755,7 +820,7 @@ def do_worldrep(chunk, textures, context, dumpf):
     meshes_name = []
     meshes_vertices = []
     meshes_faces = []
-    meshes_texture_materials = []
+    meshes_texture_images = []
     meshes_loop_texture_uvs = []
     meshes_loop_lightmap_uvs = []
     meshes_faces_lightmap_handles = []
@@ -767,7 +832,7 @@ def do_worldrep(chunk, textures, context, dumpf):
         texture_uvs = []
         lightmap_uvs = []
         faces = []
-        materials = []
+        texture_images = []
         material_indices = []
         lightmap_handles = []
         for pi, poly in enumerate(cell.p_polys):
@@ -802,10 +867,9 @@ def do_worldrep(chunk, textures, context, dumpf):
                 # TODO: normals too! the plane normal (or we can 'shade flat' i guess)
             faces.append(face)
 
-            # Hack together a texture material for this poly
+            # Store the material for this face
             mat_index = pi
-            mat = texture_material_for_cell_poly(cell, cell_index, pi, texture_image)
-            materials.append(mat)
+            texture_images.append(texture_image)
             material_indices.append(mat_index)
 
             # Add the primary lightmap for this poly to the atlas.
@@ -821,20 +885,33 @@ def do_worldrep(chunk, textures, context, dumpf):
         meshes_name.append(name)
         meshes_vertices.append(vertices)
         meshes_faces.append(faces)
-        meshes_texture_materials.append(materials)
+        meshes_texture_images.append(texture_images)
         meshes_loop_texture_uvs.append(texture_uvs)
         meshes_loop_lightmap_uvs.append(lightmap_uvs)
         meshes_faces_lightmap_handles.append(lightmap_handles)
         meshes_faces_material_indices.append(material_indices)
 
     # After all cells complete:
-    atlas_builder.close()
-    mat_lightmap = lightmap_material_for_image(atlas_builder.image)
 
-    for (name, vertices, faces, materials,
+    # Build the lightmap
+    atlas_builder.close()
+    lightmap_image = atlas_builder.image
+
+    # Build materials, one per texture image
+    materials = {}
+    materials[None] = create_texture_material('No texture', None, None)
+    for texture_images in meshes_texture_images:
+        for image in texture_images:
+            if image is None: continue
+            if image in materials: continue
+            mat = create_texture_material(image.name, image, lightmap_image)
+            materials[image] = mat
+
+    # Build the meshes and objects
+    for (name, vertices, faces, texture_images,
          texture_uvs, lightmap_uvs, lightmap_handles, material_indices) \
     in zip(meshes_name, meshes_vertices, meshes_faces,
-           meshes_texture_materials, meshes_loop_texture_uvs,
+           meshes_texture_images, meshes_loop_texture_uvs,
            meshes_loop_lightmap_uvs, meshes_faces_lightmap_handles,
            meshes_faces_material_indices):
 
@@ -863,32 +940,22 @@ def do_worldrep(chunk, textures, context, dumpf):
             v = scale[1]*v+translate[1]
             lightmap_atlas_uvs.append((u,v))
 
-        # TODO: because i cant figure out how to set up the shader inputs
-        #       properly yet, lets just put the lightmap uvs into the
-        #       'UV' layer, okay? at least then we can see if the
-        #       lightmap uvs are okay or not!
-        texture_uvs = lightmap_atlas_uvs[:]
-
-        texture_uv_layer = (mesh.uv_layers.get('UV')
-            or mesh.uv_layers.new(name='UV'))
-        lightmap_uv_layer = (mesh.uv_layers.get('Lightmap')
-            or mesh.uv_layers.new(name='Lightmap'))
+        texture_uv_layer = (mesh.uv_layers.get('UVMap')
+            or mesh.uv_layers.new(name='UVMap'))
+        lightmap_uv_layer = (mesh.uv_layers.get('UVLightmap')
+            or mesh.uv_layers.new(name='UVLightmap'))
         for (loop, tx_uvloop, tx_uv, lm_uvloop, lm_uv) \
         in zip(mesh.loops, texture_uv_layer.data, texture_uvs,
-               lightmap_uv_layer.data, lightmap_uvs):
+               lightmap_uv_layer.data, lightmap_atlas_uvs):
             tx_uvloop.uv = tx_uv
             lm_uvloop.uv = lm_uv
 
-        mesh.materials.append(mat_lightmap)
-        for i, mat in enumerate(materials):
-            mesh.materials.append(mat)
+        # TODO: we have duplicates here! Fix this!
+        for i, image in enumerate(texture_images):
+            mesh.materials.append(materials[image])
         for i, (polygon, mat_index) \
         in enumerate(zip(mesh.polygons, material_indices)):
-            polygon.material_index = mat_index+1 # 0 is the lightmap
-            # TODO: because i cant figure out how to set up the shader inputs
-            #       properly yet, lets just give every face the lightmap
-            #       material!
-            polygon.material_index = 0
+            polygon.material_index = mat_index
         o = create_object(name, mesh, (0,0,0), context=context, link=True)
 
 """
