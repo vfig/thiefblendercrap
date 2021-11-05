@@ -323,13 +323,13 @@ class LGWRCell:
 
         for pi, poly in enumerate(cell.p_polys):
             assert poly.num_vertices<=32, "you fucked up, poly has >32 verts!"
-            indices = []
-            vertices = []
+            indices = np.zeros(poly.num_vertices)
+            vertices = np.zeros((poly.num_vertices,3))
             for j in range(poly.num_vertices):
                 k = start_index+j
                 vi = cell.p_index_list[k]
-                indices.append(vi)
-                vertices.append(cell.p_vertices[vi])
+                indices[j] = vi
+                vertices[j] = cell.p_vertices[vi]
             start_index += poly.num_vertices
             poly_indices.append(indices)
             poly_vertices.append(vertices)
@@ -684,6 +684,7 @@ def poly_calculate_lightmap_uvs(cell, pi, texture_size):
     return uv_list
 
 def do_worldrep(chunk, textures, context, dumpf):
+  if True: # TODO - this is only here so i can conditionally do stuff down below
     if (chunk.header.version.major, chunk.header.version.minor) \
     not in [(0, 23), (0, 24)]:
         raise ValueError("Only version 0.23 and 0.24 WR chunk is supported")
@@ -814,8 +815,95 @@ def do_worldrep(chunk, textures, context, dumpf):
     #   should be responsible for collating both terrain textures and lightmaps,
     #   and that we use handles for all UVs and for material indices.
 
+    TEMP_LIMIT = 99 # TODO: use the full range
+
+  THE_NEW_MESH=True
+  if THE_NEW_MESH:
+
+    # -------- new code:
+
+    MAX_CELLS = 32678       # Imposed by Dromed
+    MAX_VERTICES = 256*1024 # Imposed by Dromed
+    MAX_FACES = 256*1024    # Rough guess
+    MAX_FACE_INDICES = 32   # Imposed by Dromed
+    MAX_INDICES = MAX_FACE_INDICES*MAX_FACES
+
+    # Allocate a bunch of memory
+    verts = np.zeros((MAX_VERTICES,3), dtype=float32)
+    idxs = np.zeros(MAX_INDICES, dtype=int32)
+    loop_starts = np.zeros(MAX_FACES, dtype=int32)
+    loop_counts =  np.zeros(MAX_FACES, dtype=int32)
+
+    vert_ptr = idx_ptr = face_ptr = 0
+    for cell_index, cell in enumerate(cells[:TEMP_LIMIT]):
+        # Add the vertices from this cell.
+        cell_vert_start = vert_ptr
+        end = cell_vert_start+len(cell.p_vertices)
+        verts[cell_vert_start:end] = cell.p_vertices
+        vert_ptr = end
+        # Add each poly.
+        for pi, poly in enumerate(cell.p_polys):
+            is_render = (pi<cell.header.num_render_polys)
+            is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
+            if not is_render: continue  # Skip air portals
+            if is_portal: continue      # Skip water surfaces
+
+            # TODO: reinstate material stuff
+            # TODO: reinstate uv stuff
+            # TODO: reinstate lightmap stuff
+
+            # Add the indices from this poly:
+            # Reverse the indices, so faces point the right way in Blender.
+            # Adjust indices to point into our vertex array.
+            idx_start = idx_ptr
+            end = idx_start+poly.num_vertices
+            poly_idxs = cell.poly_indices[pi][::-1] + cell_vert_start
+            idxs[idx_start:end] = poly_idxs
+            idx_ptr = end
+            # Add the loop start/count for this poly.
+            loop_starts[face_ptr] = idx_start
+            loop_counts[face_ptr] = poly.num_vertices
+            face_ptr += 1
+    vert_total = vert_ptr
+    idx_total = idx_ptr
+    face_total = face_ptr
+
+    import sys
+    sys.stdout.flush()
+    sys.stderr.flush()
+    name = "miss1"
+    mesh = bpy.data.meshes.new(name=f"{name} mesh")
+    mesh.vertices.add(vert_total)
+    mesh.loops.add(idx_total)
+    mesh.polygons.add(face_total)
+    try:
+        mesh.vertices.foreach_set("co", verts[:vert_total].reshape(-1))
+        mesh.polygons.foreach_set("loop_total", loop_counts[:face_total])
+        mesh.polygons.foreach_set("loop_start", loop_starts[:face_total])
+        mesh.polygons.foreach_set("vertices", idxs[:idx_total])
+        mesh.update(calc_edges=True, calc_edges_loose=False)
+
+        modified = mesh.validate(verbose=True)
+        assert not modified, f"Mesh {name} pydata was invalid."
+    except:
+        import sys
+        np.set_printoptions(threshold=100)
+        print("vert_total: ", vert_total, file=sys.stderr)
+        print("idx_total: ", idx_total, file=sys.stderr)
+        print("face_total: ", face_total, file=sys.stderr)
+        print("loop_total: ", loop_total, file=sys.stderr)
+        print("verts: ", verts[:vert_total], file=sys.stderr)
+        print("idxs: ", idxs[:idx_total], file=sys.stderr)
+        print("loop_starts: ", loop_starts[:face_total], file=sys.stderr)
+        print("loop_counts: ", loop_counts[:face_total], file=sys.stderr)
+        raise
+
+    o = create_object(name, mesh, (0,0,0), context=context, link=True)
+
+  else: # THE_NEW_MESH
+    #----------old code:
     atlas_builder = AtlasBuilder()
-    TEMP_LIMIT = 100 # TODO: use the full range
+
     # These lists have one entry per cell:
     meshes_name = []
     meshes_vertices = []
@@ -838,7 +926,8 @@ def do_worldrep(chunk, textures, context, dumpf):
         for pi, poly in enumerate(cell.p_polys):
             is_render = (pi<cell.header.num_render_polys)
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
-            if not is_render: continue
+            if not is_render: continue  # Skip air portals
+            if is_portal: continue      # Skip water surfaces
 
             # TODO: yeah we should reuse materials, but too bad!!
             texture_id = cell.p_render_polys[pi].texture_id
