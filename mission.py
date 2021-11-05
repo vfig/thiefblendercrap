@@ -589,11 +589,11 @@ def create_texture_material(name, texture_image, lightmap_image):
         links.new(tx_img_node.inputs['Vector'], tx_uv_node.outputs['UV'])
         links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
     elif is_textured:
-        links.new(bsdf_node.inputs['Base Color'], lm_img_node.outputs['Color'])
-        links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
-    elif is_lightmapped:
         links.new(bsdf_node.inputs['Base Color'], tx_img_node.outputs['Color'])
         links.new(tx_img_node.inputs['Vector'], tx_uv_node.outputs['UV'])
+    elif is_lightmapped:
+        links.new(bsdf_node.inputs['Base Color'], lm_img_node.outputs['Color'])
+        links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
     return mat
 
 def poly_calculate_texture_uvs(cell, pi, texture_size):
@@ -832,7 +832,18 @@ def do_worldrep(chunk, textures, context, dumpf):
     verts = np.zeros((MAX_VERTICES,3), dtype=float32)
     idxs = np.zeros(MAX_INDICES, dtype=int32)
     loop_starts = np.zeros(MAX_FACES, dtype=int32)
-    loop_counts =  np.zeros(MAX_FACES, dtype=int32)
+    loop_counts = np.zeros(MAX_FACES, dtype=int32)
+    material_idxs = np.zeros(MAX_FACES, dtype=int32)
+    material_textures = {} # texture_id: material_idx
+
+    def lookup_texture_id(texture_id):
+        # Assume Jorge and SKY_HACK (and any invalid texture ids) are 64x64:
+        in_range = (0<=texture_id<len(textures))
+        special = texture_id in (0,249)
+        ok = (in_range and not special)
+        texture_image = textures[texture_id] if ok else None
+        texture_size = texture_image.size if ok else (64, 64)
+        return (texture_image, texture_size)
 
     vert_ptr = idx_ptr = face_ptr = 0
     for cell_index, cell in enumerate(cells[:TEMP_LIMIT]):
@@ -863,7 +874,19 @@ def do_worldrep(chunk, textures, context, dumpf):
             # Add the loop start/count for this poly.
             loop_starts[face_ptr] = idx_start
             loop_counts[face_ptr] = poly.num_vertices
+            # Set the material index.
+            texture_id = cell.p_render_polys[pi].texture_id
+            texture_image, texture_size = lookup_texture_id(texture_id)
+            mat_idx = material_textures.get(texture_id)
+            if mat_idx is None:
+                mat_idx = len(material_textures)
+                temp_tx_name = texture_image.name if texture_image is not None else '?'
+                print(f"New material for {texture_id} '{temp_tx_name}', index {mat_idx}")
+                material_textures[texture_id] = mat_idx
+            material_idxs[face_ptr] = mat_idx
+
             face_ptr += 1
+
     vert_total = vert_ptr
     idx_total = idx_ptr
     face_total = face_ptr
@@ -871,6 +894,7 @@ def do_worldrep(chunk, textures, context, dumpf):
     import sys
     sys.stdout.flush()
     sys.stderr.flush()
+    # Create the mesh geometry.
     name = "miss1"
     mesh = bpy.data.meshes.new(name=f"{name} mesh")
     mesh.vertices.add(vert_total)
@@ -882,7 +906,6 @@ def do_worldrep(chunk, textures, context, dumpf):
         mesh.polygons.foreach_set("loop_start", loop_starts[:face_total])
         mesh.polygons.foreach_set("vertices", idxs[:idx_total])
         mesh.update(calc_edges=True, calc_edges_loose=False)
-
         modified = mesh.validate(verbose=True)
         assert not modified, f"Mesh {name} pydata was invalid."
     except:
@@ -897,12 +920,43 @@ def do_worldrep(chunk, textures, context, dumpf):
         print("loop_starts: ", loop_starts[:face_total], file=sys.stderr)
         print("loop_counts: ", loop_counts[:face_total], file=sys.stderr)
         raise
-
+    # Set the remaining mesh attributes.
+    mesh.polygons.foreach_set("material_index", material_idxs[:face_total])
+    # Create the materials.
+    mat_jorge = create_texture_material('JORGE', None, None)
+    mat_sky = create_texture_material('SKY_HACK', None, None)
+    mat_missing = create_texture_material('MISSING', None, None)
+    texture_ids_needed = [tid
+        for (tid, _) in sorted(material_textures.items(), key=(lambda item:item[1]))]
+    for texture_id in texture_ids_needed:
+        if texture_id==0:
+            mat = mat_jorge
+        elif texture_id==249:
+            mat = mat_sky
+        else:
+            im, _ = lookup_texture_id(texture_id)
+            temp_tx_name = im.name if im is not None else '?'
+            print(f"Creating material for {texture_id} '{temp_tx_name}', index {len(mesh.materials)}")
+            if im is None:
+                mat = mat_missing
+            else:
+                mat = create_texture_material(im.name, im, None)
+        mesh.materials.append(mat)
+    # Create and link the object.
     o = create_object(name, mesh, (0,0,0), context=context, link=True)
 
   else: # THE_NEW_MESH
     #----------old code:
     atlas_builder = AtlasBuilder()
+
+    def lookup_texture_id(texture_id):
+        # Assume Jorge and SKY_HACK (and any invalid texture ids) are 64x64:
+        in_range = (0<=texture_id<len(textures))
+        special = texture_id in (0,249)
+        ok = (in_range and not special)
+        texture_image = textures[texture_id] if ok else None
+        texture_size = texture_image.size if ok else (64, 64)
+        return (texture_image, texture_size)
 
     # These lists have one entry per cell:
     meshes_name = []
@@ -929,14 +983,8 @@ def do_worldrep(chunk, textures, context, dumpf):
             if not is_render: continue  # Skip air portals
             if is_portal: continue      # Skip water surfaces
 
-            # TODO: yeah we should reuse materials, but too bad!!
             texture_id = cell.p_render_polys[pi].texture_id
-            # Assume Jorge and SKY_HACK (and any invalid texture ids) are 64x64:
-            in_range = (0<=texture_id<len(textures))
-            special = texture_id in (0,249)
-            ok = (in_range and not special)
-            texture_image = textures[texture_id] if ok else None
-            texture_size = texture_image.size if ok else (64, 64)
+            texture_image, texture_size = lookup_texture_id(texture_id)
 
             poly_texture_uvs = poly_calculate_texture_uvs(cell, pi, texture_size)
             poly_lightmap_uvs = poly_calculate_lightmap_uvs(cell, pi, texture_size)
