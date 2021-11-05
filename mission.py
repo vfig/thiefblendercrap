@@ -614,7 +614,7 @@ def poly_calculate_texture_uvs(cell, pi, texture_size):
     if uv == 0.0:
         uvec = p_uvec*u_scale/u2;
         vvec = p_vvec*v_scale/v2;
-        for i in range(poly.num_vertices):
+        for i in reversed(range(poly.num_vertices)):
             wvec = Vector(vertices[i])
             delta = wvec-anchor
             u = delta.dot(uvec)+u_base
@@ -627,7 +627,7 @@ def poly_calculate_texture_uvs(cell, pi, texture_size):
         v2 *= u_scale*denom
         uvu = u_scale*denom*uv
         uvv = v_scale*denom*uv
-        for i in range(poly.num_vertices):
+        for i in reversed(range(poly.num_vertices)):
             wvec = Vector(vertices[i])
             delta = wvec-anchor
             du = delta.dot(p_uvec)
@@ -659,7 +659,7 @@ def poly_calculate_lightmap_uvs(cell, pi, texture_size):
     if uv == 0.0:
         uvec = p_uvec*u_scale/u2;
         vvec = p_vvec*v_scale/v2;
-        for i in range(poly.num_vertices):
+        for i in reversed(range(poly.num_vertices)):
             wvec = Vector(vertices[i])
             delta = wvec-anchor
             u = delta.dot(uvec)+u_base
@@ -672,7 +672,7 @@ def poly_calculate_lightmap_uvs(cell, pi, texture_size):
         v2 *= u_scale*denom
         uvu = u_scale*denom*uv
         uvv = v_scale*denom*uv
-        for i in range(poly.num_vertices):
+        for i in reversed(range(poly.num_vertices)):
             wvec = Vector(vertices[i])
             delta = wvec-anchor
             du = delta.dot(p_uvec)
@@ -682,6 +682,70 @@ def poly_calculate_lightmap_uvs(cell, pi, texture_size):
             v = 1.0-v # Blender's V coordinate is bottom-up
             uv_list.append((u,v))
     return uv_list
+
+def poly_calculate_uvs(cell, pi, texture_size):
+    poly = cell.p_polys[pi]
+    render = cell.p_render_polys[pi]
+    vertices = cell.poly_vertices[pi]
+    info = cell.p_light_list[pi]
+    tx_u_scale = 64.0/texture_size[0]
+    tx_v_scale = 64.0/texture_size[1]
+    lm_u_scale = 4.0/info.width
+    lm_v_scale = 4.0/info.height
+    p_uvec = Vector(render.tex_u)
+    p_vvec = Vector(render.tex_v)
+    u2 = p_uvec.dot(p_uvec)
+    v2 = p_vvec.dot(p_vvec)
+    uv = p_uvec.dot(p_vvec)
+    anchor = Vector(vertices[render.texture_anchor])
+    tx_u_base = float(render.u_base)*tx_u_scale/(16.0*256.0) # u translation
+    tx_v_base = float(render.v_base)*tx_v_scale/(16.0*256.0) # v translation
+    lm_u_base = lm_u_scale*(float(render.u_base)/(16.0*256.0)+(0.5-float(info.u_base))/4.0) # u translation
+    lm_v_base = lm_v_scale*(float(render.v_base)/(16.0*256.0)+(0.5-float(info.v_base))/4.0) # v translation
+
+    tx_uv_list = []
+    lm_uv_list = []
+    if uv == 0.0:
+        tx_uvec = p_uvec*tx_u_scale/u2;
+        tx_vvec = p_vvec*tx_v_scale/v2;
+        lm_uvec = p_uvec*lm_u_scale/u2;
+        lm_vvec = p_vvec*lm_v_scale/v2;
+        for i in reversed(range(poly.num_vertices)):
+            wvec = Vector(vertices[i])
+            delta = wvec-anchor
+            tx_u = delta.dot(tx_uvec)+tx_u_base
+            tx_v = delta.dot(tx_vvec)+tx_v_base
+            lm_u = delta.dot(lm_uvec)+lm_u_base
+            lm_v = delta.dot(lm_vvec)+lm_v_base
+            # Blender's V coordinate is bottom-up
+            tx_v = 1.0-tx_v
+            lm_v = 1.0-lm_v
+            tx_uv_list.append((tx_u,tx_v))
+            lm_uv_list.append((lm_u,lm_v))
+    else:
+        denom = 1.0/(u2*v2-(uv*uv));
+        tx_u2 = u2*tx_v_scale*denom
+        tx_v2 = v2*tx_u_scale*denom
+        tx_uvu = tx_u_scale*denom*uv
+        tx_uvv = tx_v_scale*denom*uv
+        lm_u2 = u2*lm_v_scale*denom
+        lm_v2 = v2*lm_u_scale*denom
+        lm_uvu = lm_u_scale*denom*uv
+        lm_uvv = lm_v_scale*denom*uv
+        for i in reversed(range(poly.num_vertices)):
+            wvec = Vector(vertices[i])
+            delta = wvec-anchor
+            du = delta.dot(p_uvec)
+            dv = delta.dot(p_vvec)
+            tx_u = tx_u_base+tx_v2*du-tx_uvu*dv
+            tx_v = tx_v_base+tx_u2*dv-tx_uvv*du
+            lm_u = lm_u_base+lm_v2*du-lm_uvu*dv
+            lm_v = lm_v_base+lm_u2*dv-lm_uvv*du
+            tx_v = 1.0-tx_v
+            lm_v = 1.0-lm_v
+            tx_uv_list.append((tx_u,tx_v))
+            lm_uv_list.append((lm_u,lm_v))
+    return (tx_uv_list, lm_uv_list)
 
 def do_worldrep(chunk, textures, context, dumpf):
   if True: # TODO - this is only here so i can conditionally do stuff down below
@@ -831,6 +895,9 @@ def do_worldrep(chunk, textures, context, dumpf):
     # Allocate a bunch of memory
     verts = np.zeros((MAX_VERTICES,3), dtype=float32)
     idxs = np.zeros(MAX_INDICES, dtype=int32)
+    texture_uvs = np.zeros((MAX_INDICES,2), dtype=float32)
+    lightmap_uvs = np.zeros((MAX_INDICES,2), dtype=float32)
+    lightmap_handles = np.zeros(MAX_INDICES, dtype=int32)
     loop_starts = np.zeros(MAX_FACES, dtype=int32)
     loop_counts = np.zeros(MAX_FACES, dtype=int32)
     material_idxs = np.zeros(MAX_FACES, dtype=int32)
@@ -845,6 +912,7 @@ def do_worldrep(chunk, textures, context, dumpf):
         texture_size = texture_image.size if ok else (64, 64)
         return (texture_image, texture_size)
 
+    atlas_builder = AtlasBuilder()
     vert_ptr = idx_ptr = face_ptr = 0
     for cell_index, cell in enumerate(cells[:TEMP_LIMIT]):
         # Add the vertices from this cell.
@@ -859,7 +927,6 @@ def do_worldrep(chunk, textures, context, dumpf):
             if not is_render: continue  # Skip air portals
             if is_portal: continue      # Skip water surfaces
 
-            # TODO: reinstate material stuff
             # TODO: reinstate uv stuff
             # TODO: reinstate lightmap stuff
 
@@ -867,29 +934,42 @@ def do_worldrep(chunk, textures, context, dumpf):
             # Reverse the indices, so faces point the right way in Blender.
             # Adjust indices to point into our vertex array.
             idx_start = idx_ptr
-            end = idx_start+poly.num_vertices
+            idx_end = idx_start+poly.num_vertices
             poly_idxs = cell.poly_indices[pi][::-1] + cell_vert_start
-            idxs[idx_start:end] = poly_idxs
-            idx_ptr = end
+            idxs[idx_start:idx_end] = poly_idxs
+            idx_ptr = idx_end
             # Add the loop start/count for this poly.
             loop_starts[face_ptr] = idx_start
             loop_counts[face_ptr] = poly.num_vertices
-            # Set the material index.
+
+            # Look up the texture.
             texture_id = cell.p_render_polys[pi].texture_id
             texture_image, texture_size = lookup_texture_id(texture_id)
+            # Set the material index.
             mat_idx = material_textures.get(texture_id)
             if mat_idx is None:
                 mat_idx = len(material_textures)
-                temp_tx_name = texture_image.name if texture_image is not None else '?'
-                print(f"New material for {texture_id} '{temp_tx_name}', index {mat_idx}")
                 material_textures[texture_id] = mat_idx
             material_idxs[face_ptr] = mat_idx
+            # Calculate uvs.
+            poly_tx_uvs, poly_lm_uvs = poly_calculate_uvs(cell, pi, texture_size)
+            texture_uvs[idx_start:idx_end] = poly_tx_uvs
+            lightmap_uvs[idx_start:idx_end] = poly_lm_uvs
+            # Add the primary lightmap for this poly to the atlas.
+            info = cell.p_light_list[pi]
+            lm_handle = atlas_builder.add(info.width, info.height, cell.lightmaps[pi][0])
+            lightmap_handles[idx_start:idx_end] = lm_handle
 
             face_ptr += 1
 
+    # After all cells complete:
     vert_total = vert_ptr
     idx_total = idx_ptr
     face_total = face_ptr
+
+    # Build the lightmap
+    atlas_builder.close()
+    lightmap_image = atlas_builder.image
 
     import sys
     sys.stdout.flush()
@@ -922,6 +1002,29 @@ def do_worldrep(chunk, textures, context, dumpf):
         raise
     # Set the remaining mesh attributes.
     mesh.polygons.foreach_set("material_index", material_idxs[:face_total])
+    texture_uv_layer = (mesh.uv_layers.get('UVMap')
+        or mesh.uv_layers.new(name='UVMap'))
+    lightmap_uv_layer = (mesh.uv_layers.get('UVLightmap')
+        or mesh.uv_layers.new(name='UVLightmap'))
+    texture_uv_layer.data.foreach_set('uv', texture_uvs[:idx_total].reshape(-1))
+
+    # Transform all lightmap uvs
+    # TODO: i am sure can we do this in a better way with numpy!
+    lightmap_atlas_uvs = np.zeros((MAX_INDICES,2), dtype=float32)
+    for i in range(idx_total):
+        u, v = lightmap_uvs[i]
+        handle = lightmap_handles[i]
+        # Wrap to 0,1 range.
+        u, _ = math.modf(u)
+        v, _ = math.modf(v)
+        if u<0: u = 1.0-u
+        if v<0: v = 1.0-v
+        # Transform into atlassed location.
+        scale, translate = atlas_builder.get_uv_transform(handle)
+        u = scale[0]*u+translate[0]
+        v = scale[1]*v+translate[1]
+        lightmap_atlas_uvs[i] = (u, v)
+    lightmap_uv_layer.data.foreach_set('uv', lightmap_atlas_uvs[:idx_total].reshape(-1))
     # Create the materials.
     mat_jorge = create_texture_material('JORGE', None, None)
     mat_sky = create_texture_material('SKY_HACK', None, None)
@@ -935,12 +1038,10 @@ def do_worldrep(chunk, textures, context, dumpf):
             mat = mat_sky
         else:
             im, _ = lookup_texture_id(texture_id)
-            temp_tx_name = im.name if im is not None else '?'
-            print(f"Creating material for {texture_id} '{temp_tx_name}', index {len(mesh.materials)}")
             if im is None:
                 mat = mat_missing
             else:
-                mat = create_texture_material(im.name, im, None)
+                mat = create_texture_material(im.name, im, lightmap_image)
         mesh.materials.append(mat)
     # Create and link the object.
     o = create_object(name, mesh, (0,0,0), context=context, link=True)
