@@ -596,93 +596,6 @@ def create_texture_material(name, texture_image, lightmap_image):
         links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
     return mat
 
-def poly_calculate_texture_uvs(cell, pi, texture_size):
-    poly = cell.p_polys[pi]
-    render = cell.p_render_polys[pi]
-    vertices = cell.poly_vertices[pi]
-    u_scale = 64.0/texture_size[0]
-    v_scale = 64.0/texture_size[1]
-    p_uvec = Vector(render.tex_u)
-    p_vvec = Vector(render.tex_v)
-    anchor = Vector(vertices[render.texture_anchor])
-    uv = p_uvec.dot(p_vvec)
-    u_base = float(render.u_base)*u_scale/(16.0*256.0) # u translation
-    v_base = float(render.v_base)*v_scale/(16.0*256.0) # v translation
-    u2 = p_uvec.length_squared
-    v2 = p_vvec.length_squared
-    uv_list = []
-    if uv == 0.0:
-        uvec = p_uvec*u_scale/u2;
-        vvec = p_vvec*v_scale/v2;
-        for i in reversed(range(poly.num_vertices)):
-            wvec = Vector(vertices[i])
-            delta = wvec-anchor
-            u = delta.dot(uvec)+u_base
-            v = delta.dot(vvec)+v_base
-            v = 1.0-v # Blender's V coordinate is bottom-up
-            uv_list.append((u,v))
-    else:
-        denom = 1.0/(u2*v2 - (uv*uv));
-        u2 *= v_scale*denom
-        v2 *= u_scale*denom
-        uvu = u_scale*denom*uv
-        uvv = v_scale*denom*uv
-        for i in reversed(range(poly.num_vertices)):
-            wvec = Vector(vertices[i])
-            delta = wvec-anchor
-            du = delta.dot(p_uvec)
-            dv = delta.dot(p_vvec)
-            u = u_base+v2*du-uvu*dv
-            v = v_base+u2*dv-uvv*du
-            v = 1.0-v # Blender's V coordinate is bottom-up
-            uv_list.append((u,v))
-    return uv_list
-
-def poly_calculate_lightmap_uvs(cell, pi, texture_size):
-    poly = cell.p_polys[pi]
-    render = cell.p_render_polys[pi]
-    vertices = cell.poly_vertices[pi]
-    info = cell.p_light_list[pi]
-    p_uvec = Vector(render.tex_u)
-    p_vvec = Vector(render.tex_v)
-    anchor = Vector(vertices[render.texture_anchor])
-    uv = p_uvec.dot(p_vvec)
-    u_scale = 4.0/info.width
-    v_scale = 4.0/info.height
-    atlas_u0 = 0.5
-    atlas_v0 = 0.5
-    u_base = u_scale*(float(render.u_base)/(16.0*256.0)+(atlas_u0-float(info.u_base))/4.0) # u translation
-    v_base = v_scale*(float(render.v_base)/(16.0*256.0)+(atlas_v0-float(info.v_base))/4.0) # v translation
-    u2 = p_uvec.length_squared
-    v2 = p_vvec.length_squared
-    uv_list = []
-    if uv == 0.0:
-        uvec = p_uvec*u_scale/u2;
-        vvec = p_vvec*v_scale/v2;
-        for i in reversed(range(poly.num_vertices)):
-            wvec = Vector(vertices[i])
-            delta = wvec-anchor
-            u = delta.dot(uvec)+u_base
-            v = delta.dot(vvec)+v_base
-            v = 1.0-v # Blender's V coordinate is bottom-up
-            uv_list.append((u,v))
-    else:
-        denom = 1.0/(u2*v2 - (uv*uv));
-        u2 *= v_scale*denom
-        v2 *= u_scale*denom
-        uvu = u_scale*denom*uv
-        uvv = v_scale*denom*uv
-        for i in reversed(range(poly.num_vertices)):
-            wvec = Vector(vertices[i])
-            delta = wvec-anchor
-            du = delta.dot(p_uvec)
-            dv = delta.dot(p_vvec)
-            u = u_base+v2*du-uvu*dv
-            v = v_base+u2*dv-uvv*du
-            v = 1.0-v # Blender's V coordinate is bottom-up
-            uv_list.append((u,v))
-    return uv_list
-
 def poly_calculate_uvs(cell, pi, texture_size):
     poly = cell.p_polys[pi]
     render = cell.p_render_polys[pi]
@@ -702,7 +615,6 @@ def poly_calculate_uvs(cell, pi, texture_size):
     tx_v_base = float(render.v_base)*tx_v_scale/(16.0*256.0) # v translation
     lm_u_base = lm_u_scale*(float(render.u_base)/(16.0*256.0)+(0.5-float(info.u_base))/4.0) # u translation
     lm_v_base = lm_v_scale*(float(render.v_base)/(16.0*256.0)+(0.5-float(info.v_base))/4.0) # v translation
-
     tx_uv_list = []
     lm_uv_list = []
     if uv == 0.0:
@@ -748,7 +660,6 @@ def poly_calculate_uvs(cell, pi, texture_size):
     return (tx_uv_list, lm_uv_list)
 
 def do_worldrep(chunk, textures, context, dumpf):
-  if True: # TODO - this is only here so i can conditionally do stuff down below
     if (chunk.header.version.major, chunk.header.version.minor) \
     not in [(0, 23), (0, 24)]:
         raise ValueError("Only version 0.23 and 0.24 WR chunk is supported")
@@ -879,10 +790,7 @@ def do_worldrep(chunk, textures, context, dumpf):
     #   should be responsible for collating both terrain textures and lightmaps,
     #   and that we use handles for all UVs and for material indices.
 
-    TEMP_LIMIT = 99 # TODO: use the full range
-
-  THE_NEW_MESH=True
-  if THE_NEW_MESH:
+    TEMP_LIMIT = 99999 # TODO: use the full range
 
     # -------- new code:
 
@@ -1046,155 +954,6 @@ def do_worldrep(chunk, textures, context, dumpf):
     # Create and link the object.
     o = create_object(name, mesh, (0,0,0), context=context, link=True)
 
-  else: # THE_NEW_MESH
-    #----------old code:
-    atlas_builder = AtlasBuilder()
-
-    def lookup_texture_id(texture_id):
-        # Assume Jorge and SKY_HACK (and any invalid texture ids) are 64x64:
-        in_range = (0<=texture_id<len(textures))
-        special = texture_id in (0,249)
-        ok = (in_range and not special)
-        texture_image = textures[texture_id] if ok else None
-        texture_size = texture_image.size if ok else (64, 64)
-        return (texture_image, texture_size)
-
-    # These lists have one entry per cell:
-    meshes_name = []
-    meshes_vertices = []
-    meshes_faces = []
-    meshes_texture_images = []
-    meshes_loop_texture_uvs = []
-    meshes_loop_lightmap_uvs = []
-    meshes_faces_lightmap_handles = []
-    meshes_faces_material_indices = []
-
-    for cell_index, cell in enumerate(cells[:TEMP_LIMIT]):
-        # TEMP: hack together a mesh
-        vertices = [Vector(v) for v in cell.p_vertices]
-        texture_uvs = []
-        lightmap_uvs = []
-        faces = []
-        texture_images = []
-        material_indices = []
-        lightmap_handles = []
-        for pi, poly in enumerate(cell.p_polys):
-            is_render = (pi<cell.header.num_render_polys)
-            is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
-            if not is_render: continue  # Skip air portals
-            if is_portal: continue      # Skip water surfaces
-
-            texture_id = cell.p_render_polys[pi].texture_id
-            texture_image, texture_size = lookup_texture_id(texture_id)
-
-            poly_texture_uvs = poly_calculate_texture_uvs(cell, pi, texture_size)
-            poly_lightmap_uvs = poly_calculate_lightmap_uvs(cell, pi, texture_size)
-            face = []
-            poly_indices = cell.poly_indices[pi]
-            for j in range(poly.num_vertices):
-                vi = poly_indices[j]
-                vi2 = (poly_indices[j+1] if j<(poly.num_vertices-1)
-                       else poly_indices[0])
-                face.append(vi)
-            # Reverse face winding order
-            face = face[::-1]
-            poly_texture_uvs = poly_texture_uvs[::-1]
-            poly_lightmap_uvs = poly_lightmap_uvs[::-1]
-            texture_uvs.extend(poly_texture_uvs)
-            lightmap_uvs.extend(poly_lightmap_uvs)
-                # TODO: normals too! the plane normal (or we can 'shade flat' i guess)
-            faces.append(face)
-
-            # Store the material for this face
-            mat_index = pi
-            texture_images.append(texture_image)
-            material_indices.append(mat_index)
-
-            # Add the primary lightmap for this poly to the atlas.
-            info = cell.p_light_list[pi]
-            lm_handle = atlas_builder.add(info.width, info.height, cell.lightmaps[pi][0])
-            # TODO: handles are one per poly, but uvs are just a flat list for
-            #       the cell! so for now, just expand the handles to be one per
-            #       poly too.
-            lightmap_handles.extend([lm_handle]*len(poly_lightmap_uvs))
-
-        # Store all this cell's data.
-        name = f"Cell {cell_index}"
-        meshes_name.append(name)
-        meshes_vertices.append(vertices)
-        meshes_faces.append(faces)
-        meshes_texture_images.append(texture_images)
-        meshes_loop_texture_uvs.append(texture_uvs)
-        meshes_loop_lightmap_uvs.append(lightmap_uvs)
-        meshes_faces_lightmap_handles.append(lightmap_handles)
-        meshes_faces_material_indices.append(material_indices)
-
-    # After all cells complete:
-
-    # Build the lightmap
-    atlas_builder.close()
-    lightmap_image = atlas_builder.image
-
-    # Build materials, one per texture image
-    materials = {}
-    materials[None] = create_texture_material('No texture', None, None)
-    for texture_images in meshes_texture_images:
-        for image in texture_images:
-            if image is None: continue
-            if image in materials: continue
-            mat = create_texture_material(image.name, image, lightmap_image)
-            materials[image] = mat
-
-    # Build the meshes and objects
-    for (name, vertices, faces, texture_images,
-         texture_uvs, lightmap_uvs, lightmap_handles, material_indices) \
-    in zip(meshes_name, meshes_vertices, meshes_faces,
-           meshes_texture_images, meshes_loop_texture_uvs,
-           meshes_loop_lightmap_uvs, meshes_faces_lightmap_handles,
-           meshes_faces_material_indices):
-
-        # Hack together one mesh per cell.
-        mesh = bpy.data.meshes.new(name=f"{name} mesh")
-        mesh.from_pydata(vertices, [], faces)
-        modified = mesh.validate(verbose=True)
-        if modified:
-            print("Vertices:")
-            for i, v in enumerate(vertices):
-                print(f"  {i}: {v[0]:0.2f},{v[1]:0.2f},{v[2]:0.2f}")
-            print("Faces:")
-            for i, f in enumerate(faces):
-                print(f"  {i}: {f}")
-        assert not modified, f"Mesh {name} pydata was invalid."
-
-        # Transform this poly's lightmap uvs
-        lightmap_atlas_uvs = []
-        for (u,v), handle in zip(lightmap_uvs, lightmap_handles):
-            u, _ = math.modf(u)
-            v, _ = math.modf(v)
-            if u<0: u = 1.0-u
-            if v<0: v = 1.0-v
-            scale, translate = atlas_builder.get_uv_transform(handle)
-            u = scale[0]*u+translate[0]
-            v = scale[1]*v+translate[1]
-            lightmap_atlas_uvs.append((u,v))
-
-        texture_uv_layer = (mesh.uv_layers.get('UVMap')
-            or mesh.uv_layers.new(name='UVMap'))
-        lightmap_uv_layer = (mesh.uv_layers.get('UVLightmap')
-            or mesh.uv_layers.new(name='UVLightmap'))
-        for (loop, tx_uvloop, tx_uv, lm_uvloop, lm_uv) \
-        in zip(mesh.loops, texture_uv_layer.data, texture_uvs,
-               lightmap_uv_layer.data, lightmap_atlas_uvs):
-            tx_uvloop.uv = tx_uv
-            lm_uvloop.uv = lm_uv
-
-        # TODO: we have duplicates here! Fix this!
-        for i, image in enumerate(texture_images):
-            mesh.materials.append(materials[image])
-        for i, (polygon, mat_index) \
-        in enumerate(zip(mesh.polygons, material_indices)):
-            polygon.material_index = mat_index
-        o = create_object(name, mesh, (0,0,0), context=context, link=True)
 
 """
     # blitting (y, x; remember y is bottom up in blender, which is fine)
