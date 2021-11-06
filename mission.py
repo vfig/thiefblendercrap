@@ -4,6 +4,7 @@ import mathutils
 import numpy as np
 import os
 import sys
+import time
 
 from bpy.props import BoolProperty, FloatProperty, IntProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
@@ -354,9 +355,12 @@ def do_mission(filename, context):
     for i, name in enumerate(mis):
         print(f"  {i}: {name}", file=dumpf)
 
+    start = time.process_time()
     txlist = mis['TXLIST']
     textures = do_txlist(txlist, context, dumpf)
+    textures_time = time.process_time()-start
 
+    start = time.process_time()
     # TODO: WRRGB with t2? what about newdark 32-bit lighting?
     worldrep = mis['WR']
     obj = do_worldrep(worldrep, textures, context, name=miss_name, options={
@@ -364,6 +368,10 @@ def do_mission(filename, context):
         'dump_file': sys.stdout,
         'cell_limit': 0,
         })
+    worldrep_time = time.process_time()-start
+
+    print(f"Load textures: {textures_time:0.1f}s")
+    print(f"Load worldrep: {worldrep_time:0.1f}s")
     return obj
 
 def do_txlist(chunk, context, dumpf):
@@ -717,8 +725,11 @@ def do_worldrep(chunk, textures, context, name="mission", options=None):
 
     cells = np.zeros(header.cell_count, dtype=object)
     for cell_index in range(header.cell_count):
-        print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}")
-        cells[cell_index] = LGWRCell.read(f, cell_index)
+        try:
+            cells[cell_index] = LGWRCell.read(f, cell_index)
+        except:
+            print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}...", file=sys.stderr)
+            raise
 
     if DUMP:
         limit = options['cell_limit']
