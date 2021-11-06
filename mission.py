@@ -5,7 +5,7 @@ import numpy as np
 import os
 import sys
 
-from bpy.props import BoolProperty, IntProperty, PointerProperty, StringProperty
+from bpy.props import BoolProperty, FloatProperty, IntProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
 from bpy_extras.image_utils import load_image
 from collections import OrderedDict
@@ -339,7 +339,9 @@ def hex_str(bytestr):
     return " ".join(format(b, "02x") for b in bytestr)
 
 def do_mission(filename, context):
-    dump_filename = os.path.splitext(filename)[0]+'.dump'
+    dirname, basename = os.path.split(filename)
+    miss_name = os.path.splitext(basename)[0]
+    dump_filename = os.path.join(dirname, miss_name+'.dump')
     dumpf = open(dump_filename, 'w')
     #dumpf = sys.stdout
 
@@ -357,7 +359,7 @@ def do_mission(filename, context):
 
     # TODO: WRRGB with t2? what about newdark 32-bit lighting?
     worldrep = mis['WR']
-    do_worldrep(worldrep, textures, context, options={
+    do_worldrep(worldrep, textures, context, name=miss_name, options={
         'dump': False,
         'dump_file': sys.stdout,
         'cell_limit': 0,
@@ -438,7 +440,40 @@ def do_txlist(chunk, context, dumpf):
             textures.append(image)
     return textures
 
-def create_texture_material(name, texture_image, lightmap_image):
+def create_settings_node_group(obj, base_name):
+    name = f"{base_name}.Settings"
+    tree = bpy.data.node_groups.new(name=name, type='ShaderNodeTree')
+    nodes = tree.nodes
+    links = tree.links
+    def grid(x,y):
+        return (x*400.0,y*200.0)
+    # Group output
+    n = nodes.new(type='NodeGroupOutput')
+    n.location = grid(0,0)
+    output_node = n
+    # Ambient brightness
+    n = nodes.new(type='ShaderNodeValue')
+    n.location = grid(-1,0)
+    n.name = 'AmbientBrightness'
+    n.label = "Ambient Brightness"
+    n.outputs['Value'].default_value = 0.0
+    # Create a property on the object to drive this from
+    obj["AmbientBrightness"] = 0.2
+    d = n.outputs['Value'].driver_add('default_value').driver
+    v = d.variables.new()
+    v.name = 'var'
+    v.type = 'SINGLE_PROP'
+    t = v.targets[0]
+    t.id = obj
+    t.data_path = 'tt_mission.ambient_brightness'
+    d.expression = "var"
+    ambient_brightness_node = n
+    # Connect everything
+    output = tree.outputs.new('NodeSocketFloat', 'AmbientBrightness')
+    links.new(output_node.inputs['AmbientBrightness'], ambient_brightness_node.outputs['Value'])
+    return tree
+
+def create_texture_material(name, texture_image, lightmap_image, settings_group):
     is_textured = (texture_image is not None)
     is_lightmapped = (lightmap_image is not None)
     #
@@ -448,7 +483,11 @@ def create_texture_material(name, texture_image, lightmap_image):
     #             |                               |
     # ImageTexture(texture_image)     ImageTexture(lightmap_image)
     #             |                               |
-    #             +----------------+--------------+
+    #             +----------------+              |
+    #                              |              |
+    #                              |         MixRGB('Mix') <-- NodeGroup('Settings').Ambient
+    #                              |              |
+    #                              +--------------+
     #                              |
     #                     MixRGB('Multiply')
     #                              |
@@ -486,13 +525,15 @@ def create_texture_material(name, texture_image, lightmap_image):
     if out_node is None: out_node = nodes.new(type='ShaderNodeOutputMaterial')
     if bsdf_node is None: bsdf_node = nodes.new(type='ShaderNodeBsdfPrincipled')
     if is_textured:
-        tx_uv_node = nodes.new(type='ShaderNodeUVMap')
-        tx_img_node = nodes.new(type='ShaderNodeTexImage')
+        tx_uv_node = nodes.new(type='ShaderNodeUVMap'); tx_uv_node.select = False
+        tx_img_node = nodes.new(type='ShaderNodeTexImage'); tx_img_node.select = False
     if is_lightmapped:
-        lm_uv_node = nodes.new(type='ShaderNodeUVMap')
-        lm_img_node = nodes.new(type='ShaderNodeTexImage')
+        lm_uv_node = nodes.new(type='ShaderNodeUVMap'); lm_uv_node.select = False
+        lm_img_node = nodes.new(type='ShaderNodeTexImage'); lm_img_node.select = False
+        lm_mix_node = nodes.new(type='ShaderNodeMixRGB'); lm_mix_node.select = False
+        settings_node = nodes.new(type='ShaderNodeGroup'); settings_node.select = False
     if is_textured and is_lightmapped:
-        mix_node = nodes.new(type='ShaderNodeMixRGB')
+        mix_node = nodes.new(type='ShaderNodeMixRGB'); mix_node.select = False
     # Configure them
     bsdf_node.inputs['Base Color'].default_value = (1.0,0.0,1.0,1.0)
     bsdf_node.inputs['Metallic'].default_value = 0.0
@@ -508,6 +549,11 @@ def create_texture_material(name, texture_image, lightmap_image):
         lm_img_node.image = lightmap_image
         lm_uv_node.name = 'LightmapUV'
         lm_uv_node.uv_map = 'UVLightmap'
+        lm_mix_node.name = 'MixAmbient'
+        lm_mix_node.blend_type = 'MIX'
+        lm_mix_node.inputs['Fac'].default_value = 0.0
+        lm_mix_node.inputs['Color2'].default_value = (1.0,1.0,1.0,1.0)
+        settings_node.node_tree = settings_group
     if is_textured and is_lightmapped:
         mix_node.blend_type = 'MULTIPLY'
         mix_node.inputs['Fac'].default_value = 1.0
@@ -519,29 +565,35 @@ def create_texture_material(name, texture_image, lightmap_image):
     bsdf_node.location = grid(0,0)
     if is_lightmapped and is_textured:
         mix_node.location = grid(-1,0)
-        tx_img_node.location = grid(-2,1)
-        tx_uv_node.location = grid(-3,1)
-        lm_img_node.location = grid(-2,-1)
-        lm_uv_node.location = grid(-3,-1)
+        tx_img_node.location = grid(-3,1)
+        tx_uv_node.location = grid(-4,1)
+        lm_img_node.location = grid(-3,-1)
+        lm_uv_node.location = grid(-4,-1)
+        lm_mix_node.location = grid(-2,-1)
+        settings_node.location = grid(-3,-3)
     elif is_textured:
         tx_img_node.location = grid(-1,0)
         tx_uv_node.location = grid(-2,0)
     elif is_lightmapped:
-        lm_img_node.location = grid(-1,0)
-        lm_uv_node.location = grid(-2,0)
+        lm_img_node.location = grid(-2,0)
+        lm_uv_node.location = grid(-3,0)
+        lm_mix_node.location = grid(-1,-0)
     # Link them
     links.new(out_node.inputs['Surface'], bsdf_node.outputs['BSDF'])
     if is_lightmapped and is_textured:
         links.new(bsdf_node.inputs['Base Color'], mix_node.outputs['Color'])
         links.new(mix_node.inputs['Color1'], tx_img_node.outputs['Color'])
-        links.new(mix_node.inputs['Color2'], lm_img_node.outputs['Color'])
+        links.new(mix_node.inputs['Color2'], lm_mix_node.outputs['Color'])
+        links.new(lm_mix_node.inputs['Fac'], settings_node.outputs['AmbientBrightness'])
+        links.new(lm_mix_node.inputs['Color1'], lm_img_node.outputs['Color'])
         links.new(tx_img_node.inputs['Vector'], tx_uv_node.outputs['UV'])
         links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
     elif is_textured:
         links.new(bsdf_node.inputs['Base Color'], tx_img_node.outputs['Color'])
         links.new(tx_img_node.inputs['Vector'], tx_uv_node.outputs['UV'])
     elif is_lightmapped:
-        links.new(bsdf_node.inputs['Base Color'], lm_img_node.outputs['Color'])
+        links.new(bsdf_node.inputs['Base Color'], lm_mix_node.outputs['Color'])
+        links.new(lm_mix_node.inputs['Color1'], lm_img_node.outputs['Color'])
         links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
     return mat
 
@@ -608,7 +660,7 @@ def poly_calculate_uvs(cell, pi, texture_size):
             lm_uv_list.append((lm_u,lm_v))
     return (tx_uv_list, lm_uv_list)
 
-def do_worldrep(chunk, textures, context, options=None):
+def do_worldrep(chunk, textures, context, name="mission", options=None):
     default_options = {
         'dump': False,
         'dump_file': sys.stdout,
@@ -834,8 +886,9 @@ def do_worldrep(chunk, textures, context, options=None):
     atlas_builder.finish()
     lightmap_image = atlas_builder.image
     # Create the mesh geometry.
-    name = "miss1" # TODO: get the mission name passed in!
     mesh = bpy.data.meshes.new(name=f"{name} mesh")
+    obj = create_object(name, mesh, (0,0,0), context=context, link=True)
+    obj.tt_mission.is_mission = True
     mesh.vertices.add(vert_total)
     mesh.loops.add(idx_total)
     mesh.polygons.add(face_total)
@@ -846,7 +899,7 @@ def do_worldrep(chunk, textures, context, options=None):
         mesh.polygons.foreach_set("vertices", idxs[:idx_total])
         mesh.update(calc_edges=True, calc_edges_loose=False)
         modified = mesh.validate(verbose=True)
-        assert not modified, f"Mesh {name} pydata was invalid."
+        assert not modified, f"Mesh {mesh.name} pydata was invalid."
     except:
         # The polygon was invalid for some reason! Dump out the data we are
         # building it from to help understand why.
@@ -888,9 +941,10 @@ def do_worldrep(chunk, textures, context, options=None):
         lightmap_atlas_uvs[i] = (u, v)
     lightmap_uv_layer.data.foreach_set('uv', lightmap_atlas_uvs[:idx_total].reshape(-1))
     # Create the materials.
-    mat_jorge = create_texture_material('JORGE', None, None)
-    mat_sky = create_texture_material('SKY_HACK', None, None)
-    mat_missing = create_texture_material('MISSING', None, None)
+    settings_group = create_settings_node_group(obj, name)
+    mat_jorge = create_texture_material('JORGE', None, None, settings_group)
+    mat_sky = create_texture_material('SKY_HACK', None, None, settings_group)
+    mat_missing = create_texture_material('MISSING', None, None, settings_group)
     texture_ids_needed = [tid
         for (tid, _) in sorted(material_textures.items(), key=(lambda item:item[1]))]
     for texture_id in texture_ids_needed:
@@ -903,11 +957,9 @@ def do_worldrep(chunk, textures, context, options=None):
             if im is None:
                 mat = mat_missing
             else:
-                mat = create_texture_material(im.name, im, lightmap_image)
+                mat = create_texture_material(im.name, im, lightmap_image, settings_group)
         mesh.materials.append(mat)
-    # Create and link the object.
-    o = create_object(name, mesh, (0,0,0), context=context, link=True)
-    return o
+    return obj
 
 """
     # blitting (y, x; remember y is bottom up in blender, which is fine)
@@ -1145,6 +1197,15 @@ def mute_lightmaps(obj, mute=True):
         node.mute = mute
 
 #---------------------------------------------------------------------------#
+# Properties
+
+class TTMissionSettings(PropertyGroup):
+    is_mission: BoolProperty(name="(is_mission)", default=False)
+    ambient_brightness: FloatProperty(name="Brightness", default=0.0,
+        min=0.0, max=1.0, step=1)
+    # TODO: bring lightmap enable in here
+
+#---------------------------------------------------------------------------#
 # Operators
 
 class TTDebugImportMissionOperator(Operator):
@@ -1169,10 +1230,9 @@ class TTDebugImportMissionOperator(Operator):
             cProfile.runctx("do_mission(self.filename, context)",
                 globals(), locals(), "e:/temp/do_mission.prof")
         else:
-            do_mission(self.filename, context)
-
-        #context.view_layer.objects.active = o
-        #o.select_set(True)
+            o = do_mission(self.filename, context)
+            context.view_layer.objects.active = o
+            o.select_set(True)
 
         return {'FINISHED'}
 
@@ -1194,3 +1254,26 @@ class TTMissionMuteLightmapsOperator(Operator):
         mute = is_lightmaps_muted(o)
         mute_lightmaps(o, not mute)
         return {'FINISHED'}
+
+#---------------------------------------------------------------------------#
+# Panels
+
+class TOOLS_PT_thieftools_mission(Panel):
+    bl_label = "Thief: Mission Settings"
+    bl_idname = "TOOLS_PT_thieftools_mission"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'object'
+
+    @classmethod
+    def poll(self, context):
+        # Only show this panel for missions
+        o = context.active_object
+        if o is None: return False
+        return o.tt_mission.is_mission
+
+    def draw(self, context):
+        layout = self.layout
+        o = context.active_object
+        mission_settings = o.tt_mission
+        layout.prop(mission_settings, 'ambient_brightness')

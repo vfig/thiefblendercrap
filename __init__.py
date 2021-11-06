@@ -27,7 +27,7 @@ else:
 
 
 import bpy
-from bpy.props import CollectionProperty
+from bpy.props import CollectionProperty, PointerProperty
 from bpy.types import Panel
 
 
@@ -98,6 +98,8 @@ def thief_test_menu_func(self, context):
 def register():
     bpy.utils.register_class(brushes.TTDebugBrushesToBooleansOperator)
     bpy.utils.register_class(brushes.TTDebugDeleteAllBrushesOperator)
+    bpy.utils.register_class(mission.TTMissionSettings)
+    bpy.utils.register_class(mission.TOOLS_PT_thieftools_mission)
     bpy.utils.register_class(mission.TTDebugImportMissionOperator)
     bpy.utils.register_class(mission.TTMissionMuteLightmapsOperator)
     bpy.utils.register_class(mesh.TTDebugImportMeshOperator)
@@ -107,10 +109,12 @@ def register():
     bpy.utils.register_class(images.TTDebugImportGIFOperator)
     bpy.utils.register_class(images.TTDebugImportPCXOperator)
     bpy.types.VIEW3D_MT_armature_add.append(thief_test_menu_func)
+    bpy.types.Object.tt_mission = PointerProperty(type=mission.TTMissionSettings)
     print("thieftools: registered.");
 
 
 def unregister():
+    del bpy.types.Object.tt_mission
     bpy.types.VIEW3D_MT_armature_add.remove(thief_test_menu_func)
     bpy.utils.unregister_class(images.TTDebugImportPCXOperator)
     bpy.utils.unregister_class(images.TTDebugImportGIFOperator)
@@ -118,6 +122,8 @@ def unregister():
     bpy.utils.unregister_class(TOOLS_PT_thieftools_debug)
     bpy.utils.unregister_class(mesh.TTDebugImportMeshOperator)
     bpy.utils.unregister_class(mesh.TTDebugExportMeshOperator)
+    bpy.utils.unregister_class(mission.TOOLS_PT_thieftools_mission)
+    bpy.utils.unregister_class(mission.TTMissionSettings)
     bpy.utils.unregister_class(mission.TTMissionMuteLightmapsOperator)
     bpy.utils.unregister_class(mission.TTDebugImportMissionOperator)
     bpy.utils.unregister_class(brushes.TTDebugDeleteAllBrushesOperator)
