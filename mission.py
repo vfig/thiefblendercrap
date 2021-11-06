@@ -1180,6 +1180,28 @@ class MaterialBuilder:
     def get_lightmap_material(handle) -> BuiltMaterial:
         return self.lightmap_bms[handle]
 
+def get_texture_interpolation(obj):
+    # The first material with a texture node determines what we consider the
+    # interpolation setting.
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        node = mat.node_tree.nodes.get('TerrainTexture')
+        if node is None: continue
+        return node.interpolation
+    return 'Linear'
+
+def set_texture_interpolation(obj, interpolation):
+    # The first material with a texture node determines what we consider the
+    # interpolation setting.
+    assert interpolation in ('Closest', 'Linear')
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        node = mat.node_tree.nodes.get('TerrainTexture')
+        if node is None: continue
+        node.interpolation = interpolation
+
 def is_textures_enabled(obj):
     # The first material with a texture node determines if we consider the
     # textures enabled.
@@ -1220,6 +1242,29 @@ def enable_lightmaps(obj, enable=True):
         if node is None: continue
         node.mute = (not enable)
 
+def get_lightmap_interpolation(obj):
+    # The first material with a lightmap node determines what we consider the
+    # interpolation setting.
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        node = mat.node_tree.nodes.get('LightmapTexture')
+        if node is None: continue
+        return node.interpolation
+    return 'Linear'
+
+def set_lightmap_interpolation(obj, interpolation):
+    # The first material with a lightmap node determines what we consider the
+    # interpolation setting.
+    assert interpolation in ('Closest', 'Linear')
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        node = mat.node_tree.nodes.get('LightmapTexture')
+        if node is None: continue
+        node.interpolation = interpolation
+
+
 #---------------------------------------------------------------------------#
 # Properties
 
@@ -1233,6 +1278,17 @@ def _set_enable_textures(self, value):
     o = self.id_data
     enable_textures(o, value)
 
+def _get_texture_filtering(self):
+    if not self.is_mission: return False
+    o = self.id_data
+    return (get_texture_interpolation(o)=='Linear')
+
+def _set_texture_filtering(self, value):
+    if not self.is_mission: return
+    o = self.id_data
+    interpolation = 'Linear' if value else 'Closest'
+    set_texture_interpolation(o, interpolation)
+
 def _get_enable_lightmaps(self):
     if not self.is_mission: return False
     o = self.id_data
@@ -1243,14 +1299,31 @@ def _set_enable_lightmaps(self, value):
     o = self.id_data
     enable_lightmaps(o, value)
 
+def _get_lightmap_filtering(self):
+    if not self.is_mission: return False
+    o = self.id_data
+    return (get_lightmap_interpolation(o)=='Linear')
+
+def _set_lightmap_filtering(self, value):
+    if not self.is_mission: return
+    o = self.id_data
+    interpolation = 'Linear' if value else 'Closest'
+    set_lightmap_interpolation(o, interpolation)
+
 class TTMissionSettings(PropertyGroup):
     is_mission: BoolProperty(name="(is_mission)", default=False)
     enable_textures: BoolProperty(name="Textures", default=True,
         get=_get_enable_textures,
         set=_set_enable_textures)
+    texture_filtering: BoolProperty(name="Texture Filtering", default=True,
+        get=_get_texture_filtering,
+        set=_set_texture_filtering)
     enable_lightmaps: BoolProperty(name="Lightmaps", default=True,
         get=_get_enable_lightmaps,
         set=_set_enable_lightmaps)
+    lightmap_filtering: BoolProperty(name="Lightmap Filtering", default=True,
+        get=_get_lightmap_filtering,
+        set=_set_lightmap_filtering)
     ambient_brightness: FloatProperty(name="Brightness", default=0.0,
         min=0.0, max=1.0, step=1)
 
@@ -1306,6 +1379,11 @@ class TOOLS_PT_thieftools_mission(Panel):
         layout = self.layout
         o = context.active_object
         mission_settings = o.tt_mission
-        layout.prop(mission_settings, 'enable_textures')
-        layout.prop(mission_settings, 'enable_lightmaps')
+
+        row = layout.row(align=False)
+        row.prop(mission_settings, 'enable_textures')
+        row.prop(mission_settings, 'texture_filtering')
+        row = layout.row(align=False)
+        row.prop(mission_settings, 'enable_lightmaps')
+        row.prop(mission_settings, 'lightmap_filtering')
         layout.prop(mission_settings, 'ambient_brightness')
