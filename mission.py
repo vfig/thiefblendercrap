@@ -818,7 +818,7 @@ def do_worldrep(chunk, textures, context, dumpf):
             # Adjust indices to point into our vertex array.
             idx_start = idx_ptr
             idx_end = idx_start+poly.num_vertices
-            poly_idxs = cell.poly_indices[pi][::-1] + cell_vert_start
+            poly_idxs = np.array(cell.poly_indices[pi][::-1], dtype=uint32)+cell_vert_start
             idxs[idx_start:idx_end] = poly_idxs
             idx_ptr = idx_end
             # Add the loop start/count for this poly.
