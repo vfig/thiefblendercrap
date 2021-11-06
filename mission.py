@@ -410,15 +410,20 @@ def do_txlist(chunk, context, dumpf):
         candidates = [] # (sort_key, full_path) tuples
         for path in tex_search_paths:
             fam_path = os.path.join(path, fam_name)
-            print(f"  in path: {fam_path}")
-            for entry in os.scandir(fam_path):
-                if not entry.is_file(): continue
-                name, ext = os.path.splitext(entry.name.lower())
-                if name != tex_name: continue
-                sort_key = ext_sort_order.get(ext, None)
-                if sort_key is None: continue
-                print(f"    Candidate: {entry.name}")
-                candidates.append((sort_key, entry.path))
+            for lang in ['', 'english', 'french', 'german', 'russian', 'italian']:
+                if lang:
+                    lang_path = os.path.join(fam_path, lang)
+                    if os.path.isdir(lang_path):
+                        fam_path = lang_path
+                print(f"  in path: {fam_path}")
+                for entry in os.scandir(fam_path):
+                    if not entry.is_file(): continue
+                    name, ext = os.path.splitext(entry.name.lower())
+                    if name != tex_name: continue
+                    sort_key = ext_sort_order.get(ext, None)
+                    if sort_key is None: continue
+                    print(f"    Candidate: {entry.name}")
+                    candidates.append((sort_key, entry.path))
         if not candidates:
             raise ValueError(f"Cannot find texture {fam_name}/{tex_name}")
         candidates.sort()
