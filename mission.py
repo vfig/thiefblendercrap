@@ -268,25 +268,6 @@ class LGWRCell:
         cell = cls()
         cell.header = f.read(LGWRCellHeader)
         cell.p_vertices = f.read(LGVector, count=cell.header.num_vertices)
-
-        # hmm... thinking about whether to use numpy to read the raw data or not
-        # probably best not! for vertex info, lightmaps, stuff like that, we can
-        # use frombuffer and then slap that onto a Big Numpy Array of That Stuff.
-        # but for the cell header, theres not much value in it.
-        #
-        # certainly we dont need all the data in a cell etc. for our purposes.
-        # it should suffice to keep only what we need, perhaps in a recarray,
-        # perhaps just in a bunch of individual np.arrays in a class (for the
-        # convenience of aggregating)...
-        #
-        # stuff that is variable length we can either pad out to a fixed size
-        # (storing the correct count ofc) for operating on; or we can put them
-        # all in one big flat-ish array, and store start,end indices for slicing.
-        #
-        # notes:
-        #    max vertices per poly = 32
-        #
-
         cell.p_polys = f.read(LGWRPoly, count=cell.header.num_polys)
         cell.p_render_polys = f.read(LGWRRenderPoly, count=cell.header.num_render_polys)
         cell.index_count = f.read(uint32)
@@ -315,21 +296,15 @@ class LGWRCell:
         cell.p_light_indices = f.read(uint16, count=cell.num_light_indices)
         # Done reading!
         # Oh, but for sanity, lets build a table of polygon vertices, so
-        # we dont have to deal with vertex-indices or vertex-index-indices
-        # anywhere else. Except maybe for dumping.
+        # we dont have to deal with vertex-index-indices anywhere else.
         poly_indices = []
         poly_vertices = []
         start_index = 0
-
         for pi, poly in enumerate(cell.p_polys):
             assert poly.num_vertices<=32, "you fucked up, poly has >32 verts!"
-            indices = np.zeros(poly.num_vertices)
-            vertices = np.zeros((poly.num_vertices,3))
-            for j in range(poly.num_vertices):
-                k = start_index+j
-                vi = cell.p_index_list[k]
-                indices[j] = vi
-                vertices[j] = cell.p_vertices[vi]
+            index_indices = np.arange(start_index,start_index+poly.num_vertices)
+            indices = cell.p_index_list[index_indices]
+            vertices = cell.p_vertices[indices]
             start_index += poly.num_vertices
             poly_indices.append(indices)
             poly_vertices.append(vertices)
