@@ -118,15 +118,13 @@ def structure(cls, aligned=False):
         raise TypeError(f"{cls.__name__} has no fields defined")
     names = []
     formats = []
-    print(f"Constructing {cls.__name__}...", file=dumpf)
     for name, typeref in hints.items():
-        print(f"  {name}: {typeref}", file=dumpf)
         names.append(name)
         formats.append(typeref)
     dtype = np.dtype({'names': names, 'formats': formats, 'aligned': aligned})
     for field_name, (field_dtype, field_shape) in dtype.fields.items():
         assert field_dtype.kind!='O', f"Field {cls.__name__}:{field_name} must not be an object type"
-    print(f"  Structure size={dtype.itemsize}", file=dumpf)
+    # structure size is: dtype.itemsize
     return dtype
 
 def ascii(b):
@@ -391,7 +389,11 @@ def do_mission(filename, context):
 
     # TODO: WRRGB with t2? what about newdark 32-bit lighting?
     worldrep = mis['WR']
-    do_worldrep(worldrep, textures, context, dumpf)
+    do_worldrep(worldrep, textures, context, options={
+        'dump': False,
+        'dump_file': sys.stdout,
+        'cell_limit': 0,
+        })
 
 def do_txlist(chunk, context, dumpf):
     if (chunk.header.version.major, chunk.header.version.minor) \
@@ -634,16 +636,27 @@ def poly_calculate_uvs(cell, pi, texture_size):
             lm_uv_list.append((lm_u,lm_v))
     return (tx_uv_list, lm_uv_list)
 
-def do_worldrep(chunk, textures, context, dumpf):
+def do_worldrep(chunk, textures, context, options=None):
+    default_options = {
+        'dump': False,
+        'dump_file': sys.stdout,
+        'cell_limit': 0,
+        }
+    options = {**default_options, **(options or {})}
+    DUMP = options['dump']
+    dumpf = options['dump_file']
+
     if (chunk.header.version.major, chunk.header.version.minor) \
     not in [(0, 23), (0, 24)]:
         raise ValueError("Only version 0.23 and 0.24 WR chunk is supported")
     f = StructuredReader(buffer=chunk.data)
     header = f.read(LGWRHeader)
-    print(f"WR chunk:", file=dumpf)
-    print(f"  version: {chunk.header.version.major}.{chunk.header.version.minor}", file=dumpf)
-    print(f"  size: {header.data_size}", file=dumpf)
-    print(f"  cell_count: {header.cell_count}", file=dumpf)
+
+    if DUMP:
+        print(f"WR chunk:", file=dumpf)
+        print(f"  version: {chunk.header.version.major}.{chunk.header.version.minor}", file=dumpf)
+        print(f"  size: {header.data_size}", file=dumpf)
+        print(f"  cell_count: {header.cell_count}", file=dumpf)
 
     # TODO: import the entire worldrep into one mesh (with options to
     #       skip jorge & sky polys); as we read each cell, append its
@@ -674,65 +687,69 @@ def do_worldrep(chunk, textures, context, dumpf):
     #       for each poly, and the combined result will be ready for export
     #       as a single model, without the blender baking shenanigans? dunno.
 
-    cells = []
+    cells = np.zeros(header.cell_count, dtype=object)
     for cell_index in range(header.cell_count):
         print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}")
-        cell = LGWRCell.read(f, cell_index)
-        cells.append(cell)
-        print(f"  Cell {cell_index}:", file=dumpf)
-        print(f"    num_vertices: {cell.header.num_vertices}", file=dumpf)
-        print(f"    num_polys: {cell.header.num_polys}", file=dumpf)
-        print(f"    num_render_polys: {cell.header.num_render_polys}", file=dumpf)
-        print(f"    num_portal_polys: {cell.header.num_portal_polys}", file=dumpf)
-        print(f"    num_planes: {cell.header.num_planes}", file=dumpf)
-        print(f"    medium: {cell.header.medium}", file=dumpf)
-        print(f"    flags_: {cell.header.flags_}", file=dumpf)
-        print(f"    portal_vertex_list: {cell.header.portal_vertex_list}", file=dumpf)
-        print(f"    num_vlist: {cell.header.num_vlist}", file=dumpf)
-        print(f"    num_anim_lights: {cell.header.num_anim_lights}", file=dumpf)
-        print(f"    motion_index: {cell.header.motion_index}", file=dumpf)
-        print(f"    sphere_center: {cell.header.sphere_center}", file=dumpf)
-        print(f"    sphere_radius: {cell.header.sphere_radius}", file=dumpf)
-        print(f"    p_vertices: {cell.p_vertices.size}", file=dumpf)
-        for i, v in enumerate(cell.p_vertices):
-            print(f"      {i}: {v[0]:06f},{v[1]:06f},{v[2]:06f}", file=dumpf)
-        print(f"    p_polys: {cell.p_polys.size}", file=dumpf)
-        print(f"    p_render_polys: {cell.p_render_polys.size}", file=dumpf)
-        for i, rpoly in enumerate(cell.p_render_polys):
-            print(f"      render_poly {i}:", file=dumpf)
-            print(f"        tex_u: {rpoly.tex_u[0]:06f},{rpoly.tex_u[1]:06f},{rpoly.tex_u[2]:06f}", file=dumpf)
-            print(f"        tex_v: {rpoly.tex_v[0]:06f},{rpoly.tex_v[1]:06f},{rpoly.tex_v[2]:06f}", file=dumpf)
-            print(f"        u_base: {rpoly.u_base} (0x{rpoly.u_base:04x})", file=dumpf)
-            print(f"        v_base: {rpoly.v_base} (0x{rpoly.v_base:04x})", file=dumpf)
-            print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
-            print(f"        texture_anchor: {rpoly.texture_anchor}", file=dumpf)
-            # Skip printing  cached_surface, texture_mag, center.
-        print(f"    index_count: {cell.index_count}", file=dumpf)
-        print(f"    p_index_list: {cell.p_index_list.size}", file=dumpf)
-        for pi, poly in enumerate(cell.p_polys):
-            is_render = (pi<cell.header.num_render_polys)
-            is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
-            if is_render and not is_portal: poly_type = 'render'
-            elif is_portal and not is_render: poly_type = 'portal'
-            else: poly_type = 'render,portal' # typically a water surface
-            print(f"      {pi}: ({poly_type})", end='', file=dumpf)
-            for j in range(poly.num_vertices):
-                vi = cell.poly_indices[pi][j]
-                print(f" {vi}", end='', file=dumpf)
-            print(file=dumpf)
-        print(f"    p_plane_list: {cell.p_plane_list.size}", file=dumpf)
-        print(f"    p_anim_lights: {cell.p_anim_lights.size}", file=dumpf)
-        print(f"    p_light_list: {cell.p_light_list.size}", file=dumpf)
-        for i, info in enumerate(cell.p_light_list):
-            print(f"      lightmapinfo {i}:", file=dumpf)
-            print(f"        u_base: {info.u_base} (0x{info.u_base:04x})", file=dumpf)
-            print(f"        v_base: {info.v_base} (0x{info.v_base:04x})", file=dumpf)
-            print(f"        byte_width: {info.byte_width}", file=dumpf)
-            print(f"        height: {info.height}", file=dumpf)
-            print(f"        width: {info.width}", file=dumpf)
-            print(f"        anim_light_bitmask: 0x{info.anim_light_bitmask:08x}", file=dumpf)
-        print(f"    num_light_indices: {cell.num_light_indices}", file=dumpf)
-        print(f"    p_light_indices: {cell.p_light_indices.size}", file=dumpf)
+        cells[cell_index] = LGWRCell.read(f, cell_index)
+
+    if DUMP:
+        limit = options['cell_limit']
+        cells_to_dump = cells[:limit] if limit else cells
+        for cell_index, cell in enumerate(cells_to_dump):
+            print(f"  Cell {cell_index}:", file=dumpf)
+            print(f"    num_vertices: {cell.header.num_vertices}", file=dumpf)
+            print(f"    num_polys: {cell.header.num_polys}", file=dumpf)
+            print(f"    num_render_polys: {cell.header.num_render_polys}", file=dumpf)
+            print(f"    num_portal_polys: {cell.header.num_portal_polys}", file=dumpf)
+            print(f"    num_planes: {cell.header.num_planes}", file=dumpf)
+            print(f"    medium: {cell.header.medium}", file=dumpf)
+            print(f"    flags_: {cell.header.flags_}", file=dumpf)
+            print(f"    portal_vertex_list: {cell.header.portal_vertex_list}", file=dumpf)
+            print(f"    num_vlist: {cell.header.num_vlist}", file=dumpf)
+            print(f"    num_anim_lights: {cell.header.num_anim_lights}", file=dumpf)
+            print(f"    motion_index: {cell.header.motion_index}", file=dumpf)
+            print(f"    sphere_center: {cell.header.sphere_center}", file=dumpf)
+            print(f"    sphere_radius: {cell.header.sphere_radius}", file=dumpf)
+            print(f"    p_vertices: {cell.p_vertices.size}", file=dumpf)
+            for i, v in enumerate(cell.p_vertices):
+                print(f"      {i}: {v[0]:06f},{v[1]:06f},{v[2]:06f}", file=dumpf)
+            print(f"    p_polys: {cell.p_polys.size}", file=dumpf)
+            print(f"    p_render_polys: {cell.p_render_polys.size}", file=dumpf)
+            for i, rpoly in enumerate(cell.p_render_polys):
+                print(f"      render_poly {i}:", file=dumpf)
+                print(f"        tex_u: {rpoly.tex_u[0]:06f},{rpoly.tex_u[1]:06f},{rpoly.tex_u[2]:06f}", file=dumpf)
+                print(f"        tex_v: {rpoly.tex_v[0]:06f},{rpoly.tex_v[1]:06f},{rpoly.tex_v[2]:06f}", file=dumpf)
+                print(f"        u_base: {rpoly.u_base} (0x{rpoly.u_base:04x})", file=dumpf)
+                print(f"        v_base: {rpoly.v_base} (0x{rpoly.v_base:04x})", file=dumpf)
+                print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
+                print(f"        texture_anchor: {rpoly.texture_anchor}", file=dumpf)
+                # Skip printing  cached_surface, texture_mag, center.
+            print(f"    index_count: {cell.index_count}", file=dumpf)
+            print(f"    p_index_list: {cell.p_index_list.size}", file=dumpf)
+            for pi, poly in enumerate(cell.p_polys):
+                is_render = (pi<cell.header.num_render_polys)
+                is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
+                if is_render and not is_portal: poly_type = 'render'
+                elif is_portal and not is_render: poly_type = 'portal'
+                else: poly_type = 'render,portal' # typically a water surface
+                print(f"      {pi}: ({poly_type})", end='', file=dumpf)
+                for j in range(poly.num_vertices):
+                    vi = cell.poly_indices[pi][j]
+                    print(f" {vi}", end='', file=dumpf)
+                print(file=dumpf)
+            print(f"    p_plane_list: {cell.p_plane_list.size}", file=dumpf)
+            print(f"    p_anim_lights: {cell.p_anim_lights.size}", file=dumpf)
+            print(f"    p_light_list: {cell.p_light_list.size}", file=dumpf)
+            for i, info in enumerate(cell.p_light_list):
+                print(f"      lightmapinfo {i}:", file=dumpf)
+                print(f"        u_base: {info.u_base} (0x{info.u_base:04x})", file=dumpf)
+                print(f"        v_base: {info.v_base} (0x{info.v_base:04x})", file=dumpf)
+                print(f"        byte_width: {info.byte_width}", file=dumpf)
+                print(f"        height: {info.height}", file=dumpf)
+                print(f"        width: {info.width}", file=dumpf)
+                print(f"        anim_light_bitmask: 0x{info.anim_light_bitmask:08x}", file=dumpf)
+            print(f"    num_light_indices: {cell.num_light_indices}", file=dumpf)
+            print(f"    p_light_indices: {cell.p_light_indices.size}", file=dumpf)
 
     # We need to build up a single mesh. We need:
     #
@@ -765,10 +782,6 @@ def do_worldrep(chunk, textures, context, dumpf):
     #   should be responsible for collating both terrain textures and lightmaps,
     #   and that we use handles for all UVs and for material indices.
 
-    TEMP_LIMIT = 99999 # TODO: use the full range
-
-    # -------- new code:
-
     MAX_CELLS = 32678       # Imposed by Dromed
     MAX_VERTICES = 256*1024 # Imposed by Dromed
     MAX_FACES = 256*1024    # Rough guess
@@ -797,7 +810,9 @@ def do_worldrep(chunk, textures, context, dumpf):
 
     atlas_builder = AtlasBuilder()
     vert_ptr = idx_ptr = face_ptr = 0
-    for cell_index, cell in enumerate(cells[:TEMP_LIMIT]):
+    limit = options['cell_limit']
+    cells_to_build = cells[:limit] if limit else cells
+    for cell_index, cell in enumerate(cells_to_build):
         # Add the vertices from this cell.
         cell_vert_start = vert_ptr
         end = cell_vert_start+len(cell.p_vertices)
@@ -809,10 +824,6 @@ def do_worldrep(chunk, textures, context, dumpf):
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
             if not is_render: continue  # Skip air portals
             if is_portal: continue      # Skip water surfaces
-
-            # TODO: reinstate uv stuff
-            # TODO: reinstate lightmap stuff
-
             # Add the indices from this poly:
             # Reverse the indices, so faces point the right way in Blender.
             # Adjust indices to point into our vertex array.
@@ -824,7 +835,6 @@ def do_worldrep(chunk, textures, context, dumpf):
             # Add the loop start/count for this poly.
             loop_starts[face_ptr] = idx_start
             loop_counts[face_ptr] = poly.num_vertices
-
             # Look up the texture.
             texture_id = cell.p_render_polys[pi].texture_id
             texture_image, texture_size = lookup_texture_id(texture_id)
@@ -842,23 +852,17 @@ def do_worldrep(chunk, textures, context, dumpf):
             info = cell.p_light_list[pi]
             lm_handle = atlas_builder.add(info.width, info.height, cell.lightmaps[pi][0])
             lightmap_handles[idx_start:idx_end] = lm_handle
-
+            # Time for the next polygon!
             face_ptr += 1
-
-    # After all cells complete:
+    # Count totals now that all cells have been processed:
     vert_total = vert_ptr
     idx_total = idx_ptr
     face_total = face_ptr
-
     # Build the lightmap
-    atlas_builder.close()
+    atlas_builder.finish()
     lightmap_image = atlas_builder.image
-
-    import sys
-    sys.stdout.flush()
-    sys.stderr.flush()
     # Create the mesh geometry.
-    name = "miss1"
+    name = "miss1" # TODO: get the mission name passed in!
     mesh = bpy.data.meshes.new(name=f"{name} mesh")
     mesh.vertices.add(vert_total)
     mesh.loops.add(idx_total)
@@ -872,7 +876,10 @@ def do_worldrep(chunk, textures, context, dumpf):
         modified = mesh.validate(verbose=True)
         assert not modified, f"Mesh {name} pydata was invalid."
     except:
-        import sys
+        # The polygon was invalid for some reason! Dump out the data we are
+        # building it from to help understand why.
+        sys.stdout.flush()
+        sys.stderr.flush()
         np.set_printoptions(threshold=100)
         print("vert_total: ", vert_total, file=sys.stderr)
         print("idx_total: ", idx_total, file=sys.stderr)
@@ -928,7 +935,7 @@ def do_worldrep(chunk, textures, context, dumpf):
         mesh.materials.append(mat)
     # Create and link the object.
     o = create_object(name, mesh, (0,0,0), context=context, link=True)
-
+    return o
 
 """
     # blitting (y, x; remember y is bottom up in blender, which is fine)
@@ -1030,7 +1037,7 @@ class AtlasBuilder:
         self.images.append((width, height, handle, image, rotated))
         return handle
 
-    def close(self):
+    def finish(self):
         # Build the atlas
         self.images = sorted(self.images, reverse=True)
         atlas_w, atlas_h = (1024, 1024)
@@ -1066,7 +1073,6 @@ class AtlasBuilder:
             if h>available_h:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
             # Place and blit the image.
-            print(f"Placing image {handle} of {w}x{h} at {x},{y}.")
             placements[handle] = (x,y,w,h)
             if USE_DEBUG_COLORS:
                 source = colors[i%len(debug_colors)]
