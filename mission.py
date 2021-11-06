@@ -359,11 +359,12 @@ def do_mission(filename, context):
 
     # TODO: WRRGB with t2? what about newdark 32-bit lighting?
     worldrep = mis['WR']
-    do_worldrep(worldrep, textures, context, name=miss_name, options={
+    obj = do_worldrep(worldrep, textures, context, name=miss_name, options={
         'dump': False,
         'dump_file': sys.stdout,
         'cell_limit': 0,
         })
+    return obj
 
 def do_txlist(chunk, context, dumpf):
     if (chunk.header.version.major, chunk.header.version.minor) \
@@ -552,11 +553,14 @@ def create_texture_material(name, texture_image, lightmap_image, settings_group)
         lm_mix_node.name = 'MixAmbient'
         lm_mix_node.blend_type = 'MIX'
         lm_mix_node.inputs['Fac'].default_value = 0.0
+        lm_mix_node.inputs['Color1'].default_value = (1.0,1.0,1.0,1.0)
         lm_mix_node.inputs['Color2'].default_value = (1.0,1.0,1.0,1.0)
         settings_node.node_tree = settings_group
     if is_textured and is_lightmapped:
         mix_node.blend_type = 'MULTIPLY'
         mix_node.inputs['Fac'].default_value = 1.0
+        mix_node.inputs['Color1'].default_value = (1.0,1.0,1.0,1.0)
+        mix_node.inputs['Color2'].default_value = (1.0,1.0,1.0,1.0)
         mix_node.use_clamp = True
     # Place them
     def grid(x,y):
@@ -1176,34 +1180,46 @@ class MaterialBuilder:
     def get_lightmap_material(handle) -> BuiltMaterial:
         return self.lightmap_bms[handle]
 
-def is_lightmaps_muted(obj):
+def is_lightmaps_enabled(obj):
     # The first material with a lightmap node determines if we consider the
-    # lightmaps muted.
+    # lightmaps enabled.
     mesh = obj.data
     for mat in mesh.materials:
         if not mat.use_nodes: continue
         node = mat.node_tree.nodes.get('LightmapTexture')
         if node is None: continue
-        return node.mute
+        return (not node.mute)
     return False
 
-def mute_lightmaps(obj, mute=True):
+def enable_lightmaps(obj, enable=True):
     # Mute or unmute lightmap nodes in all the mesh's materials (if present).
     mesh = obj.data
     for mat in mesh.materials:
         if not mat.use_nodes: continue
         node = mat.node_tree.nodes.get('LightmapTexture')
         if node is None: continue
-        node.mute = mute
+        node.mute = (not enable)
 
 #---------------------------------------------------------------------------#
 # Properties
 
+def _get_enable_lightmaps(self):
+    if not self.is_mission: return False
+    o = self.id_data
+    return is_lightmaps_enabled(o)
+
+def _set_enable_lightmaps(self, value):
+    if not self.is_mission: return
+    o = self.id_data
+    enable_lightmaps(o, value)
+
 class TTMissionSettings(PropertyGroup):
     is_mission: BoolProperty(name="(is_mission)", default=False)
+    enable_lightmaps: BoolProperty(name="Lightmaps", default=True,
+        get=_get_enable_lightmaps,
+        set=_set_enable_lightmaps)
     ambient_brightness: FloatProperty(name="Brightness", default=0.0,
         min=0.0, max=1.0, step=1)
-    # TODO: bring lightmap enable in here
 
 #---------------------------------------------------------------------------#
 # Operators
@@ -1236,25 +1252,6 @@ class TTDebugImportMissionOperator(Operator):
 
         return {'FINISHED'}
 
-class TTMissionMuteLightmapsOperator(Operator):
-    bl_idname = "object.tt_mission_mute_lightmaps"
-    bl_label = "Enable lightmaps"
-    bl_options = {'REGISTER'}
-
-    mute : BoolProperty()
-
-    def execute(self, context):
-        if context.mode != "OBJECT":
-            self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
-            return {'CANCELLED'}
-
-        # TODO - change this to be driven by a checkbox from a custom bool
-        #        property, once we have a custom propgroup.
-        o = bpy.data.objects['miss1']
-        mute = is_lightmaps_muted(o)
-        mute_lightmaps(o, not mute)
-        return {'FINISHED'}
-
 #---------------------------------------------------------------------------#
 # Panels
 
@@ -1276,4 +1273,5 @@ class TOOLS_PT_thieftools_mission(Panel):
         layout = self.layout
         o = context.active_object
         mission_settings = o.tt_mission
+        layout.prop(mission_settings, 'enable_lightmaps')
         layout.prop(mission_settings, 'ambient_brightness')

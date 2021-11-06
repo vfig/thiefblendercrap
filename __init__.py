@@ -57,10 +57,6 @@ class TOOLS_PT_thieftools_debug(Panel):
         op = row.operator("object.tt_debug_import_mission", text="Import (debug)")
         op.filename = "e:\\dev\\thief\\blender\\data\\miss1.mis"
 
-        # TODO: right now this is a toggle; once we have a custom prop group,
-        #       then it ought to be a checkbox with a set callback.
-        op = box.operator("object.tt_mission_mute_lightmaps")
-
         row = layout.row(align=True)
         box = row.box()
         box.label(text="BRUSHES")
@@ -101,7 +97,6 @@ def register():
     bpy.utils.register_class(mission.TTMissionSettings)
     bpy.utils.register_class(mission.TOOLS_PT_thieftools_mission)
     bpy.utils.register_class(mission.TTDebugImportMissionOperator)
-    bpy.utils.register_class(mission.TTMissionMuteLightmapsOperator)
     bpy.utils.register_class(mesh.TTDebugImportMeshOperator)
     bpy.utils.register_class(mesh.TTDebugExportMeshOperator)
     bpy.utils.register_class(TOOLS_PT_thieftools_debug)
@@ -124,7 +119,6 @@ def unregister():
     bpy.utils.unregister_class(mesh.TTDebugExportMeshOperator)
     bpy.utils.unregister_class(mission.TOOLS_PT_thieftools_mission)
     bpy.utils.unregister_class(mission.TTMissionSettings)
-    bpy.utils.unregister_class(mission.TTMissionMuteLightmapsOperator)
     bpy.utils.unregister_class(mission.TTDebugImportMissionOperator)
     bpy.utils.unregister_class(brushes.TTDebugDeleteAllBrushesOperator)
     bpy.utils.unregister_class(brushes.TTDebugBrushesToBooleansOperator)
