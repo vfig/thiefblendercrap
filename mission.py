@@ -5,7 +5,7 @@ import numpy as np
 import os
 import sys
 
-from bpy.props import IntProperty, PointerProperty, StringProperty
+from bpy.props import BoolProperty, IntProperty, PointerProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
 from bpy_extras.image_utils import load_image
 from collections import OrderedDict
@@ -23,38 +23,6 @@ def create_object(name, mesh, location, context=None, link=True):
         coll = context.view_layer.active_layer_collection.collection
         coll.objects.link(o)
     return o
-
-#---------------------------------------------------------------------------#
-# Operators
-
-class TTDebugImportMissionOperator(Operator):
-    bl_idname = "object.tt_debug_import_mission"
-    bl_label = "Import mission"
-    bl_options = {'REGISTER'}
-
-    filename : StringProperty()
-
-    def execute(self, context):
-        if context.mode != "OBJECT":
-            self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
-            return {'CANCELLED'}
-
-        bpy.ops.object.select_all(action='DESELECT')
-
-        print(f"filename: {self.filename}")
-
-        PROFILE = False
-        if PROFILE:
-            import cProfile
-            cProfile.runctx("do_mission(self.filename, context)",
-                globals(), locals(), "e:/temp/do_mission.prof")
-        else:
-            do_mission(self.filename, context)
-
-        #context.view_layer.objects.active = o
-        #o.select_set(True)
-
-        return {'FINISHED'}
 
 class StructuredReader:
     def __init__(self, filename='', mode='rb', buffer=None):
@@ -531,10 +499,14 @@ def create_texture_material(name, texture_image, lightmap_image):
     bsdf_node.inputs['Specular'].default_value = 0.0
     bsdf_node.inputs['Roughness'].default_value = 1.0
     if is_textured:
+        tx_img_node.name = 'TerrainTexture'
         tx_img_node.image = texture_image
+        tx_uv_node.name = 'TerrainUV'
         tx_uv_node.uv_map = 'UVMap'
     if is_lightmapped:
+        lm_img_node.name = 'LightmapTexture'
         lm_img_node.image = lightmap_image
+        lm_uv_node.name = 'LightmapUV'
         lm_uv_node.uv_map = 'UVLightmap'
     if is_textured and is_lightmapped:
         mix_node.blend_type = 'MULTIPLY'
@@ -1151,3 +1123,74 @@ class MaterialBuilder:
 
     def get_lightmap_material(handle) -> BuiltMaterial:
         return self.lightmap_bms[handle]
+
+def is_lightmaps_muted(obj):
+    # The first material with a lightmap node determines if we consider the
+    # lightmaps muted.
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        node = mat.node_tree.nodes.get('LightmapTexture')
+        if node is None: continue
+        return node.mute
+    return False
+
+def mute_lightmaps(obj, mute=True):
+    # Mute or unmute lightmap nodes in all the mesh's materials (if present).
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        node = mat.node_tree.nodes.get('LightmapTexture')
+        if node is None: continue
+        node.mute = mute
+
+#---------------------------------------------------------------------------#
+# Operators
+
+class TTDebugImportMissionOperator(Operator):
+    bl_idname = "object.tt_debug_import_mission"
+    bl_label = "Import mission"
+    bl_options = {'REGISTER'}
+
+    filename : StringProperty()
+
+    def execute(self, context):
+        if context.mode != "OBJECT":
+            self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
+            return {'CANCELLED'}
+
+        bpy.ops.object.select_all(action='DESELECT')
+
+        print(f"filename: {self.filename}")
+
+        PROFILE = False
+        if PROFILE:
+            import cProfile
+            cProfile.runctx("do_mission(self.filename, context)",
+                globals(), locals(), "e:/temp/do_mission.prof")
+        else:
+            do_mission(self.filename, context)
+
+        #context.view_layer.objects.active = o
+        #o.select_set(True)
+
+        return {'FINISHED'}
+
+class TTMissionMuteLightmapsOperator(Operator):
+    bl_idname = "object.tt_mission_mute_lightmaps"
+    bl_label = "Enable lightmaps"
+    bl_options = {'REGISTER'}
+
+    mute : BoolProperty()
+
+    def execute(self, context):
+        if context.mode != "OBJECT":
+            self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
+            return {'CANCELLED'}
+
+        # TODO - change this to be driven by a checkbox from a custom bool
+        #        property, once we have a custom propgroup.
+        o = bpy.data.objects['miss1']
+        mute = is_lightmaps_muted(o)
+        mute_lightmaps(o, not mute)
+        return {'FINISHED'}
