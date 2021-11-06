@@ -1180,6 +1180,26 @@ class MaterialBuilder:
     def get_lightmap_material(handle) -> BuiltMaterial:
         return self.lightmap_bms[handle]
 
+def is_textures_enabled(obj):
+    # The first material with a texture node determines if we consider the
+    # textures enabled.
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        node = mat.node_tree.nodes.get('TerrainTexture')
+        if node is None: continue
+        return (not node.mute)
+    return False
+
+def enable_textures(obj, enable=True):
+    # Mute or unmute texture nodes in all the mesh's materials (if present).
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        node = mat.node_tree.nodes.get('TerrainTexture')
+        if node is None: continue
+        node.mute = (not enable)
+
 def is_lightmaps_enabled(obj):
     # The first material with a lightmap node determines if we consider the
     # lightmaps enabled.
@@ -1203,6 +1223,16 @@ def enable_lightmaps(obj, enable=True):
 #---------------------------------------------------------------------------#
 # Properties
 
+def _get_enable_textures(self):
+    if not self.is_mission: return False
+    o = self.id_data
+    return is_textures_enabled(o)
+
+def _set_enable_textures(self, value):
+    if not self.is_mission: return
+    o = self.id_data
+    enable_textures(o, value)
+
 def _get_enable_lightmaps(self):
     if not self.is_mission: return False
     o = self.id_data
@@ -1215,6 +1245,9 @@ def _set_enable_lightmaps(self, value):
 
 class TTMissionSettings(PropertyGroup):
     is_mission: BoolProperty(name="(is_mission)", default=False)
+    enable_textures: BoolProperty(name="Textures", default=True,
+        get=_get_enable_textures,
+        set=_set_enable_textures)
     enable_lightmaps: BoolProperty(name="Lightmaps", default=True,
         get=_get_enable_lightmaps,
         set=_set_enable_lightmaps)
@@ -1273,5 +1306,6 @@ class TOOLS_PT_thieftools_mission(Panel):
         layout = self.layout
         o = context.active_object
         mission_settings = o.tt_mission
+        layout.prop(mission_settings, 'enable_textures')
         layout.prop(mission_settings, 'enable_lightmaps')
         layout.prop(mission_settings, 'ambient_brightness')
