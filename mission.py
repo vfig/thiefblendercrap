@@ -1126,10 +1126,15 @@ class AtlasBuilder:
         # Build the atlas
         self.images = sorted(self.images, reverse=True)
         atlas_w, atlas_h = (1024, 1024)
+        quadrant_w, quadrant_h = (atlas_w//2, atlas_h//2)
+        quadrant_index = 0
+        # x, y are abs coords of the image placement cursor
         x = y = 0
+        # quadrant_x, quadrant_y are abs coords of the current quadrant
+        quadrant_x = quadrant_y = 0
         row_height = 0
         placements = [None]*len(self.images)
-        USE_DEBUG_COLORS = False
+        USE_DEBUG_COLORS = True
         debug_colors = [(r/255.0,g/255.0,b/255.0,1.0) for (r,g,b) in
             [(237,20,91), (246,142,86), (60,184,120), (166,124,82),
             (255,245,104), (109,207,246), (168,100,168), (194,194,194)] ]
@@ -1144,23 +1149,82 @@ class AtlasBuilder:
         # The placements are the (x,y,w,h) tuples of the anchor where the
         # corresponding image was placed.
         #
+
+        # 1. Small atlas
+        #     +-----+
+        #     |     |
+        #     |     |
+        #     +-----+
+
+        # 2. Expand it when needed:
+
+        #     +-----------+
+        #     ^           |
+        #     |  2     3  |
+        #     +.....+     |
+        #     |     .     |
+        #     |  0  .  1  |
+        #     +-----+---->+
+
+        #     "placement region" -> always the size of the previous atlas
+        #     "region cursor"    -> starts at "1" every time we expand
+
+        # 2. Expand again if needed:
+
+        #     +-----------------------+
+        #     |                       |
+        #     |                       |
+        #     |                       |
+        #     |                       |
+        #     |                       |
+        #     +-----------+           |
+        #     ^           |           |
+        #     |           |           |
+        #     + . . .     |           |
+        #     |     .     |           |
+        #     |     .     |           |
+        #     +-----+-----+---------->+
+
+
+        def next_placement(w,h):
+            nonlocal x,y,row_height
+            nonlocal quadrant_x,quadrant_y,quadrant_w,quadrant_h
+            nonlocal quadrant_index
+            if w>quadrant_w or h>quadrant_h:
+                raise ValueError(f"No space to fit image {handle} of {w}x{h}")
+            while True: # TODO: break if the atlas is now too big
+                # quadrant's right edge:
+                if (x+w)>(quadrant_x+quadrant_w):
+                    # Wrap the cursor to the next row up:
+                    x = quadrant_x
+                    y += row_height
+                    row_height = 0
+                if (y+h)>(quadrant_y+quadrant_h):
+                    # Wrap the cursor to the next quadrant across:
+                    quadrant_x += quadrant_w
+                    quadrant_index += 1
+                    x = quadrant_x
+                    y = quadrant_y
+                if quadrant_x>=atlas_w:
+                    # Wrap the cursor to the next quadrant above left:
+                    quadrant_x = 0
+                    quadrant_y += quadrant_h
+                    x = quadrant_x
+                    y = quadrant_y
+                if quadrant_y>=atlas_h:
+                    # TODO: grow the atlas
+                    raise ValueError(f"No space to fit image {handle} of {w}x{h}")
+                return x,y
+
         atlas_data = np.zeros((atlas_w,atlas_h,4), dtype=float)
         for image_index, (w, h, handle, image, rotated) in enumerate(self.images):
             # Find a place for the image.
-            if w>atlas_w:
-                raise ValueError(f"No space to fit image {handle} of {w}x{h}")
-            available_w = atlas_w-x
-            if w>available_w:
-                x = 0
-                y += row_height
-                row_height = 0
-            available_h = atlas_h-y
-            if h>available_h:
-                raise ValueError(f"No space to fit image {handle} of {w}x{h}")
+            x,y = next_placement(w,h)
             # Place and blit the image.
             placements[handle] = (x,y,w,h)
             if USE_DEBUG_COLORS:
-                source = colors[i%len(debug_colors)]
+                #source = debug_colors[i%len(debug_colors)]
+                source = debug_colors[quadrant_index%len(debug_colors)]
             else:
                 source = image
             atlas_data[ y:y+h, x:x+w ] = source
