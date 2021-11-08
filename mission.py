@@ -1101,6 +1101,18 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     #          [3, 3, 3],
     #          [4, 4, 4],
     #          [5, 5, 5]])
+
+    # expanding a square array to 2x width, 2x height:
+    # >>> np.block([[q2,q3],[q0,q1]])
+    # array([[222, 222, 222, 222, 333, 333, 333, 333],
+    #        [222, 222, 222, 222, 333, 333, 333, 333],
+    #        [222, 222, 222, 222, 333, 333, 333, 333],
+    #        [222, 222, 222, 222, 333, 333, 333, 333],
+    #        [  0,   0,   0,   0, 111, 111, 111, 111],
+    #        [  0,   0,   0,   0, 111, 111, 111, 111],
+    #        [  0,   0,   0,   0, 111, 111, 111, 111],
+    #        [  0,   0,   0,   0, 111, 111, 111, 111]])
+
 """
 
 class AtlasBuilder:
@@ -1125,8 +1137,8 @@ class AtlasBuilder:
     def finish(self):
         # Build the atlas
         self.images = sorted(self.images, reverse=True)
-        atlas_w, atlas_h = (1024, 1024)
-        quadrant_w, quadrant_h = (atlas_w//2, atlas_h//2)
+        atlas_w, atlas_h = (256, 256)
+        quadrant_w, quadrant_h = (atlas_w, atlas_h)
         quadrant_index = 0
         # x, y are abs coords of the image placement cursor
         x = y = 0
@@ -1134,12 +1146,11 @@ class AtlasBuilder:
         quadrant_x = quadrant_y = 0
         row_height = 0
         placements = [None]*len(self.images)
-        USE_DEBUG_COLORS = True
+        USE_DEBUG_COLORS = False
+        DEBUG_QUADRANTS = False
         debug_colors = [(r/255.0,g/255.0,b/255.0,1.0) for (r,g,b) in
             [(237,20,91), (246,142,86), (60,184,120), (166,124,82),
             (255,245,104), (109,207,246), (168,100,168), (194,194,194)] ]
-        # used_width is the amount of space used by placements in each scanline
-        # (from the bottom up).
         #
         # To fit the images into the atlas, we place it at the cursor, if it
         # will fit. If not, we reset the cursor to the left edge, and move it
@@ -1149,28 +1160,24 @@ class AtlasBuilder:
         # The placements are the (x,y,w,h) tuples of the anchor where the
         # corresponding image was placed.
         #
-
-        # 1. Small atlas
+        # 1. Start with a small atlas
         #     +-----+
         #     |     |
         #     |     |
         #     +-----+
-
+        #
         # 2. Expand it when needed:
-
+        #
         #     +-----------+
         #     ^           |
-        #     |  2     3  |
+        #     |           |
         #     +.....+     |
         #     |     .     |
-        #     |  0  .  1  |
+        #     |     .     |
         #     +-----+---->+
-
-        #     "placement region" -> always the size of the previous atlas
-        #     "region cursor"    -> starts at "1" every time we expand
-
+        #
         # 2. Expand again if needed:
-
+        #
         #     +-----------------------+
         #     |                       |
         #     |                       |
@@ -1185,11 +1192,10 @@ class AtlasBuilder:
         #     |     .     |           |
         #     +-----+-----+---------->+
 
+        atlas_data = np.zeros((atlas_w,atlas_h,4), dtype=float)
 
-        def next_placement(w,h):
-            nonlocal x,y,row_height
-            nonlocal quadrant_x,quadrant_y,quadrant_w,quadrant_h
-            nonlocal quadrant_index
+        for image_index, (w, h, handle, image, rotated) in enumerate(self.images):
+            # Find a place for the image.
             if w>quadrant_w or h>quadrant_h:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
             while True: # TODO: break if the atlas is now too big
@@ -1212,19 +1218,32 @@ class AtlasBuilder:
                     x = quadrant_x
                     y = quadrant_y
                 if quadrant_y>=atlas_h:
-                    # TODO: grow the atlas
-                    raise ValueError(f"No space to fit image {handle} of {w}x{h}")
-                return x,y
-
-        atlas_data = np.zeros((atlas_w,atlas_h,4), dtype=float)
-        for image_index, (w, h, handle, image, rotated) in enumerate(self.images):
-            # Find a place for the image.
-            x,y = next_placement(w,h)
+                    # Expand the atlas (and quadrant) size:
+                    quadrant_w = atlas_w
+                    quadrant_h = atlas_h
+                    atlas_w *= 2
+                    atlas_h *= 2
+                    quadrant_x = quadrant_w
+                    quadrant_y = 0
+                    x = quadrant_x
+                    y = quadrant_y
+                    if atlas_w>=4096 or atlas_h>=4096:
+                        raise ValueError(f"No space to fit image {handle} of {w}x{h} in 4k atlas")
+                    # Resize the array with three new blank quadrants:
+                    blank = np.zeros((quadrant_w,quadrant_h*4), dtype=float)
+                    old_data = atlas_data.reshape((quadrant_w,quadrant_h*4))
+                    new_data = np.block([[ old_data, blank ],
+                                         [ blank,    blank ]])
+                    atlas_data = new_data.reshape((atlas_w,atlas_h,4))
+                # We have a valid cursor position
+                break
             # Place and blit the image.
             placements[handle] = (x,y,w,h)
             if USE_DEBUG_COLORS:
-                #source = debug_colors[i%len(debug_colors)]
-                source = debug_colors[quadrant_index%len(debug_colors)]
+                if DEBUG_QUADRANTS:
+                    source = debug_colors[quadrant_index%len(debug_colors)]
+                else:
+                    source = debug_colors[i%len(debug_colors)]
             else:
                 source = image
             atlas_data[ y:y+h, x:x+w ] = source
