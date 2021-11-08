@@ -54,8 +54,8 @@ class TOOLS_PT_thieftools_debug(Panel):
         box = row.box()
         box.label(text="MISSION")
         row = box.row(align=True)
-        op = row.operator("object.tt_debug_import_mission", text="Import (debug)")
-        op.filename = "e:\\dev\\thief\\blender\\data\\miss1.mis"
+        op = row.operator("object.tt_import_mis", text="Import (debug)")
+        op.filepath = "e:\\dev\\thief\\blender\\data\\miss1.mis"
 
         row = layout.row(align=True)
         box = row.box()
@@ -96,13 +96,14 @@ def register():
     bpy.utils.register_class(brushes.TTDebugDeleteAllBrushesOperator)
     bpy.utils.register_class(mission.TTMissionSettings)
     bpy.utils.register_class(mission.TOOLS_PT_thieftools_mission)
-    bpy.utils.register_class(mission.TTDebugImportMissionOperator)
+    bpy.utils.register_class(mission.TTImportMISOperator)
     bpy.utils.register_class(mesh.TTDebugImportMeshOperator)
     bpy.utils.register_class(mesh.TTDebugExportMeshOperator)
     bpy.utils.register_class(TOOLS_PT_thieftools_debug)
     bpy.utils.register_class(mesh.TTAddArmatureOperator)
     bpy.utils.register_class(images.TTDebugImportGIFOperator)
     bpy.utils.register_class(images.TTDebugImportPCXOperator)
+    bpy.types.TOPBAR_MT_file_import.append(mission.menu_func_import)
     bpy.types.VIEW3D_MT_armature_add.append(thief_test_menu_func)
     bpy.types.Object.tt_mission = PointerProperty(type=mission.TTMissionSettings)
     print("thieftools: registered.");
@@ -111,6 +112,7 @@ def register():
 def unregister():
     del bpy.types.Object.tt_mission
     bpy.types.VIEW3D_MT_armature_add.remove(thief_test_menu_func)
+    bpy.types.TOPBAR_MT_file_import.append(mission.menu_func_import)
     bpy.utils.unregister_class(images.TTDebugImportPCXOperator)
     bpy.utils.unregister_class(images.TTDebugImportGIFOperator)
     bpy.utils.unregister_class(mesh.TTAddArmatureOperator)
@@ -119,7 +121,7 @@ def unregister():
     bpy.utils.unregister_class(mesh.TTDebugExportMeshOperator)
     bpy.utils.unregister_class(mission.TOOLS_PT_thieftools_mission)
     bpy.utils.unregister_class(mission.TTMissionSettings)
-    bpy.utils.unregister_class(mission.TTDebugImportMissionOperator)
+    bpy.utils.unregister_class(mission.TTImportMISOperator)
     bpy.utils.unregister_class(brushes.TTDebugDeleteAllBrushesOperator)
     bpy.utils.unregister_class(brushes.TTDebugBrushesToBooleansOperator)
     print("thieftools: unregistered.");

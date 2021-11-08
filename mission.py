@@ -9,6 +9,8 @@ import time
 from bpy.props import BoolProperty, FloatProperty, IntProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
 from bpy_extras.image_utils import load_image
+from bpy_extras.io_utils import ImportHelper
+from bpy_extras.wm_utils.progress_report import ProgressReport
 from collections import OrderedDict
 from dataclasses import dataclass
 from mathutils import Vector
@@ -339,59 +341,73 @@ class LGDBFile:
 def hex_str(bytestr):
     return " ".join(format(b, "02x") for b in bytestr)
 
-def do_mission(filename, context):
-    dirname, basename = os.path.split(filename)
+def import_mission(context, filepath):
+    dirname, basename = os.path.split(filepath)
     miss_name = os.path.splitext(basename)[0]
+    # TODO: make dumping an option?
     dump_filename = os.path.join(dirname, miss_name+'.dump')
     dumpf = open(dump_filename, 'w')
     #dumpf = sys.stdout
 
-    # Parse the .bin file
-    mis = LGDBFile(filename)
-    print(f"table_offset: {mis.header.table_offset}", file=dumpf)
-    print(f"version: {mis.header.version.major}.{mis.header.version.minor}", file=dumpf)
-    print(f"deadbeef: {mis.header.deadbeef!r}", file=dumpf)
-    print("Chunks:", file=dumpf)
-    for i, name in enumerate(mis):
-        print(f"  {i}: {name}", file=dumpf)
+    with ProgressReport(context.window_manager) as progress:
+        progress.enter_substeps(1, f"Importing .MIS {filepath!r}...")
+        # Parse the .bin file
+        mis = LGDBFile(filepath)
+        # TODO: make dumping an option!
+        print(f"table_offset: {mis.header.table_offset}", file=dumpf)
+        print(f"version: {mis.header.version.major}.{mis.header.version.minor}", file=dumpf)
+        print(f"deadbeef: {mis.header.deadbeef!r}", file=dumpf)
+        print("Chunks:", file=dumpf)
+        for i, name in enumerate(mis):
+            print(f"  {i}: {name}", file=dumpf)
 
-    start = time.process_time()
-    txlist = mis['TXLIST']
-    textures = do_txlist(txlist, context, dumpf)
-    textures_time = time.process_time()-start
+        start = time.process_time()
+        txlist = mis['TXLIST']
+        options={
+            'dump': False,
+            'dump_file': sys.stdout,
+            }
+        textures = do_txlist(txlist, context, progress=progress, **options)
+        textures_time = time.process_time()-start
 
-    start = time.process_time()
-    # TODO: WRRGB with t2? what about newdark 32-bit lighting?
-    worldrep = mis['WR']
-    obj = do_worldrep(worldrep, textures, context, name=miss_name, options={
-        'dump': False,
-        'dump_file': sys.stdout,
-        'cell_limit': 0,
-        })
-    worldrep_time = time.process_time()-start
+        start = time.process_time()
+        # TODO: WRRGB with t2? what about newdark 32-bit lighting?
+        worldrep = mis['WR']
+        options={
+            'dump': False,
+            'dump_file': sys.stdout,
+            'cell_limit': 0,
+            }
+        obj = do_worldrep(worldrep, textures, context, name=miss_name, progress=progress, **options)
+        worldrep_time = time.process_time()-start
+        progress.leave_substeps(f"Finished importing: {filepath!r}")
 
     print(f"Load textures: {textures_time:0.1f}s")
     print(f"Load worldrep: {worldrep_time:0.1f}s")
     return obj
 
-def do_txlist(chunk, context, dumpf):
+def do_txlist(chunk, context, progress=None,
+    dump=False, dump_file=None):
+    dumpf = dump_file or sys.stdout
+    assert progress is not None
     if (chunk.header.version.major, chunk.header.version.minor) \
     not in [(1, 0)]:
         raise ValueError("Only version 1.0 TXLIST chunk is supported")
     f = StructuredReader(buffer=chunk.data)
     header = f.read(LGTXLISTHeader)
-    print(f"TXLIST:", file=dumpf)
-    print(f"  length: {header.length}", file=dumpf)
     p_fams = f.read(LGTXLISTFam, count=header.fam_count)
-    print(f"  fam_count: {header.fam_count}", file=dumpf)
-    for i, fam in enumerate(p_fams):
-        name = ascii(fam.name)
-        print(f"    {i}: {name}", file=dumpf)
     p_texs = f.read(LGTXLISTTex, count=header.tex_count)
-    print(f"  tex_count: {header.tex_count}", file=dumpf)
-    for i, tex in enumerate(p_texs):
-        name = ascii(tex.name)
-        print(f"    {i}: fam {tex.fam_id}, {name}, flags_ 0x{tex.flags_:02x}, pad 0x{tex.pad:04x}", file=dumpf)
+    if dump:
+        print(f"TXLIST:", file=dumpf)
+        print(f"  length: {header.length}", file=dumpf)
+        print(f"  fam_count: {header.fam_count}", file=dumpf)
+        for i, fam in enumerate(p_fams):
+            name = ascii(fam.name)
+            print(f"    {i}: {name}", file=dumpf)
+        print(f"  tex_count: {header.tex_count}", file=dumpf)
+        for i, tex in enumerate(p_texs):
+            name = ascii(tex.name)
+            print(f"    {i}: fam {tex.fam_id}, {name}, flags_ 0x{tex.flags_:02x}, pad 0x{tex.pad:04x}", file=dumpf)
 
     # Load all the textures into Blender images (except poor Jorge, who always
     # gets left out):
@@ -406,7 +422,8 @@ def do_txlist(chunk, context, dumpf):
         image = bpy.data.images.get(image_name, None)
         if image: return image
         # Find the candidate files (all matching types in all search paths)
-        print(f"Searching for fam/{fam_name}/{tex_name}...")
+        if dump:
+            print(f"Searching for fam/{fam_name}/{tex_name}...", file=dumpf)
         candidates = [] # (sort_key, full_path) tuples
         for path in tex_search_paths:
             fam_path = os.path.join(path, fam_name)
@@ -415,21 +432,26 @@ def do_txlist(chunk, context, dumpf):
                     lang_path = os.path.join(fam_path, lang)
                     if os.path.isdir(lang_path):
                         fam_path = lang_path
-                print(f"  in path: {fam_path}")
+                    else:
+                        continue
+                if dump:
+                    print(f"  in path: {fam_path}", file=dumpf)
                 for entry in os.scandir(fam_path):
                     if not entry.is_file(): continue
                     name, ext = os.path.splitext(entry.name.lower())
                     if name != tex_name: continue
                     sort_key = ext_sort_order.get(ext, None)
                     if sort_key is None: continue
-                    print(f"    Candidate: {entry.name}")
+                    if dump:
+                        print(f"    Candidate: {entry.name}", file=dumpf)
                     candidates.append((sort_key, entry.path))
         if not candidates:
             raise ValueError(f"Cannot find texture {fam_name}/{tex_name}")
         candidates.sort()
         filename = candidates[0][1]
         # Load the winning file
-        print(f"Loading: {filename}...")
+        if dump:
+            print(f"Loading: {filename}...", file=dumpf)
         ext = os.path.splitext(filename.lower())[1]
         if ext in ('.png', '.tga', '.bmp'):
             image = bpy.data.images.load(filename)
@@ -442,16 +464,21 @@ def do_txlist(chunk, context, dumpf):
         image.name = image_name
         return image
 
+    tex_count = len(p_texs)
+    progress.enter_substeps(tex_count, "Loading textures...")
     textures = []
     for i, tex in enumerate(p_texs):
         if tex.fam_id==0:
             textures.append(None) # TODO: Jorge, is that you?
+            progress.step()
         else:
             fam = p_fams[tex.fam_id-1]
             fam_name = ascii(fam.name)
             tex_name = ascii(tex.name)
+            progress.step(f"Loading fam/{fam_name}/{tex_name}")
             image = load_tex(fam_name, tex_name)
             textures.append(image)
+    progress.leave_substeps(f"{tex_count} textures loaded.")
     return textures
 
 def create_settings_node_group(obj, base_name):
@@ -677,15 +704,11 @@ def poly_calculate_uvs(cell, pi, texture_size):
             lm_uv_list.append((lm_u,lm_v))
     return (tx_uv_list, lm_uv_list)
 
-def do_worldrep(chunk, textures, context, name="mission", options=None):
-    default_options = {
-        'dump': False,
-        'dump_file': sys.stdout,
-        'cell_limit': 0,
-        }
-    options = {**default_options, **(options or {})}
-    DUMP = options['dump']
-    dumpf = options['dump_file']
+def do_worldrep(chunk, textures, context, name="mission", progress=None,
+    dump=False, dump_file=None, cell_limit=0):
+    dumpf = dump_file or sys.stdout
+    assert (progress is not None)
+    progress.enter_substeps(5, "Loading worldrep...")
 
     if (chunk.header.version.major, chunk.header.version.minor) \
     not in [(0, 23), (0, 24)]:
@@ -693,7 +716,7 @@ def do_worldrep(chunk, textures, context, name="mission", options=None):
     f = StructuredReader(buffer=chunk.data)
     header = f.read(LGWRHeader)
 
-    if DUMP:
+    if dump:
         print(f"WR chunk:", file=dumpf)
         print(f"  version: {chunk.header.version.major}.{chunk.header.version.minor}", file=dumpf)
         print(f"  size: {header.data_size}", file=dumpf)
@@ -728,17 +751,21 @@ def do_worldrep(chunk, textures, context, name="mission", options=None):
     #       for each poly, and the combined result will be ready for export
     #       as a single model, without the blender baking shenanigans? dunno.
 
+    progress.step("Loading cells...")
+    cell_progress_step_size = 100
+    cell_progress_step_count = (header.cell_count//cell_progress_step_size)+1
+    progress.enter_substeps(cell_progress_step_count)
     cells = np.zeros(header.cell_count, dtype=object)
     for cell_index in range(header.cell_count):
         try:
+            if cell_index%cell_progress_step_size==0: progress.step()
             cells[cell_index] = LGWRCell.read(f, cell_index)
         except:
             print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}...", file=sys.stderr)
             raise
 
-    if DUMP:
-        limit = options['cell_limit']
-        cells_to_dump = cells[:limit] if limit else cells
+    if dump:
+        cells_to_dump = cells[:cell_limit] if cell_limit else cells
         for cell_index, cell in enumerate(cells_to_dump):
             print(f"  Cell {cell_index}:", file=dumpf)
             print(f"    num_vertices: {cell.header.num_vertices}", file=dumpf)
@@ -794,7 +821,9 @@ def do_worldrep(chunk, textures, context, name="mission", options=None):
                 print(f"        anim_light_bitmask: 0x{info.anim_light_bitmask:08x}", file=dumpf)
             print(f"    num_light_indices: {cell.num_light_indices}", file=dumpf)
             print(f"    p_light_indices: {cell.p_light_indices.size}", file=dumpf)
+    progress.leave_substeps()
 
+    progress.step("Building geometry...")
     # We need to build up a single mesh. We need:
     #
     # - Vertex positions: (float, float, float)
@@ -854,9 +883,12 @@ def do_worldrep(chunk, textures, context, name="mission", options=None):
 
     atlas_builder = AtlasBuilder()
     vert_ptr = idx_ptr = face_ptr = 0
-    limit = options['cell_limit']
-    cells_to_build = cells[:limit] if limit else cells
+    cells_to_build = cells[:cell_limit] if cell_limit else cells
+    cell_progress_step_size = 100
+    cell_progress_step_count = (len(cells_to_build)//cell_progress_step_size)+1
+    progress.enter_substeps(cell_progress_step_count)
     for cell_index, cell in enumerate(cells_to_build):
+        if cell_index%cell_progress_step_size==0: progress.step()
         # Add the vertices from this cell.
         cell_vert_start = vert_ptr
         end = cell_vert_start+len(cell.p_vertices)
@@ -902,10 +934,15 @@ def do_worldrep(chunk, textures, context, name="mission", options=None):
     vert_total = vert_ptr
     idx_total = idx_ptr
     face_total = face_ptr
+    progress.leave_substeps()
+
     # Build the lightmap
+    progress.step("Building lightmap atlas...")
     atlas_builder.finish()
     lightmap_image = atlas_builder.image
+
     # Create the mesh geometry.
+    progress.step("Creating mesh...")
     mesh = bpy.data.meshes.new(name=f"{name} mesh")
     obj = create_object(name, mesh, (0,0,0), context=context, link=True)
     obj.tt_mission.is_mission = True
@@ -960,7 +997,9 @@ def do_worldrep(chunk, textures, context, name="mission", options=None):
         v = scale[1]*v+translate[1]
         lightmap_atlas_uvs[i] = (u, v)
     lightmap_uv_layer.data.foreach_set('uv', lightmap_atlas_uvs[:idx_total].reshape(-1))
+
     # Create the materials.
+    progress.step("Creating materials and shaders...")
     settings_group = create_settings_node_group(obj, name)
     mat_jorge = create_texture_material('JORGE', None, None, settings_group)
     mat_sky = create_texture_material('SKY_HACK', None, None, settings_group)
@@ -979,6 +1018,8 @@ def do_worldrep(chunk, textures, context, name="mission", options=None):
             else:
                 mat = create_texture_material(im.name, im, lightmap_image, settings_group)
         mesh.materials.append(mat)
+
+    progress.leave_substeps("Done")
     return obj
 
 """
@@ -1346,33 +1387,38 @@ class TTMissionSettings(PropertyGroup):
 #---------------------------------------------------------------------------#
 # Operators
 
-class TTDebugImportMissionOperator(Operator):
-    bl_idname = "object.tt_debug_import_mission"
-    bl_label = "Import mission"
+class TTImportMISOperator(Operator, ImportHelper):
+    bl_idname = "object.tt_import_mis"
+    bl_label = "Import .MIS"
     bl_options = {'REGISTER'}
 
     filename : StringProperty()
 
+    filter_glob: StringProperty(
+            default="*.mis;*.cow;*.vbr",
+            options={'HIDDEN'},
+            )
+
     def execute(self, context):
-        if context.mode != "OBJECT":
-            self.report({'WARNING'}, f"{self.bl_label}: must be in Object mode.")
-            return {'CANCELLED'}
-
         bpy.ops.object.select_all(action='DESELECT')
-
-        print(f"filename: {self.filename}")
-
         PROFILE = False
         if PROFILE:
             import cProfile
-            cProfile.runctx("do_mission(self.filename, context)",
-                globals(), locals(), "e:/temp/do_mission.prof")
+            o = None
+            cProfile.runctx("o = import_mission(context, self.filepath)",
+                globals(), locals(), "e:/temp/import_mission.prof")
+            o.select_set(True)
         else:
-            o = do_mission(self.filename, context)
+            o = import_mission(context, self.filepath)
             context.view_layer.objects.active = o
             o.select_set(True)
-
         return {'FINISHED'}
+
+#---------------------------------------------------------------------------#
+# Menus
+
+def menu_func_import(self, context):
+    self.layout.operator(TTImportMISOperator.bl_idname, text="Thief: Mission (.mis)")
 
 #---------------------------------------------------------------------------#
 # Panels
