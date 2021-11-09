@@ -215,22 +215,6 @@ LGWRLightmapEntry = uint16
 LGWRRGBLightmapEntry = uint32
 
 class LGWRCell:
-    # # Note: this is _not_ a Struct subclass, because its array sizes are
-    # #       dynamic based on its other field values. So these type hints
-    # #       exist only for your benefit.
-    # header: LGWRCellHeader
-    # p_vertices: Sequence[LGVector]
-    # p_polys: Sequence[LGWRPoly]
-    # p_render_polys: Sequence[LGWRRenderPoly]
-    # vertex_offset: uint32
-    # p_vertex_list: Sequence[uint8]
-    # p_plane_list: Sequence[LGWRPlane]
-    # p_anim_lights: Sequence[uint16]
-    # p_light_list: Sequence[LGWRLightMapInfo]
-    # lightmaps: Sequence # of numpy arrays (lightmap_count, height, width, rgba floats)
-    # num_light_indices: int32
-    # p_light_indices: Sequence[uint16]
-
     @classmethod
     def read(cls, reader, cell_index):
         f = reader
@@ -1022,99 +1006,6 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     progress.leave_substeps("Done")
     return obj
 
-"""
-    # blitting (y, x; remember y is bottom up in blender, which is fine)
-    atlas = bpy.data.images.new(name='Atlas', width=256, height=256, alpha=False, float_buffer=False)
-    px0 = np.array(im0.pixels)
-    px1 = np.array(im1.pixels)
-    pxa = np.array(atlas.pixels)
-    px0.shape = (64,64,4)
-    px1.shape = (64,64,4)
-    pxa.shape = (256,256,4)
-    pxa[ 0:64, 0:64, : ] = px0
-    pxa[ 0:64, 64:128, : ] = px1
-    atlas.pixels = pxa.reshape((-1,))
-    # equivalent to: pxa.flatten(), but i think .flatten() always copies?
-
-    # reading raw rgb bytes into an array
-    raw = open('e:/temp/rails.raw', 'rb').read()
-    rgb = np.frombuffer(raw, dtype=np.uint8) # can take count, offset kw
-    rgb.shape = (256,256,3)
-    # rgb[0][0] is: array([158, 151, 141], dtype=uint8)
-
-    # expanding to rgba
-    rgba = np.insert(rgb, 3, 255, axis=2)
-    # rgba.shape is: (256, 256, 4)
-    # rgba[0][0] is: array([158, 151, 141, 255], dtype=uint8)
-
-    # expanding paletted data to rgb(a):
-    # here using rgb ega half-palette with uint8, but this could be rgba floats
-    pal = np.array([[0,0,0],[0,0,128],[0,128,0],[0,128,128],[128,0,0],[128,0,128],[128,64,0],[128,128,128]], dtype='uint8')
-    # paletted 2x11 image:
-    imp = np.array([
-        [0,1,2,3,4,5,4,3,2,1,0],
-        [7,6,5,4,3,2,3,4,5,6,7]], dtype='uint8')
-    # imp.shape is: (2, 11)
-    rgb = pal[imp]
-    # rgb.shape is: (2, 11, 3)
-    # rgb is:
-    #     array([[[  0,   0,   0],
-    #             [  0,   0, 128],
-    #             [  0, 128,   0],
-    #             [  0, 128, 128],
-    #             [128,   0,   0],
-    #             [128,   0, 128],
-    #             [128,   0,   0],
-    #             [  0, 128, 128],
-    #             [  0, 128,   0],
-    #             [  0,   0, 128],
-    #             [  0,   0,   0]],
-    #
-    #            [[128, 128, 128],
-    #             [128,  64,   0],
-    #             [128,   0, 128],
-    #             [128,   0,   0],
-    #             [  0, 128, 128],
-    #             [  0, 128,   0],
-    #             [  0, 128, 128],
-    #             [128,   0,   0],
-    #             [128,   0, 128],
-    #             [128,  64,   0],
-    #             [128, 128, 128]]], dtype=uint8)
-
-    # for 16-bit 1555 rgb -> 24-bit 888 rgb, probably check out:
-    # np.bitwise_and() and np.right_shift()
-
-    # repeating greyscale data into rgb channels:
-    a = np.array([1, 2, 3, 4, 5])
-    a.shape = (-1, 1)
-    # a is:
-    #   array([[1],
-    #          [2],
-    #          [3],
-    #          [4],
-    #          [5]])
-    b = np.repeat(a, repeats=3, axis=1)
-    # b is:
-    #   array([[1, 1, 1],
-    #          [2, 2, 2],
-    #          [3, 3, 3],
-    #          [4, 4, 4],
-    #          [5, 5, 5]])
-
-    # expanding a square array to 2x width, 2x height:
-    # >>> np.block([[q2,q3],[q0,q1]])
-    # array([[222, 222, 222, 222, 333, 333, 333, 333],
-    #        [222, 222, 222, 222, 333, 333, 333, 333],
-    #        [222, 222, 222, 222, 333, 333, 333, 333],
-    #        [222, 222, 222, 222, 333, 333, 333, 333],
-    #        [  0,   0,   0,   0, 111, 111, 111, 111],
-    #        [  0,   0,   0,   0, 111, 111, 111, 111],
-    #        [  0,   0,   0,   0, 111, 111, 111, 111],
-    #        [  0,   0,   0,   0, 111, 111, 111, 111]])
-
-"""
-
 class AtlasBuilder:
     def __init__(self):
         self.images = []
@@ -1265,60 +1156,8 @@ class AtlasBuilder:
         atlas_w,atlas_h = self.image.size
         return ( (w/atlas_w, h/atlas_h), (x/atlas_w, y/atlas_h) )
 
-@dataclass
-class TerrainDef:
-    tex_id: int
-
-@dataclass
-class LightmapDef:
-    buffer: bytes   # Typically a memoryview slice.
-    #format: LM_WHITE8, LM_RGB555, LM_RGB888
-
-@dataclass
-class BuiltMaterial:
-    mat_index: int
-    uv_offset: Tuple[float, float]
-    uv_scale: Tuple[float, float]
-
-class MaterialBuilder:
-    """
-    Give textures and lightmaps to me, and I will give you a handle. Once
-    building is complete, you can then exchange that handle for a material
-    index and a UV offset/scale transform.
-    """
-    # TODO: how do we deal with animlights?
-    # TODO: how do we pass in terrain texture info? names/filenames/images/data
-    # TODO: how do we pass in options (bake together / not)?
-    # TODO: how do we handle Jorge and SKY_HACK?
-
-    def __init__(self):
-        self.open = True
-        # Handles are indices into these lists:
-        self.terrain_defs = [] # one per handle
-        self.lightmap_defs = [] # one per handle
-        self.terrain_bms = [] # one per handle
-        self.lightmap_bms = [] # one per handle
-
-    def add_poly_materials(terrain_def, lightmap_def):
-        assert self.open, "Cannot add to MaterialBuilder after close()"
-        handle = len(self.terrain_defs)
-        self.terrain_defs.append(terrain_def)
-        self.lightmap_defs.append(lightmap_def)
-        self.terrain_bms.append(BuiltMaterial(0, (0.0,0.0), (1.0,1.0)))
-        self.lightmap_bms.append(BuiltMaterial(0, (0.0,0.0), (1.0,1.0)))
-        return handle
-
-    def close():
-        assert self.open, "Cannot close MaterialBuilder after close()"
-        self.open = False
-        # TODO: atlas lightmaps, load terrain textures, and so on
-        ...
-
-    def get_terrain_material(handle) -> BuiltMaterial:
-        return self.terrain_bms[handle]
-
-    def get_lightmap_material(handle) -> BuiltMaterial:
-        return self.lightmap_bms[handle]
+#---------------------------------------------------------------------------#
+# Post-import utilities
 
 def get_texture_interpolation(obj):
     # The first material with a texture node determines what we consider the
@@ -1403,7 +1242,6 @@ def set_lightmap_interpolation(obj, interpolation):
         node = mat.node_tree.nodes.get('LightmapTexture')
         if node is None: continue
         node.interpolation = interpolation
-
 
 #---------------------------------------------------------------------------#
 # Properties
