@@ -203,20 +203,20 @@ class LGWRPlane:
 class LGWRLightMapInfo:
     u_base: int16
     v_base: int16
-    byte_width: int16
+    padded_width: int16
     height: uint8
     width: uint8
     data_ptr: uint32            # Always zero on disk
     dynamic_light_ptr: uint32   # Always zero on disk
     anim_light_bitmask: uint32
 
-# TODO: am i even using these right now?
-LGWRLightmapEntry = uint16
-LGWRRGBLightmapEntry = uint32
+# WR lightmap data is uint8; WRRGB is uint16 (xB5G5R5)
+LGWRLightmap8Bit = uint8
+LGWRRGBLightmap16Bit = uint16
 
 class LGWRCell:
     @classmethod
-    def read(cls, reader, cell_index):
+    def read(cls, reader, cell_index, lightmap_format):
         f = reader
         cell = cls()
         cell.header = f.read(LGWRCellHeader)
@@ -229,21 +229,36 @@ class LGWRCell:
         cell.p_anim_lights = f.read(uint16, count=cell.header.num_anim_lights)
         cell.p_light_list = f.read(LGWRLightMapInfo, count=cell.header.num_render_polys)
         cell.lightmaps = []
+        entry_type = np.dtype(lightmap_format)
         for info in cell.p_light_list:
-            # WR lightmap data is uint8; WRRGB is uint16 (xR5G5B5)
-            entry_type = np.dtype(uint8)
             width = info.width
             height = info.height
             count = 1+bit_count(info.anim_light_bitmask) # 1 base lightmap, plus 1 per animlight
-            assert info.byte_width==(info.width*entry_type.itemsize), "lightmap byte_width is wrong!"
-            w = f.read(entry_type, count=count*height*width)
+            assert info.padded_width==info.width, f"lightmap padded_width {padded_width} is not the same as width {width}!"
+            raw = f.read(entry_type, count=count*height*width)
             # Expand the lightmap into rgba floats
-            w.shape = (count, height, width, 1)
-            w = np.flip(w, axis=1)
-            wf = np.array(w, dtype=float)/255.0
-            rgbf = np.repeat(wf, repeats=3, axis=3)
-            rgbaf = np.insert(rgbf, 3, 1.0, axis=3)
-            # TODO: unify the lightmap data types
+            if lightmap_format is LGWRLightmap8Bit:
+                raw.shape = (count, height, width, 1)
+                raw = np.flip(raw, axis=1)
+                wf = np.array(raw, dtype=float)/255.0
+                rgbf = np.repeat(wf, repeats=3, axis=3)
+                rgbaf = np.insert(rgbf, 3, 1.0, axis=3)
+            elif lightmap_format is LGWRRGBLightmap16Bit:
+                raw.shape = -1
+                r = np.bitwise_and(raw, 0x1f)
+                g = np.bitwise_and(np.right_shift(raw, 5), 0x1f)
+                b = np.bitwise_and(np.right_shift(raw, 10), 0x1f)
+                rgbaf = np.ones((len(raw),4), dtype=np.float32)
+                rgbaf[:,0] = r
+                rgbaf[:,1] = g
+                rgbaf[:,2] = b
+                rgbaf.shape = (-1, 4)
+                div = np.array([32.0,32.0,32.0,1.0], dtype=np.float32)
+                rgbaf = rgbaf/div
+                rgbaf.shape = (count, height, width, 4)
+                rgbaf = np.flip(rgbaf, axis=1)
+            else:
+                raise ValueError("Unsupported lightmap_format")
             cell.lightmaps.append(rgbaf)
         cell.num_light_indices = f.read(int32)
         cell.p_light_indices = f.read(uint16, count=cell.num_light_indices)
@@ -270,6 +285,10 @@ class LGDBChunk:
         f.seek(offset)
         self.header = f.read(LGDBChunkHeader)
         self.data = f.read(uint8, count=data_size)
+
+    @property
+    def name(self):
+        return ascii(self.header.name)
 
 class LGDBFile:
     def __init__(self, filename='', data=None):
@@ -299,7 +318,7 @@ class LGDBFile:
     def __getitem__(self, name):
         entry = self.toc[name]
         chunk = LGDBChunk(self.reader, entry.offset, entry.data_size)
-        if ascii(chunk.header.name) != name:
+        if chunk.name != name:
             raise ValueError(f"{name} chunk name is invalid")
         return chunk
 
@@ -349,17 +368,22 @@ def import_mission(context, filepath):
         txlist = mis['TXLIST']
         options={
             'dump': False,
-            'dump_file': sys.stdout,
+            'dump_file': dumpf,
             }
         textures = do_txlist(txlist, context, progress=progress, **options)
         textures_time = time.process_time()-start
 
         start = time.process_time()
-        # TODO: WRRGB with t2? what about newdark 32-bit lighting?
-        worldrep = mis['WR']
+        if 'WR' in mis:
+            worldrep = mis['WR']
+        elif 'WRRGB' in mis:
+            worldrep = mis['WRRGB']
+        else:
+            # TODO: what about newdark 32-bit lighting?
+            raise ValueError(f"No WR or WRRGB worldrep chunk in {basename}.")
         options={
             'dump': False,
-            'dump_file': sys.stdout,
+            'dump_file': dumpf,
             'cell_limit': 0,
             }
         obj = do_worldrep(worldrep, textures, context, name=miss_name, progress=progress, **options)
@@ -395,7 +419,7 @@ def do_txlist(chunk, context, progress=None,
 
     # Load all the textures into Blender images (except poor Jorge, who always
     # gets left out):
-    tex_search_paths = ['e:/dev/thief/TG1.26/__unpacked/res/fam']
+    tex_search_paths = ['e:/dev/thief/TMA1.27/__unpacked/res/fam']
     tex_extensions = ['.dds', '.png', '.tga', '.bmp', '.pcx', '.gif', '.cel']
     ext_sort_order = {ext: i for (i, ext) in enumerate(tex_extensions)}
     def load_tex(fam_name, tex_name):
@@ -694,14 +718,23 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     assert (progress is not None)
     progress.enter_substeps(5, "Loading worldrep...")
 
-    if (chunk.header.version.major, chunk.header.version.minor) \
-    not in [(0, 23), (0, 24)]:
-        raise ValueError("Only version 0.23 and 0.24 WR chunk is supported")
+    if chunk.name=='WR':
+        if (chunk.header.version.major, chunk.header.version.minor) \
+        not in [(0, 23)]:
+            raise ValueError("Only version 0.23 WR chunk is supported")
+        lightmap_format = LGWRLightmap8Bit
+    elif chunk.name=='WRRGB':
+        if (chunk.header.version.major, chunk.header.version.minor) \
+        not in [(0, 24)]:
+            raise ValueError("Only version 0.24 WR chunk is supported")
+        lightmap_format = LGWRRGBLightmap16Bit
+    else:
+        raise ValueError(f"Unsupported worldrep chunk {chunk.name}")
+
     f = StructuredReader(buffer=chunk.data)
     header = f.read(LGWRHeader)
-
     if dump:
-        print(f"WR chunk:", file=dumpf)
+        print(f"{chunk.name} chunk:", file=dumpf)
         print(f"  version: {chunk.header.version.major}.{chunk.header.version.minor}", file=dumpf)
         print(f"  size: {header.data_size}", file=dumpf)
         print(f"  cell_count: {header.cell_count}", file=dumpf)
@@ -743,7 +776,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     for cell_index in range(header.cell_count):
         try:
             if cell_index%cell_progress_step_size==0: progress.step()
-            cells[cell_index] = LGWRCell.read(f, cell_index)
+            cells[cell_index] = LGWRCell.read(f, cell_index, lightmap_format)
         except:
             print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}...", file=sys.stderr)
             raise
@@ -799,7 +832,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
                 print(f"      lightmapinfo {i}:", file=dumpf)
                 print(f"        u_base: {info.u_base} (0x{info.u_base:04x})", file=dumpf)
                 print(f"        v_base: {info.v_base} (0x{info.v_base:04x})", file=dumpf)
-                print(f"        byte_width: {info.byte_width}", file=dumpf)
+                print(f"        padded_width: {info.padded_width}", file=dumpf)
                 print(f"        height: {info.height}", file=dumpf)
                 print(f"        width: {info.width}", file=dumpf)
                 print(f"        anim_light_bitmask: 0x{info.anim_light_bitmask:08x}", file=dumpf)
