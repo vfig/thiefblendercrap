@@ -1067,6 +1067,7 @@ class AtlasBuilder:
         overflow = 0
         row_height = 0
         placements = [None]*len(self.images)
+        texels_used = 0
         DUMP = False
         CONTINUE_ON_OVERFLOW = False
         USE_DEBUG_COLORS = False
@@ -1168,6 +1169,9 @@ class AtlasBuilder:
                     if DUMP: print(f"Cursor quadrant-wrapped up-left to {x},{y}", file=dumpf)
                 if quadrant_y>=atlas_h:
                     # Expand the atlas (and quadrant) size:
+                    total_texels = atlas_w*atlas_h
+                    percent_used = (texels_used/total_texels)*100.0
+                    if DUMP: print(f"Space used: {percent_used:0.1f}% of {atlas_w}x{atlas_h}", file=dumpf)
                     quadrant_w = atlas_w
                     quadrant_h = atlas_h
                     atlas_w *= 2
@@ -1213,11 +1217,18 @@ class AtlasBuilder:
                 source = image
             if not overflow:
                 atlas_data[ y:y+h, x:x+w ] = source
+                # w and h are uint8, so we need to promote them before
+                # multiplying:
+                texels_used += (int(w)*int(h))
             # Move the cursor along.
             x += w
             row_height = max(row_height, h)
 
+        total_texels = atlas_w*atlas_h
+        percent_used = (texels_used/total_texels)*100.0
+        if DUMP: print(f"Total space used: {percent_used:0.1f}% of {atlas_w}x{atlas_h}", file=dumpf)
         if DUMP: dumpf.close()
+        print(f"Atlas space used: {percent_used:0.1f}% of {atlas_w}x{atlas_h}")
 
         # Create the atlas image.
         atlas_image = bpy.data.images.new(name="Atlas", width=atlas_w, height=atlas_h)
