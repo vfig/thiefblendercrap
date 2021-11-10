@@ -1067,11 +1067,12 @@ class AtlasBuilder:
         overflow = 0
         row_height = 0
         placements = [None]*len(self.images)
-        texels_used = 0
+        texels_filled = 0
         DUMP = False
         CONTINUE_ON_OVERFLOW = False
-        USE_DEBUG_COLORS = False
-        DEBUG_QUADRANTS = False
+        DEBUG_COLOR_LIGHTMAPS = False
+        DEBUG_COLOR_QUADRANTS = False
+        DEBUG_COLOR_BACKGROUND = False
         debug_colors = [(r/255.0,g/255.0,b/255.0,1.0) for (r,g,b) in
             [(237,20,91), (246,142,86), (60,184,120), (166,124,82),
             (255,245,104), (109,207,246), (168,100,168), (194,194,194)] ]
@@ -1117,6 +1118,8 @@ class AtlasBuilder:
         #     +-----+-----+---------->+
 
         atlas_data = np.zeros((atlas_w,atlas_h,4), dtype=float)
+        if DEBUG_COLOR_BACKGROUND:
+            atlas_data[:,:] = debug_colors[quadrant_index%len(debug_colors)]
 
         if CONTINUE_ON_OVERFLOW:
             # Start with a debug color at 0,0, for atlas overflows
@@ -1130,7 +1133,7 @@ class AtlasBuilder:
             dumpf = open('e:/dev/thief/blender/thieftools/atlas.dump', 'w')
             print(f"Placing {len(self.images)} images...", file=dumpf)
 
-        # We get much better packing, even without rotationg, if we sort
+        # We get much better packing, even without rotation, if we sort
         # by height first.
         def by_height(entry): return entry[1]
         self.images.sort(key=by_height, reverse=True)
@@ -1169,9 +1172,6 @@ class AtlasBuilder:
                     if DUMP: print(f"Cursor quadrant-wrapped up-left to {x},{y}", file=dumpf)
                 if quadrant_y>=atlas_h:
                     # Expand the atlas (and quadrant) size:
-                    total_texels = atlas_w*atlas_h
-                    percent_used = (texels_used/total_texels)*100.0
-                    if DUMP: print(f"Space used: {percent_used:0.1f}% of {atlas_w}x{atlas_h}", file=dumpf)
                     quadrant_w = atlas_w
                     quadrant_h = atlas_h
                     atlas_w *= 2
@@ -1199,6 +1199,10 @@ class AtlasBuilder:
                             raise ValueError(f"No space to fit image {handle} of {w}x{h} in 4k atlas")
                     # Resize the array with three new blank quadrants:
                     blank = np.zeros((quadrant_w,quadrant_h*4), dtype=float)
+                    if DEBUG_COLOR_BACKGROUND:
+                        blank.shape = (quadrant_w,quadrant_h,4)
+                        blank[:,:] = debug_colors[quadrant_index%len(debug_colors)]
+                        blank.shape = (quadrant_w,quadrant_h*4)
                     old_data = atlas_data.reshape((quadrant_w,quadrant_h*4))
                     new_data = np.block([[ old_data, blank ],
                                          [ blank,    blank ]])
@@ -1208,27 +1212,33 @@ class AtlasBuilder:
             # Place and blit the image.
             if DUMP: print(f"{image_index} (handle handle): {x},{y} - {w}x{h}", file=dumpf)
             placements[handle] = (x,y,w,h)
-            if USE_DEBUG_COLORS:
-                if DEBUG_QUADRANTS:
-                    source = debug_colors[quadrant_index%len(debug_colors)]
-                else:
-                    source = debug_colors[image_index%len(debug_colors)]
+            if DEBUG_COLOR_LIGHTMAPS:
+                source = debug_colors[image_index%len(debug_colors)]
+            elif DEBUG_COLOR_QUADRANTS:
+                source = debug_colors[quadrant_index%len(debug_colors)]
             else:
                 source = image
             if not overflow:
                 atlas_data[ y:y+h, x:x+w ] = source
                 # w and h are uint8, so we need to promote them before
                 # multiplying:
-                texels_used += (int(w)*int(h))
+                texels_filled += (int(w)*int(h))
             # Move the cursor along.
             x += w
             row_height = max(row_height, h)
 
-        total_texels = atlas_w*atlas_h
-        percent_used = (texels_used/total_texels)*100.0
-        if DUMP: print(f"Total space used: {percent_used:0.1f}% of {atlas_w}x{atlas_h}", file=dumpf)
+        # Calculate how much space is available--not in the entire atlas,
+        # but in the area of the atlas walked by the cursor so far:
+        available_texels = (
+            quadrant_y*2*quadrant_w                 # quadrants below
+            + quadrant_x*quadrant_h                 # quadrant to the left
+            + (y+row_height-quadrant_y)*quadrant_w  # portion of current quadrant
+            )
+        efficiency = (texels_filled/available_texels)*100.0
+        percent_filled = (texels_filled/(atlas_w*atlas_h))*100.0
+        if DUMP: print(f"Atlas efficiency: {efficiency:0.1f}% (atlas space filled: {percent_filled:0.1f}% of {atlas_w}x{atlas_h})", file=dumpf)
         if DUMP: dumpf.close()
-        print(f"Atlas space used: {percent_used:0.1f}% of {atlas_w}x{atlas_h}")
+        print(f"Atlas efficiency: {efficiency:0.1f}% (atlas space filled: {percent_filled:0.1f}% of {atlas_w}x{atlas_h})")
 
         # Create the atlas image.
         atlas_image = bpy.data.images.new(name="Atlas", width=atlas_w, height=atlas_h)

@@ -8,7 +8,3 @@ load textures from crf
 pack .gif/.pcx images
 support .vbr, .cow
 paths for resources
-
-t2: miss4/10/11/14 runs out of atlas space
-
-lm packing is wasting tons of space now (see miss7 for example)
