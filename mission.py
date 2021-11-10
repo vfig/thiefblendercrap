@@ -1062,14 +1062,18 @@ class AtlasBuilder:
         # Build the atlas
         self.images = sorted(self.images, reverse=True)
         atlas_w, atlas_h = (256, 256)
+        atlas_max_w, atlas_max_h = (4096, 4096)
         quadrant_w, quadrant_h = (atlas_w, atlas_h)
         quadrant_index = 0
         # x, y are abs coords of the image placement cursor
         x = y = 0
         # quadrant_x, quadrant_y are abs coords of the current quadrant
         quadrant_x = quadrant_y = 0
+        overflow = 0
         row_height = 0
         placements = [None]*len(self.images)
+        DUMP = False
+        CONTINUE_ON_OVERFLOW = False
         USE_DEBUG_COLORS = False
         DEBUG_QUADRANTS = False
         debug_colors = [(r/255.0,g/255.0,b/255.0,1.0) for (r,g,b) in
@@ -1118,29 +1122,49 @@ class AtlasBuilder:
 
         atlas_data = np.zeros((atlas_w,atlas_h,4), dtype=float)
 
+        if CONTINUE_ON_OVERFLOW:
+            # Start with a debug color at 0,0, for atlas overflows
+            x,y,w,h = 0,0,16,16
+            atlas_data[ y:y+h, x:x+w ] = debug_colors[2]
+            x,y = 16,0
+            row_height = 16
+            overflow = False
+
+        if DUMP:
+            dumpf = open('e:/dev/thief/blender/thieftools/atlas.dump', 'w')
+            print(f"Placing {len(self.images)} images...", file=dumpf)
         for image_index, (w, h, handle, image, rotated) in enumerate(self.images):
             # Find a place for the image.
             if w>quadrant_w or h>quadrant_h:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
             while True: # TODO: break if the atlas is now too big
+                if overflow:
+                    x = 0
+                    y = 0
+                    break
                 # quadrant's right edge:
                 if (x+w)>(quadrant_x+quadrant_w):
                     # Wrap the cursor to the next row up:
                     x = quadrant_x
                     y += row_height
                     row_height = 0
+                    if DUMP: print(f"Cursor row-wrapped to {x},{y}", file=dumpf)
                 if (y+h)>(quadrant_y+quadrant_h):
                     # Wrap the cursor to the next quadrant across:
                     quadrant_x += quadrant_w
                     quadrant_index += 1
                     x = quadrant_x
                     y = quadrant_y
+                    row_height = 0
+                    if DUMP: print(f"Cursor quadrant-wrapped right to {x},{y}", file=dumpf)
                 if quadrant_x>=atlas_w:
                     # Wrap the cursor to the next quadrant above left:
                     quadrant_x = 0
                     quadrant_y += quadrant_h
                     x = quadrant_x
                     y = quadrant_y
+                    row_height = 0
+                    if DUMP: print(f"Cursor quadrant-wrapped up-left to {x},{y}", file=dumpf)
                 if quadrant_y>=atlas_h:
                     # Expand the atlas (and quadrant) size:
                     quadrant_w = atlas_w
@@ -1151,8 +1175,23 @@ class AtlasBuilder:
                     quadrant_y = 0
                     x = quadrant_x
                     y = quadrant_y
-                    if atlas_w>=4096 or atlas_h>=4096:
-                        raise ValueError(f"No space to fit image {handle} of {w}x{h} in 4k atlas")
+                    row_height = 0
+                    if DUMP: print(f"Atlas expanded to {atlas_w}x{atlas_h}", file=dumpf)
+                    if atlas_w>atlas_max_w or atlas_h>atlas_max_h:
+                        # Newdark doesn't support >4k textures, so if we
+                        # don't have enough space now, someone (me) is gonna
+                        # have to write more code to do multiple atlases! D:
+                        if CONTINUE_ON_OVERFLOW:
+                            print("\nATLAS OVERFLOW\n", file=sys.stderr)
+                            if DUMP: print(f"OVERFLOW", file=dumpf)
+                            atlas_w = atlas_max_w
+                            atlas_h = atlas_max_h
+                            overflow = True
+                            x = 0
+                            y = 0
+                            break
+                        else:
+                            raise ValueError(f"No space to fit image {handle} of {w}x{h} in 4k atlas")
                     # Resize the array with three new blank quadrants:
                     blank = np.zeros((quadrant_w,quadrant_h*4), dtype=float)
                     old_data = atlas_data.reshape((quadrant_w,quadrant_h*4))
@@ -1162,18 +1201,22 @@ class AtlasBuilder:
                 # We have a valid cursor position
                 break
             # Place and blit the image.
+            if DUMP: print(f"{image_index} (handle handle): {x},{y} - {w}x{h}", file=dumpf)
             placements[handle] = (x,y,w,h)
             if USE_DEBUG_COLORS:
                 if DEBUG_QUADRANTS:
                     source = debug_colors[quadrant_index%len(debug_colors)]
                 else:
-                    source = debug_colors[i%len(debug_colors)]
+                    source = debug_colors[image_index%len(debug_colors)]
             else:
                 source = image
-            atlas_data[ y:y+h, x:x+w ] = source
+            if not overflow:
+                atlas_data[ y:y+h, x:x+w ] = source
             # Move the cursor along.
             x += w
             row_height = max(row_height, h)
+
+        if DUMP: dumpf.close()
 
         # Create the atlas image.
         atlas_image = bpy.data.images.new(name="Atlas", width=atlas_w, height=atlas_h)
