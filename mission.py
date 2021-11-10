@@ -1048,14 +1048,9 @@ class AtlasBuilder:
 
     def add(self, width, height, image):
         # image must be a (height, width, 4) rgbaf array
-        rotated = False
-        ## TODO: actually rotate the rgbaf data if we want to support rotation!!
-        # if height>width:
-        #     width,height = height,width
-        #     rotated = True
         handle = len(self.images)
         assert image.shape==(height,width,4), f"image {handle} shape is {image.shape}, not {width}x{height}x4!"
-        self.images.append((width, height, handle, image, rotated))
+        self.images.append((width, height, handle, image))
         return handle
 
     def finish(self):
@@ -1133,7 +1128,13 @@ class AtlasBuilder:
         if DUMP:
             dumpf = open('e:/dev/thief/blender/thieftools/atlas.dump', 'w')
             print(f"Placing {len(self.images)} images...", file=dumpf)
-        for image_index, (w, h, handle, image, rotated) in enumerate(self.images):
+
+        # We get much better packing, even without rotationg, if we sort
+        # by height first.
+        def by_height(entry): return entry[1]
+        self.images.sort(key=by_height, reverse=True)
+
+        for image_index, (w, h, handle, image) in enumerate(self.images):
             # Find a place for the image.
             if w>quadrant_w or h>quadrant_h:
                 raise ValueError(f"No space to fit image {handle} of {w}x{h}")
