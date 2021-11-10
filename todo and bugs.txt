@@ -1,0 +1,14 @@
+toggle jorge, sky_hack
+toggle backface culling
+remember last folder
+is jorge, sky_hack lightmapped?
+lightmaps or textures break when importing a lot?
+delete air portal vertices
+load textures from crf
+pack .gif/.pcx images
+support .vbr, .cow
+paths for resources
+
+t2: miss4/10/11/14 runs out of atlas space
+
+lm packing is wasting tons of space now (see miss7 for example)
