@@ -15,6 +15,7 @@ if "bpy" in locals():
     imp.reload(binstruct)
     imp.reload(images)
     imp.reload(mission)
+    imp.reload(prefs)
     print("thieftools: reloaded.");
 else:
     from . import brushes
@@ -23,6 +24,7 @@ else:
     from . import binstruct
     from . import images
     from . import mission
+    from . import prefs
     print("thieftools: loaded.");
 
 
@@ -103,6 +105,7 @@ def register():
     bpy.utils.register_class(mesh.TTAddArmatureOperator)
     bpy.utils.register_class(images.TTDebugImportGIFOperator)
     bpy.utils.register_class(images.TTDebugImportPCXOperator)
+    bpy.utils.register_class(prefs.TTAddonPreferences)
     bpy.types.TOPBAR_MT_file_import.append(mission.menu_func_import)
     bpy.types.VIEW3D_MT_armature_add.append(thief_test_menu_func)
     bpy.types.Object.tt_mission = PointerProperty(type=mission.TTMissionSettings)
@@ -113,6 +116,7 @@ def unregister():
     del bpy.types.Object.tt_mission
     bpy.types.VIEW3D_MT_armature_add.remove(thief_test_menu_func)
     bpy.types.TOPBAR_MT_file_import.append(mission.menu_func_import)
+    bpy.utils.unregister_class(prefs.TTAddonPreferences)
     bpy.utils.unregister_class(images.TTDebugImportPCXOperator)
     bpy.utils.unregister_class(images.TTDebugImportGIFOperator)
     bpy.utils.unregister_class(mesh.TTAddArmatureOperator)

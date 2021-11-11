@@ -344,7 +344,7 @@ class LGDBFile:
 def hex_str(bytestr):
     return " ".join(format(b, "02x") for b in bytestr)
 
-def import_mission(context, filepath):
+def import_mission(context, filepath, search_paths):
     dirname, basename = os.path.split(filepath)
     miss_name = os.path.splitext(basename)[0]
     # TODO: make dumping an option?
@@ -370,7 +370,7 @@ def import_mission(context, filepath):
             'dump': False,
             'dump_file': dumpf,
             }
-        textures = do_txlist(txlist, context, progress=progress, **options)
+        textures = do_txlist(txlist, context, search_paths=search_paths, progress=progress, **options)
         textures_time = time.process_time()-start
 
         start = time.process_time()
@@ -394,7 +394,7 @@ def import_mission(context, filepath):
     print(f"Load worldrep: {worldrep_time:0.1f}s")
     return obj
 
-def do_txlist(chunk, context, progress=None,
+def do_txlist(chunk, context, search_paths=(), progress=None,
     dump=False, dump_file=None):
     dumpf = dump_file or sys.stdout
     assert progress is not None
@@ -419,7 +419,6 @@ def do_txlist(chunk, context, progress=None,
 
     # Load all the textures into Blender images (except poor Jorge, who always
     # gets left out):
-    tex_search_paths = ['e:/dev/thief/TMA1.27/__unpacked/res/fam']
     tex_extensions = ['.dds', '.png', '.tga', '.bmp', '.pcx', '.gif', '.cel']
     ext_sort_order = {ext: i for (i, ext) in enumerate(tex_extensions)}
     def load_tex(fam_name, tex_name):
@@ -433,15 +432,18 @@ def do_txlist(chunk, context, progress=None,
         if dump:
             print(f"Searching for fam/{fam_name}/{tex_name}...", file=dumpf)
         candidates = [] # (sort_key, full_path) tuples
-        for path in tex_search_paths:
-            fam_path = os.path.join(path, fam_name)
+        for path in search_paths:
+            if not os.path.exists(path):
+                raise ValueError(f"Resource path {path} does not exist.")
+            base_fam_path = os.path.join(path, 'fam', fam_name)
             for lang in ['', 'english', 'french', 'german', 'russian', 'italian']:
                 if lang:
-                    lang_path = os.path.join(fam_path, lang)
-                    if os.path.isdir(lang_path):
-                        fam_path = lang_path
-                    else:
-                        continue
+                    fam_path = os.path.join(base_fam_path, lang)
+                else:
+                    fam_path = base_fam_path
+                if (not os.path.exists(fam_path)
+                or not os.path.isdir(fam_path)):
+                    continue
                 if dump:
                     print(f"  in path: {fam_path}", file=dumpf)
                 for entry in os.scandir(fam_path):
@@ -1436,17 +1438,28 @@ class TTImportMISOperator(Operator, ImportHelper):
             options={'HIDDEN'},
             )
 
+    def invoke(self, context, event):
+        from .prefs import get_preferences, show_preferences
+        search_paths = get_preferences(context).texture_paths()
+        if not search_paths:
+            self.report({'WARNING'}, f"Texture search paths not set.")
+            show_preferences()
+            return {'CANCELLED'}
+        return super().invoke(context, event)
+
     def execute(self, context):
+        from .prefs import get_preferences, show_preferences
+        search_paths = get_preferences(context).texture_paths()
         bpy.ops.object.select_all(action='DESELECT')
         PROFILE = False
         if PROFILE:
             import cProfile
             o = None
-            cProfile.runctx("o = import_mission(context, self.filepath)",
+            cProfile.runctx("o = import_mission(context, self.filepath, search_paths=search_paths)",
                 globals(), locals(), "e:/temp/import_mission.prof")
             o.select_set(True)
         else:
-            o = import_mission(context, self.filepath)
+            o = import_mission(context, self.filepath, search_paths=search_paths)
             context.view_layer.objects.active = o
             o.select_set(True)
         return {'FINISHED'}
