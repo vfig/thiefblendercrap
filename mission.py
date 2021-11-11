@@ -878,6 +878,9 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     MAX_FACE_INDICES = 32   # Imposed by Dromed
     MAX_INDICES = MAX_FACE_INDICES*MAX_FACES
 
+    JORGE_TEXTURE_ID = 0
+    SKYHACK_TEXTURE_ID = 249
+
     # Allocate a bunch of memory
     verts = np.zeros((MAX_VERTICES,3), dtype=float32)
     idxs = np.zeros(MAX_INDICES, dtype=int32)
@@ -889,14 +892,24 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     material_idxs = np.zeros(MAX_FACES, dtype=int32)
     material_textures = {} # texture_id: material_idx
 
-    def lookup_texture_id(texture_id):
-        # Assume Jorge and SKY_HACK (and any invalid texture ids) are 64x64:
-        in_range = (0<=texture_id<len(textures))
-        special = texture_id in (0,249)
-        ok = (in_range and not special)
-        texture_image = textures[texture_id] if ok else None
-        texture_size = texture_image.size if ok else (64, 64)
-        return (texture_image, texture_size)
+    def get_texture_image(texture_id):
+        if texture_id in (JORGE_TEXTURE_ID, SKYHACK_TEXTURE_ID):
+            # Special texture
+            return None
+        elif (0<=texture_id<len(textures)):
+            # Plain old image texture
+            return textures[texture_id]
+        else:
+            # Missing texture
+            return None
+
+    def get_texture_size(texture_id):
+        image = get_texture_image(texture_id)
+        if image is None:
+            # Assume Jorge and SKY_HACK (and missing textures) are 64x64:
+            return (64,64)
+        else:
+            return image.size
 
     atlas_builder = AtlasBuilder()
     vert_ptr = idx_ptr = face_ptr = 0
@@ -917,6 +930,11 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
             is_portal = (pi>=(cell.header.num_polys-cell.header.num_portal_polys))
             if not is_render: continue  # Skip air portals
             if is_portal: continue      # Skip water surfaces
+            # Look up the texture.
+            texture_id = cell.p_render_polys[pi].texture_id
+            # Skip Jorge and Sky Hack
+            # TODO: make this an option
+            if texture_id in (JORGE_TEXTURE_ID, SKYHACK_TEXTURE_ID): continue
             # Add the indices from this poly:
             # Reverse the indices, so faces point the right way in Blender.
             # Adjust indices to point into our vertex array.
@@ -928,9 +946,6 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
             # Add the loop start/count for this poly.
             loop_starts[face_ptr] = idx_start
             loop_counts[face_ptr] = poly.num_vertices
-            # Look up the texture.
-            texture_id = cell.p_render_polys[pi].texture_id
-            texture_image, texture_size = lookup_texture_id(texture_id)
             # Set the material index.
             mat_idx = material_textures.get(texture_id)
             if mat_idx is None:
@@ -938,6 +953,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
                 material_textures[texture_id] = mat_idx
             material_idxs[face_ptr] = mat_idx
             # Calculate uvs.
+            texture_size = get_texture_size(texture_id)
             poly_tx_uvs, poly_lm_uvs = poly_calculate_uvs(cell, pi, texture_size)
             texture_uvs[idx_start:idx_end] = poly_tx_uvs
             lightmap_uvs[idx_start:idx_end] = poly_lm_uvs
@@ -1024,12 +1040,12 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     texture_ids_needed = [tid
         for (tid, _) in sorted(material_textures.items(), key=(lambda item:item[1]))]
     for texture_id in texture_ids_needed:
-        if texture_id==0:
+        if texture_id==JORGE_TEXTURE_ID:
             mat = mat_jorge
-        elif texture_id==249:
+        elif texture_id==SKYHACK_TEXTURE_ID:
             mat = mat_sky
         else:
-            im, _ = lookup_texture_id(texture_id)
+            im = get_texture_image(texture_id)
             if im is None:
                 mat = mat_missing
             else:
