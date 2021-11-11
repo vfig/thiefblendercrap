@@ -1259,6 +1259,8 @@ class AtlasBuilder:
         # Create the atlas image.
         atlas_image = bpy.data.images.new(name="Atlas", width=atlas_w, height=atlas_h)
         atlas_image.pixels = atlas_data.reshape((-1,))
+        # Pack the atlas, so it won't need to be saved (and won't go blank unexpectedly).
+        atlas_image.pack()
 
         self.images = None # Done with the images now.
         self.image = atlas_image

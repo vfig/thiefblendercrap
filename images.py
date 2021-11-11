@@ -190,6 +190,8 @@ def load_gif(filename):
             name = os.path.basename(filename)
             image = bpy.data.images.new(name, width, height, alpha=True)
             image.pixels = pixels
+            # Pack the image, so it won't need to be saved (and won't go blank unexpectedly).
+            image.pack()
             # We don't care about animated gifs; just return the first image.
             return image
         elif b==GIF_EXTENSION_BLOCK:
@@ -298,6 +300,8 @@ def load_pcx(filename):
     name = os.path.basename(filename)
     image = bpy.data.images.new(name, width, height, alpha=True)
     image.pixels = pixels
+    # Pack the image, so it won't need to be saved (and won't go blank unexpectedly).
+    image.pack()
     return image
 
 #---------------------------------------------------------------------------#
