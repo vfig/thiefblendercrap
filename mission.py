@@ -1440,16 +1440,21 @@ class TTImportMISOperator(Operator, ImportHelper):
 
     def invoke(self, context, event):
         from .prefs import get_preferences, show_preferences
-        search_paths = get_preferences(context).texture_paths()
+        prefs = get_preferences(context)
+        search_paths = prefs.texture_paths()
         if not search_paths:
             self.report({'WARNING'}, f"Texture search paths not set.")
             show_preferences()
             return {'CANCELLED'}
+        if prefs.last_filepath and not self.filepath:
+            self.filepath = prefs.last_filepath
         return super().invoke(context, event)
 
     def execute(self, context):
         from .prefs import get_preferences, show_preferences
-        search_paths = get_preferences(context).texture_paths()
+        prefs = get_preferences(context)
+        prefs.last_filepath = self.filepath
+        search_paths = prefs.texture_paths()
         bpy.ops.object.select_all(action='DESELECT')
         PROFILE = False
         if PROFILE:
