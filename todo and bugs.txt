@@ -1,12 +1,18 @@
 toggle jorge, sky_hack
+    -> does this mean toggle alpha clip/0 alpha?
 toggle backface culling
+    -> for all the materials of the level
 remember last folder
 is jorge, sky_hack lightmapped? (yes)
-lightmaps or textures break when importing a lot? (blender bug? throwing away pixel data? idk) -- happens when i mute the nodes. i think blender is trying to save memory by unloading the images, assuming it can load them back when needed? i guess i need to fakeuser and pack them?
+    -> add option to skip jorge, sky hack polys
+    -> but also, default to skipping their lightmaps, they dont need them
+       and the _biggest_ single atlas space users (in t2) are sky polys.
+name atlas image after mission
 delete air portal vertices
+    -> theres an operator for this, we can run it post-import?
 load textures from crf
-pack .gif/.pcx images
 support .vbr, .cow
 paths for resources
+    -> can we do custom preferences for addons?
 jorge shader
 sky_hack shader
