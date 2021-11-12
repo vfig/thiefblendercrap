@@ -1,3 +1,7 @@
+newdark wrext import!
+    -> 16 bit lightmaps
+    -> 32 bit lightmaps
+    -> 32 bit 2x lightmaps
 toggle jorge, sky_hack
     -> does this mean toggle alpha clip/0 alpha?
 toggle backface culling
