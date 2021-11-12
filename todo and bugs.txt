@@ -17,3 +17,9 @@ load textures from crf
 support .vbr, .cow
 jorge shader
 sky_hack shader
+
+support ancient thief .mis files?
+    E:/dev/thief/T1FM/LGS/m00_036.mis: WR version 0.18
+    E:/dev/thief/T1FM/LGS/playtest.mis: WR version 0.18
+    E:/dev/thief/T1FM/LGS/tower48.mis: WR version 0.19
+    E:/dev/thief/T1FM/LGS/woodsie_051.mis: WR version 0.18
