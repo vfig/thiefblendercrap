@@ -186,21 +186,13 @@ class LGWRPoly:
 class LGWRRenderPoly:
     tex_u: LGVector
     tex_v: LGVector
-    u_base_compact: uint16
-    v_base_compact: uint16
+    u_base: uint16
+    v_base: uint16
     texture_id: uint8
     texture_anchor: uint8
     cached_surface: uint16
     texture_mag: float32
     center: LGVector
-
-    @property
-    def u_base(self):
-        return float(self.u_base_compact)/(16.0*256.0)
-
-    @property
-    def v_base(self):
-        return float(self.v_base_compact)/(16.0*256.0)
 
 @structure
 class LGWREXTRenderPoly:
@@ -208,8 +200,7 @@ class LGWREXTRenderPoly:
     tex_v: LGVector
     u_base: float32         # Changed in WREXT
     v_base: float32         # Changed in WREXT
-    texture_id: uint8
-    texture_anchor: uint8
+    texture_id: uint16      # Changed in WREXT (texture_anchor removed)
     cached_surface: uint16
     texture_mag: float32
     center: LGVector
@@ -683,7 +674,7 @@ def create_texture_material(name, texture_image, lightmap_image, settings_group)
         links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
     return mat
 
-def poly_calculate_uvs(cell, pi, texture_size):
+def poly_calculate_uvs(cell, pi, texture_size, version):
     poly = cell.p_polys[pi]
     render = cell.p_render_polys[pi]
     vertices = cell.poly_vertices[pi]
@@ -697,11 +688,19 @@ def poly_calculate_uvs(cell, pi, texture_size):
     u2 = p_uvec.dot(p_uvec)
     v2 = p_vvec.dot(p_vvec)
     uv = p_uvec.dot(p_vvec)
-    anchor = Vector(vertices[render.texture_anchor])
-    tx_u_base = render.u_base*tx_u_scale # u translation
-    tx_v_base = render.v_base*tx_v_scale # v translation
-    lm_u_base = lm_u_scale*(render.u_base+(0.5-float(info.u_base))/4.0) # u translation
-    lm_v_base = lm_v_scale*(render.v_base+(0.5-float(info.v_base))/4.0) # v translation
+    if version>=(0,30):
+        anchor_vid = 0
+        u_base = render.u_base
+        v_base = render.v_base
+    else:
+        anchor_vid = render.texture_anchor
+        u_base = float(render.u_base)/(16.0*256.0)
+        v_base = float(render.v_base)/(16.0*256.0)
+    anchor = Vector(vertices[anchor_vid])
+    tx_u_base = u_base*tx_u_scale # u translation
+    tx_v_base = v_base*tx_v_scale # v translation
+    lm_u_base = lm_u_scale*(u_base+(0.5-float(info.u_base))/4.0) # u translation
+    lm_v_base = lm_v_scale*(v_base+(0.5-float(info.v_base))/4.0) # v translation
     tx_uv_list = []
     lm_uv_list = []
     if uv == 0.0:
@@ -859,10 +858,15 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
                 print(f"      render_poly {i}:", file=dumpf)
                 print(f"        tex_u: {rpoly.tex_u[0]:06f},{rpoly.tex_u[1]:06f},{rpoly.tex_u[2]:06f}", file=dumpf)
                 print(f"        tex_v: {rpoly.tex_v[0]:06f},{rpoly.tex_v[1]:06f},{rpoly.tex_v[2]:06f}", file=dumpf)
-                print(f"        u_base: {rpoly.u_base:0.2f}", file=dumpf)
-                print(f"        v_base: {rpoly.v_base:0.2f}", file=dumpf)
-                print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
-                print(f"        texture_anchor: {rpoly.texture_anchor}", file=dumpf)
+                if version>=(0,30):
+                    print(f"        u_base: {rpoly.u_base:0.2f}", file=dumpf)
+                    print(f"        v_base: {rpoly.v_base:0.2f}", file=dumpf)
+                    print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
+                else:
+                    print(f"        u_base: {rpoly.u_base} (0x{rpoly.u_base:04x})", file=dumpf)
+                    print(f"        v_base: {rpoly.v_base} (0x{rpoly.v_base:04x})", file=dumpf)
+                    print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
+                    print(f"        texture_anchor: {rpoly.texture_anchor}", file=dumpf)
                 # Skip printing  cached_surface, texture_mag, center.
             print(f"    index_count: {cell.index_count}", file=dumpf)
             print(f"    p_index_list: {cell.p_index_list.size}", file=dumpf)
@@ -1006,7 +1010,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
             material_idxs[face_ptr] = mat_idx
             # Calculate uvs.
             texture_size = get_texture_size(texture_id)
-            poly_tx_uvs, poly_lm_uvs = poly_calculate_uvs(cell, pi, texture_size)
+            poly_tx_uvs, poly_lm_uvs = poly_calculate_uvs(cell, pi, texture_size, version)
             texture_uvs[idx_start:idx_end] = poly_tx_uvs
             lightmap_uvs[idx_start:idx_end] = poly_lm_uvs
             # Add the primary lightmap for this poly to the atlas.
