@@ -433,8 +433,6 @@ def do_txlist(chunk, context, search_paths=(), progress=None,
             print(f"Searching for fam/{fam_name}/{tex_name}...", file=dumpf)
         candidates = [] # (sort_key, full_path) tuples
         for path in search_paths:
-            if not os.path.exists(path):
-                raise ValueError(f"Resource path {path} does not exist.")
             base_fam_path = os.path.join(path, 'fam', fam_name)
             for lang in ['', 'english', 'french', 'german', 'russian', 'italian']:
                 if lang:
@@ -1443,9 +1441,14 @@ class TTImportMISOperator(Operator, ImportHelper):
         prefs = get_preferences(context)
         search_paths = prefs.texture_paths()
         if not search_paths:
-            self.report({'WARNING'}, f"Texture search paths not set.")
             show_preferences()
+            self.report({'ERROR'}, f"Resource search paths not set.")
             return {'CANCELLED'}
+        for path in search_paths:
+            if not os.path.exists(path):
+                show_preferences()
+                self.report({'ERROR'}, f"Resource search path {path} does not exist.")
+                return {'CANCELLED'}
         if prefs.last_filepath and not self.filepath:
             self.filepath = prefs.last_filepath
         return super().invoke(context, event)
