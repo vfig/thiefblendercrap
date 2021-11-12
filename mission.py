@@ -152,7 +152,17 @@ class LGTXLISTFam:
     name: (bytes, 16)
 
 @structure
-class LGWRHeader:       # version 0.30: header is preceded by a preamble.
+class LGWRHeader:
+    data_size: uint32
+    cell_count: uint32
+
+@structure
+class LGWREXTHeader:
+    unknown0: uint32
+    unknown1: uint32
+    unknown2: uint32
+    lightmap_format: uint32     # 0: 16 bit; 1: 32 bit; 2: 32 bit 2x
+    unknown4: uint32
     data_size: uint32
     cell_count: uint32
 
@@ -224,6 +234,7 @@ class LGWRLightMapInfo:
 # WR lightmap data is uint8; WRRGB is uint16 (xB5G5R5)
 LGWRLightmap8Bit = uint8
 LGWRRGBLightmap16Bit = uint16
+LGWRRGBLightmap32Bit = uint32
 
 class LGWRCell:
     @classmethod
@@ -272,6 +283,11 @@ class LGWRCell:
                 rgbaf = rgbaf/div
                 rgbaf.shape = (count, height, width, 4)
                 rgbaf = np.flip(rgbaf, axis=1)
+            elif lightmap_format is LGWRRGBLightmap32Bit:
+                rgba = raw.view(dtype=uint8)
+                rgba.shape = (count, height, width, 4)
+                rgba = np.flip(rgba, axis=1)
+                rgbaf = np.array(rgba, dtype=float)/255.0
             else:
                 raise ValueError("Unsupported lightmap_format")
             cell.lightmaps.append(rgbaf)
@@ -754,41 +770,48 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     version = (chunk.header.version.major, chunk.header.version.minor)
 
     if chunk.name=='WR':
-        if version != (0, 23):
+        if version!=(0,23):
             raise ValueError("Only version 0.23 WR chunk is supported")
-        lightmap_format = LGWRLightmap8Bit
     elif chunk.name=='WRRGB':
-        if version != (0, 24):
+        if version!=(0,24):
             raise ValueError("Only version 0.24 WRRGB chunk is supported")
-        lightmap_format = LGWRRGBLightmap16Bit
     elif chunk.name=='WREXT':
-        if version != (0, 30):
+        if version!=(0,30):
             raise ValueError("Only version 0.30 WREXT chunk is supported")
-        # TODO: how do we know which lightmap format is in use??
-        lightmap_format = LGWRRGBLightmap16Bit
     else:
         raise ValueError(f"Unsupported worldrep chunk {chunk.name}")
 
     f = StructuredReader(buffer=chunk.data)
-    if version >= (0, 30):
-        # This 'preamble' of sorts always seems to be 20 bytes, starting
-        # with 0x14. That looks like its the size of the preamble, but
-        # I am not sure; so I will read a fixed size and just assert the
-        # value to be on the safe side.
-        preamble = f.read(uint32, 5)
-        assert preamble[0] == 0x14
+    if version>=(0,30):
+        header = f.read(LGWREXTHeader)
     else:
-        preamble = None
-    header = f.read(LGWRHeader)
+        header = f.read(LGWRHeader)
     if dump:
         print(f"{chunk.name} chunk:", file=dumpf)
         print(f"  version: {chunk.header.version.major}.{chunk.header.version.minor}", file=dumpf)
-        if preamble is not None:
-            print(f"  preamble:", file=dumpf)
-            for i,v in enumerate(preamble):
-                print(f"    {i}: 0x{v:08x}", file=dumpf)
+        if version>=(0,30):
+            print(f"  unknown0: 0x{header.unknown0:08x}", file=dumpf)
+            print(f"  unknown1: 0x{header.unknown1:08x}", file=dumpf)
+            print(f"  unknown2: 0x{header.unknown2:08x}", file=dumpf)
+            print(f"  lightmap_format: {header.lightmap_format}", file=dumpf)
+            print(f"  unknown4: 0x{header.unknown4:08x}", file=dumpf)
         print(f"  data_size: {header.data_size}", file=dumpf)
         print(f"  cell_count: {header.cell_count}", file=dumpf)
+
+    if version==(0,23):
+        lightmap_format = LGWRLightmap8Bit
+    elif version==(0,24):
+        lightmap_format = LGWRRGBLightmap16Bit
+    elif version==(0,30):
+        if header.lightmap_format==0:
+            lightmap_format = LGWRRGBLightmap16Bit
+        elif header.lightmap_format==1:
+            lightmap_format = LGWRRGBLightmap32Bit
+        elif header.lightmap_format==2:
+            # TODO: handle 2x modulation
+            lightmap_format = LGWRRGBLightmap32Bit
+        else:
+            raise ValueError(f"Unrecognised lightmap_format {header.lightmap_format}")
 
     # TODO: import the entire worldrep into one mesh (with options to
     #       skip jorge & sky polys); as we read each cell, append its
