@@ -152,7 +152,7 @@ class LGTXLISTFam:
     name: (bytes, 16)
 
 @structure
-class LGWRHeader:
+class LGWRHeader:       # version 0.30: header is preceded by a preamble.
     data_size: uint32
     cell_count: uint32
 
@@ -195,6 +195,20 @@ class LGWRRenderPoly:
     center: LGVector
 
 @structure
+class LGWREXTRenderPoly:
+    tex_u: LGVector
+    tex_v: LGVector
+    u_base: uint16
+    v_base: uint16
+    texture_id: uint8
+    texture_anchor: uint8
+    unknown0: uint16        # New in WREXT
+    unknown1: uint16        # New in WREXT
+    cached_surface: uint16
+    texture_mag: float32
+    center: LGVector
+
+@structure
 class LGWRPlane:
     normal: LGVector
     distance: float32
@@ -216,13 +230,17 @@ LGWRRGBLightmap16Bit = uint16
 
 class LGWRCell:
     @classmethod
-    def read(cls, reader, cell_index, lightmap_format):
+    def read(cls, reader, cell_index, wr_version, lightmap_format):
         f = reader
         cell = cls()
         cell.header = f.read(LGWRCellHeader)
         cell.p_vertices = f.read(LGVector, count=cell.header.num_vertices)
         cell.p_polys = f.read(LGWRPoly, count=cell.header.num_polys)
-        cell.p_render_polys = f.read(LGWRRenderPoly, count=cell.header.num_render_polys)
+        if wr_version>=(0,30):
+            render_poly_type = LGWREXTRenderPoly
+        else:
+            render_poly_type = LGWRRenderPoly
+        cell.p_render_polys = f.read(render_poly_type, count=cell.header.num_render_polys)
         cell.index_count = f.read(uint32)
         cell.p_index_list = f.read(uint8, count=cell.index_count)
         cell.p_plane_list = f.read(LGWRPlane, count=cell.header.num_planes)
@@ -234,7 +252,7 @@ class LGWRCell:
             width = info.width
             height = info.height
             count = 1+bit_count(info.anim_light_bitmask) # 1 base lightmap, plus 1 per animlight
-            assert info.padded_width==info.width, f"lightmap padded_width {padded_width} is not the same as width {width}!"
+            assert info.padded_width==info.width, f"lightmap padded_width {info.padded_width} is not the same as width {width}!"
             raw = f.read(entry_type, count=count*height*width)
             # Expand the lightmap into rgba floats
             if lightmap_format is LGWRLightmap8Bit:
@@ -378,14 +396,23 @@ def import_mission(context, filepath, search_paths):
             worldrep = mis['WR']
         elif 'WRRGB' in mis:
             worldrep = mis['WRRGB']
+        elif 'WREXT' in mis:
+            worldrep = mis['WREXT']
         else:
             # TODO: what about newdark 32-bit lighting?
             raise ValueError(f"No WR or WRRGB worldrep chunk in {basename}.")
         options={
-            'dump': False,
+            'dump': True,
             'dump_file': dumpf,
             'cell_limit': 0,
+            'skip_jorge': False,
+            'skip_skyhack': False,
             }
+        # TODO: stop writing out the worldrep chunk once we know what
+        #       is going on!
+        wr_filename = os.path.join(dirname, miss_name+'.worldrep')
+        with open(wr_filename, 'wb') as f:
+            f.write(worldrep.data)
         obj = do_worldrep(worldrep, textures, context, name=miss_name, progress=progress, **options)
         worldrep_time = time.process_time()-start
         progress.leave_substeps(f"Finished importing: {filepath!r}")
@@ -713,30 +740,48 @@ def poly_calculate_uvs(cell, pi, texture_size):
     return (tx_uv_list, lm_uv_list)
 
 def do_worldrep(chunk, textures, context, name="mission", progress=None,
-    dump=False, dump_file=None, cell_limit=0):
+    dump=False, dump_file=None, cell_limit=0, skip_jorge=False, skip_skyhack=False):
     dumpf = dump_file or sys.stdout
     assert (progress is not None)
     progress.enter_substeps(5, "Loading worldrep...")
 
+    version = (chunk.header.version.major, chunk.header.version.minor)
+
     if chunk.name=='WR':
-        if (chunk.header.version.major, chunk.header.version.minor) \
-        not in [(0, 23)]:
+        if version != (0, 23):
             raise ValueError("Only version 0.23 WR chunk is supported")
         lightmap_format = LGWRLightmap8Bit
     elif chunk.name=='WRRGB':
-        if (chunk.header.version.major, chunk.header.version.minor) \
-        not in [(0, 24)]:
-            raise ValueError("Only version 0.24 WR chunk is supported")
+        if version != (0, 24):
+            raise ValueError("Only version 0.24 WRRGB chunk is supported")
+        lightmap_format = LGWRRGBLightmap16Bit
+    elif chunk.name=='WREXT':
+        if version != (0, 30):
+            raise ValueError("Only version 0.30 WREXT chunk is supported")
+        # TODO: how do we know which lightmap format is in use??
         lightmap_format = LGWRRGBLightmap16Bit
     else:
         raise ValueError(f"Unsupported worldrep chunk {chunk.name}")
 
     f = StructuredReader(buffer=chunk.data)
+    if version >= (0, 30):
+        # This 'preamble' of sorts always seems to be 20 bytes, starting
+        # with 0x14. That looks like its the size of the preamble, but
+        # I am not sure; so I will read a fixed size and just assert the
+        # value to be on the safe side.
+        preamble = f.read(uint32, 5)
+        assert preamble[0] == 0x14
+    else:
+        preamble = None
     header = f.read(LGWRHeader)
     if dump:
         print(f"{chunk.name} chunk:", file=dumpf)
         print(f"  version: {chunk.header.version.major}.{chunk.header.version.minor}", file=dumpf)
-        print(f"  size: {header.data_size}", file=dumpf)
+        if preamble is not None:
+            print(f"  preamble:", file=dumpf)
+            for i,v in enumerate(preamble):
+                print(f"    {i}: 0x{v:08x}", file=dumpf)
+        print(f"  data_size: {header.data_size}", file=dumpf)
         print(f"  cell_count: {header.cell_count}", file=dumpf)
 
     # TODO: import the entire worldrep into one mesh (with options to
@@ -776,7 +821,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     for cell_index in range(header.cell_count):
         try:
             if cell_index%cell_progress_step_size==0: progress.step()
-            cells[cell_index] = LGWRCell.read(f, cell_index, lightmap_format)
+            cells[cell_index] = LGWRCell.read(f, cell_index, version, lightmap_format)
         except:
             print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}...", file=sys.stderr)
             raise
@@ -933,8 +978,8 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
             # Look up the texture.
             texture_id = cell.p_render_polys[pi].texture_id
             # Skip Jorge and Sky Hack
-            # TODO: make this an option
-            if texture_id in (JORGE_TEXTURE_ID, SKYHACK_TEXTURE_ID): continue
+            if skip_jorge and texture_id==JORGE_TEXTURE_ID: continue
+            if skip_skyhack and texture_id==SKYHACK_TEXTURE_ID: continue
             # Add the indices from this poly:
             # Reverse the indices, so faces point the right way in Blender.
             # Adjust indices to point into our vertex array.
@@ -1250,7 +1295,13 @@ class AtlasBuilder:
             + quadrant_x*quadrant_h                 # quadrant to the left
             + (y+row_height-quadrant_y)*quadrant_w  # portion of current quadrant
             )
-        efficiency = (texels_filled/available_texels)*100.0
+        # If we have no lightmaps (maybe lighting was never built, or all
+        # the polys were Jorge and we skipped Jorge polys), then
+        # available_texels will be zero.
+        if available_texels==0:
+            efficiency = 0.0
+        else:
+            efficiency = (texels_filled/available_texels)*100.0
         percent_filled = (texels_filled/(atlas_w*atlas_h))*100.0
         if DUMP: print(f"Atlas efficiency: {efficiency:0.1f}% (atlas space filled: {percent_filled:0.1f}% of {atlas_w}x{atlas_h})", file=dumpf)
         if DUMP: dumpf.close()
