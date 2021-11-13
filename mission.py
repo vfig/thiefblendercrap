@@ -546,6 +546,12 @@ def create_settings_node_group(obj, base_name):
     n.name = 'AmbientBrightness'
     n.label = "Ambient Brightness"
     n.outputs['Value'].default_value = 0.0
+    # Power node (absolute hack so the input feels linearish)
+    pow_node = nodes.new(type='ShaderNodeMath')
+    pow_node.location = grid(-0.5,0)
+    pow_node.label = 'Power'
+    pow_node.operation = 'POWER'
+    pow_node.inputs[1].default_value = 4.0
     # Create a property on the object to drive this from
     obj["AmbientBrightness"] = 0.2
     d = n.outputs['Value'].driver_add('default_value').driver
@@ -559,7 +565,8 @@ def create_settings_node_group(obj, base_name):
     ambient_brightness_node = n
     # Connect everything
     output = tree.outputs.new('NodeSocketFloat', 'AmbientBrightness')
-    links.new(output_node.inputs['AmbientBrightness'], ambient_brightness_node.outputs['Value'])
+    links.new(output_node.inputs['AmbientBrightness'], pow_node.outputs[0])
+    links.new(pow_node.inputs[0], ambient_brightness_node.outputs['Value'])
     return tree
 
 def create_texture_material(name, texture_image, lightmap_image, lightmap_2x_modulation, settings_group):
