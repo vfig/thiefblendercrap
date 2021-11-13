@@ -1173,7 +1173,7 @@ class AtlasBuilder:
         # Build the atlas
         self.images = sorted(self.images, reverse=True)
         atlas_w, atlas_h = (256, 256)
-        atlas_max_w, atlas_max_h = (4096, 4096)
+        atlas_max_w, atlas_max_h = (8192, 8192)
         quadrant_w, quadrant_h = (atlas_w, atlas_h)
         quadrant_index = 0
         # x, y are abs coords of the image placement cursor
