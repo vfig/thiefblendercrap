@@ -562,7 +562,7 @@ def create_settings_node_group(obj, base_name):
     links.new(output_node.inputs['AmbientBrightness'], ambient_brightness_node.outputs['Value'])
     return tree
 
-def create_texture_material(name, texture_image, lightmap_image, settings_group):
+def create_texture_material(name, texture_image, lightmap_image, lightmap_2x_modulation, settings_group):
     is_textured = (texture_image is not None)
     is_lightmapped = (lightmap_image is not None)
     #
@@ -574,11 +574,13 @@ def create_texture_material(name, texture_image, lightmap_image, settings_group)
     #             |                               |
     #             +----------------+              |
     #                              |              |
-    #                              |         MixRGB('Mix') <-- NodeGroup('Settings').Ambient
+    #                              |         MixRGB('Mix') <-- NodeGroup('Settings').AmbientBrightness
     #                              |              |
     #                              +--------------+
     #                              |
     #                     MixRGB('Multiply')
+    #                              |
+    #                          Multiply <-- 1.0 or 2.0 (lightmap_2x_modulation)
     #                              |
     #                        PrincipledBSDF
     #                              |
@@ -624,6 +626,8 @@ def create_texture_material(name, texture_image, lightmap_image, settings_group)
         settings_node = nodes.new(type='ShaderNodeGroup'); settings_node.select = False
     if is_textured and is_lightmapped:
         mix_node = nodes.new(type='ShaderNodeMixRGB'); mix_node.select = False
+    if is_lightmapped:
+        mul_node = nodes.new(type='ShaderNodeVectorMath'); mul_node.select = False
     # Configure them
     bsdf_node.inputs['Base Color'].default_value = (1.0,0.0,1.0,1.0)
     bsdf_node.inputs['Metallic'].default_value = 0.0
@@ -644,6 +648,11 @@ def create_texture_material(name, texture_image, lightmap_image, settings_group)
         lm_mix_node.inputs['Fac'].default_value = 0.0
         lm_mix_node.inputs['Color1'].default_value = (1.0,1.0,1.0,1.0)
         lm_mix_node.inputs['Color2'].default_value = (1.0,1.0,1.0,1.0)
+        if lightmap_2x_modulation:
+            mul_node.inputs[1].default_value = (2.0,2.0,2.0)
+        else:
+            mul_node.inputs[1].default_value = (1.0,1.0,1.0)
+        mul_node.operation = 'MULTIPLY'
         settings_node.node_tree = settings_group
     if is_textured and is_lightmapped:
         mix_node.blend_type = 'MULTIPLY'
@@ -657,24 +666,27 @@ def create_texture_material(name, texture_image, lightmap_image, settings_group)
     out_node.location = grid(1,0)
     bsdf_node.location = grid(0,0)
     if is_lightmapped and is_textured:
-        mix_node.location = grid(-1,0)
-        tx_img_node.location = grid(-3,1)
-        tx_uv_node.location = grid(-4,1)
-        lm_img_node.location = grid(-3,-1)
-        lm_uv_node.location = grid(-4,-1)
-        lm_mix_node.location = grid(-2,-1)
-        settings_node.location = grid(-3,-3)
+        mul_node.location = grid(-1,0)
+        mix_node.location = grid(-2,0)
+        tx_img_node.location = grid(-4,1)
+        tx_uv_node.location = grid(-5,1)
+        lm_img_node.location = grid(-4,-1)
+        lm_uv_node.location = grid(-5,-1)
+        lm_mix_node.location = grid(-3,-1)
+        settings_node.location = grid(-4,-3)
     elif is_textured:
         tx_img_node.location = grid(-1,0)
         tx_uv_node.location = grid(-2,0)
     elif is_lightmapped:
-        lm_img_node.location = grid(-2,0)
-        lm_uv_node.location = grid(-3,0)
-        lm_mix_node.location = grid(-1,-0)
+        mul_node.location = grid(-1,0)
+        lm_img_node.location = grid(-3,0)
+        lm_uv_node.location = grid(-4,0)
+        lm_mix_node.location = grid(-2,-0)
     # Link them
     links.new(out_node.inputs['Surface'], bsdf_node.outputs['BSDF'])
     if is_lightmapped and is_textured:
-        links.new(bsdf_node.inputs['Base Color'], mix_node.outputs['Color'])
+        links.new(bsdf_node.inputs['Base Color'], mul_node.outputs[0])
+        links.new(mul_node.inputs[0], mix_node.outputs['Color'])
         links.new(mix_node.inputs['Color1'], tx_img_node.outputs['Color'])
         links.new(mix_node.inputs['Color2'], lm_mix_node.outputs['Color'])
         links.new(lm_mix_node.inputs['Fac'], settings_node.outputs['AmbientBrightness'])
@@ -685,7 +697,8 @@ def create_texture_material(name, texture_image, lightmap_image, settings_group)
         links.new(bsdf_node.inputs['Base Color'], tx_img_node.outputs['Color'])
         links.new(tx_img_node.inputs['Vector'], tx_uv_node.outputs['UV'])
     elif is_lightmapped:
-        links.new(bsdf_node.inputs['Base Color'], lm_mix_node.outputs['Color'])
+        links.new(bsdf_node.inputs['Base Color'], mul_node.outputs[0])
+        links.new(mul_node.inputs[0], lm_mix_node.outputs['Color'])
         links.new(lm_mix_node.inputs['Color1'], lm_img_node.outputs['Color'])
         links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
     return mat
@@ -798,6 +811,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
         print(f"  data_size: {header.data_size}", file=dumpf)
         print(f"  cell_count: {header.cell_count}", file=dumpf)
 
+    lightmap_2x_modulation = False
     if version==(0,23):
         lightmap_format = LGWRLightmap8Bit
     elif version==(0,24):
@@ -808,8 +822,8 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
         elif header.lightmap_format==1:
             lightmap_format = LGWRRGBLightmap32Bit
         elif header.lightmap_format==2:
-            # TODO: handle 2x modulation
             lightmap_format = LGWRRGBLightmap32Bit
+            lightmap_2x_modulation = True
         else:
             raise ValueError(f"Unrecognised lightmap_format {header.lightmap_format}")
 
@@ -1113,9 +1127,9 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     # Create the materials.
     progress.step("Creating materials and shaders...")
     settings_group = create_settings_node_group(obj, name)
-    mat_jorge = create_texture_material('JORGE', None, None, settings_group)
-    mat_sky = create_texture_material('SKY_HACK', None, None, settings_group)
-    mat_missing = create_texture_material('MISSING', None, None, settings_group)
+    mat_jorge = create_texture_material('JORGE', None, None, lightmap_2x_modulation, settings_group)
+    mat_sky = create_texture_material('SKY_HACK', None, None, lightmap_2x_modulation, settings_group)
+    mat_missing = create_texture_material('MISSING', None, None, lightmap_2x_modulation, settings_group)
     texture_ids_needed = [tid
         for (tid, _) in sorted(material_textures.items(), key=(lambda item:item[1]))]
     for texture_id in texture_ids_needed:
@@ -1128,7 +1142,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
             if im is None:
                 mat = mat_missing
             else:
-                mat = create_texture_material(im.name, im, lightmap_image, settings_group)
+                mat = create_texture_material(im.name, im, lightmap_image, lightmap_2x_modulation, settings_group)
         mesh.materials.append(mat)
 
     progress.leave_substeps("Done")
