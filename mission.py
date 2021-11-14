@@ -1571,7 +1571,8 @@ class TTImportMISOperator(Operator, ImportHelper):
         from .prefs import get_preferences, show_preferences
         prefs = get_preferences(context)
         prefs.last_filepath = self.filepath
-        search_paths = prefs.texture_paths()
+        search_paths = list(prefs.texture_paths())
+        search_paths.append(os.path.dirname(self.filepath))
         bpy.ops.object.select_all(action='DESELECT')
         PROFILE = False
         if PROFILE:
