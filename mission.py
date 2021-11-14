@@ -162,7 +162,11 @@ class LGWREXTHeader:
     unknown1: uint32
     unknown2: uint32
     lightmap_format: uint32     # 0: 16 bit; 1: 32 bit; 2: 32 bit 2x
-    unknown4: uint32
+    lightmap_scale: int32       # 0: 1x; 2: 2x; 4: 4x; -2: 0.5x; -4: 0.25x
+                                # non power of two values may be stored in
+                                # here; just ignore all but the highest bit,
+                                # and use the sign bit to determine if it
+                                # is a multiply or a divide.
     data_size: uint32
     cell_count: uint32
 
@@ -211,7 +215,7 @@ class LGWREXTRenderPoly:
     u_base: float32         # Changed in WREXT
     v_base: float32         # Changed in WREXT
     texture_id: uint16      # Changed in WREXT (texture_anchor removed)
-    cached_surface: uint16
+    cached_surface: uint16  ## TODO: jk has this as texture_anchor!
     texture_mag: float32
     center: LGVector
 
@@ -412,7 +416,6 @@ def import_mission(context, filepath, search_paths):
         elif 'WREXT' in mis:
             worldrep = mis['WREXT']
         else:
-            # TODO: what about newdark 32-bit lighting?
             raise ValueError(f"No WR or WRRGB worldrep chunk in {basename}.")
         options={
             'dump': True,
@@ -421,11 +424,6 @@ def import_mission(context, filepath, search_paths):
             'skip_jorge': False,
             'skip_skyhack': False,
             }
-        # TODO: stop writing out the worldrep chunk once we know what
-        #       is going on!
-        wr_filename = os.path.join(dirname, miss_name+'.worldrep')
-        with open(wr_filename, 'wb') as f:
-            f.write(worldrep.data)
         obj = do_worldrep(worldrep, textures, context, name=miss_name, progress=progress, **options)
         worldrep_time = time.process_time()-start
         progress.leave_substeps(f"Finished importing: {filepath!r}")
@@ -718,13 +716,23 @@ def create_texture_material(name, texture_image, lightmap_image, lightmap_2x_mod
         links.new(lm_img_node.inputs['Vector'], lm_uv_node.outputs['UV'])
     return mat
 
-def poly_calculate_uvs(cell, pi, texture_size, version):
+def poly_calculate_uvs(cell, pi, texture_size, version, lightmap_scale):
     poly = cell.p_polys[pi]
     render = cell.p_render_polys[pi]
     vertices = cell.poly_vertices[pi]
     info = cell.p_light_list[pi]
-    tx_u_scale = 64.0/texture_size[0]
-    tx_v_scale = 64.0/texture_size[1]
+    #
+    # Despite the name, I apply lightmap_scale to the texture scale,
+    # because it is affects the lightmap-texels-per-texture-texel factor;
+    # the lightmap uvs remain constant (covering approximately the whole
+    # polygon), and so as lightmap_scale increases, the texture uvs get
+    # smaller to compensate.
+    #
+    # Note that texture uv scales will still be incorrect if the fm uses
+    # terrain_scale in .mtl files, because I don't yet support .mtl files.
+    #
+    tx_u_scale = 64.0/lightmap_scale/texture_size[0]
+    tx_v_scale = 64.0/lightmap_scale/texture_size[1]
     lm_u_scale = 4.0/info.width
     lm_v_scale = 4.0/info.height
     p_uvec = Vector(render.tex_u)
@@ -733,6 +741,14 @@ def poly_calculate_uvs(cell, pi, texture_size, version):
     v2 = p_vvec.dot(p_vvec)
     uv = p_uvec.dot(p_vvec)
     if version>=(0,30):
+        ## TODO: is this a field in the WREXT or not? so far, just using
+        ##       vertex 0 as the anchor seems to provide correct results.
+        ##       should check across a bunch of missions to see if the
+        ##       olddark texture_anchor is ever nonzero, then save them
+        ##       in newdark format to see if there is any difference; also
+        ##       see if any newdark missions have nonzero 'cached_surface',
+        ##       and see if that corresponds with misaligned textures, thus
+        ##       implying that field should actually be 'texture_anchor'.
         anchor_vid = 0
         u_base = render.u_base
         v_base = render.v_base
@@ -822,16 +838,25 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
             print(f"  unknown1: 0x{header.unknown1:08x}", file=dumpf)
             print(f"  unknown2: 0x{header.unknown2:08x}", file=dumpf)
             print(f"  lightmap_format: {header.lightmap_format}", file=dumpf)
-            print(f"  unknown4: 0x{header.unknown4:08x}", file=dumpf)
+            print(f"  lightmap_scale: 0x{header.lightmap_scale:08x}", file=dumpf)
         print(f"  data_size: {header.data_size}", file=dumpf)
         print(f"  cell_count: {header.cell_count}", file=dumpf)
 
+    def calculate_lightmap_scale(value):
+        value = int(value)
+        sign = (1 if value>=0 else -1)
+        if value==0: value = 1
+        exponent = int(math.log2(abs(value)))
+        return 2.0**(sign*exponent)
+
     lightmap_2x_modulation = False
+    lightmap_scale = 1.0
     if version==(0,23):
         lightmap_format = LGWRLightmap8Bit
     elif version==(0,24):
         lightmap_format = LGWRRGBLightmap16Bit
     elif version==(0,30):
+        lightmap_scale = calculate_lightmap_scale(header.lightmap_scale)
         if header.lightmap_format==0:
             lightmap_format = LGWRRGBLightmap16Bit
         elif header.lightmap_format==1:
@@ -914,11 +939,16 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
                     print(f"        u_base: {rpoly.u_base:0.2f}", file=dumpf)
                     print(f"        v_base: {rpoly.v_base:0.2f}", file=dumpf)
                     print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
+                    print(f"        texture_anchor: {getattr(rpoly, 'texture_anchor', None)}", file=dumpf)
+                    print(f"        cached_surface: {getattr(rpoly, 'cached_surface', None)}", file=dumpf)
+                    print(f"        texture_mag: {rpoly.texture_mag:0.2f}", file=dumpf)
                 else:
                     print(f"        u_base: {rpoly.u_base} (0x{rpoly.u_base:04x})", file=dumpf)
                     print(f"        v_base: {rpoly.v_base} (0x{rpoly.v_base:04x})", file=dumpf)
                     print(f"        texture_id: {rpoly.texture_id}", file=dumpf)
                     print(f"        texture_anchor: {rpoly.texture_anchor}", file=dumpf)
+                    print(f"        cached_surface: {rpoly.cached_surface}", file=dumpf)
+                    print(f"        texture_mag: {rpoly.texture_mag:0.2f}", file=dumpf)
                 # Skip printing  cached_surface, texture_mag, center.
             print(f"    index_count: {cell.index_count}", file=dumpf)
             print(f"    p_index_list: {cell.p_index_list.size}", file=dumpf)
@@ -1062,7 +1092,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
             material_idxs[face_ptr] = mat_idx
             # Calculate uvs.
             texture_size = get_texture_size(texture_id)
-            poly_tx_uvs, poly_lm_uvs = poly_calculate_uvs(cell, pi, texture_size, version)
+            poly_tx_uvs, poly_lm_uvs = poly_calculate_uvs(cell, pi, texture_size, version, lightmap_scale)
             texture_uvs[idx_start:idx_end] = poly_tx_uvs
             lightmap_uvs[idx_start:idx_end] = poly_lm_uvs
             # Add the primary lightmap for this poly to the atlas.
