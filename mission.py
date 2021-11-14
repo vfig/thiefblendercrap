@@ -459,7 +459,9 @@ def do_txlist(chunk, context, search_paths=(), progress=None,
 
     # Load all the textures into Blender images (except poor Jorge, who always
     # gets left out):
-    tex_extensions = ['.dds', '.png', '.tga', '.bmp', '.pcx', '.gif', '.cel']
+    ## TODO: '.dds' should come first (per newdark priorities), but i cant
+    ##       load them yet.
+    tex_extensions = ['.png', '.tga', '.bmp', '.pcx', '.gif', '.cel']
     ext_sort_order = {ext: i for (i, ext) in enumerate(tex_extensions)}
     def load_tex(fam_name, tex_name):
         fam_name = fam_name.lower()
@@ -494,7 +496,9 @@ def do_txlist(chunk, context, search_paths=(), progress=None,
                         print(f"    Candidate: {entry.name}", file=dumpf)
                     candidates.append((sort_key, entry.path))
         if not candidates:
-            raise ValueError(f"Cannot find texture {fam_name}/{tex_name}")
+            ## TODO: need a better way of handling missing textures
+            #raise ValueError(f"Cannot find texture {fam_name}/{tex_name}")
+            return None
         candidates.sort()
         filename = candidates[0][1]
         # Load the winning file
@@ -525,6 +529,10 @@ def do_txlist(chunk, context, search_paths=(), progress=None,
             tex_name = ascii(tex.name)
             progress.step(f"Loading fam/{fam_name}/{tex_name}")
             image = load_tex(fam_name, tex_name)
+            if image is None:
+                progress.step(f"Missing fam/{fam_name}/{tex_name}")
+            else:
+                progress.step(f"Loaded fam/{fam_name}/{tex_name} size {image.size[0]}x{image.size[1]}")
             textures.append(image)
     progress.leave_substeps(f"{tex_count} textures loaded.")
     return textures
