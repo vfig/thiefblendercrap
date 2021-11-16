@@ -379,25 +379,30 @@ class LGDBFile:
 def hex_str(bytestr):
     return " ".join(format(b, "02x") for b in bytestr)
 
-def import_mission(context, filepath, search_paths):
+def import_mission(context, filepath='', search_paths=(), **options):
+    # Make sure nothing is selected when we begin.
+    bpy.ops.object.select_all(action='DESELECT')
+
     dirname, basename = os.path.split(filepath)
     miss_name = os.path.splitext(basename)[0]
-    # TODO: make dumping an option?
-    dump_filename = os.path.join(dirname, miss_name+'.dump')
-    dumpf = open(dump_filename, 'w')
-    #dumpf = sys.stdout
+
+    dump = options.get('dump', False)
+    if dump:
+        dump_filename = os.path.join(dirname, miss_name+'.dump')
+        dumpf = open(dump_filename, 'w')
+        options['dump_file'] = dumpf
 
     with ProgressReport(context.window_manager) as progress:
         progress.enter_substeps(1, f"Importing .MIS {filepath!r}...")
         # Parse the .bin file
         mis = LGDBFile(filepath)
-        # TODO: make dumping an option!
-        print(f"table_offset: {mis.header.table_offset}", file=dumpf)
-        print(f"version: {mis.header.version.major}.{mis.header.version.minor}", file=dumpf)
-        print(f"deadbeef: {mis.header.deadbeef!r}", file=dumpf)
-        print("Chunks:", file=dumpf)
-        for i, name in enumerate(mis):
-            print(f"  {i}: {name}", file=dumpf)
+        if dump:
+            print(f"table_offset: {mis.header.table_offset}", file=dumpf)
+            print(f"version: {mis.header.version.major}.{mis.header.version.minor}", file=dumpf)
+            print(f"deadbeef: {mis.header.deadbeef!r}", file=dumpf)
+            print("Chunks:", file=dumpf)
+            for i, name in enumerate(mis):
+                print(f"  {i}: {name}", file=dumpf)
 
         # Check there's a worldrep *before* we spend time loading textures.
         if ('WR' not in mis
@@ -407,10 +412,6 @@ def import_mission(context, filepath, search_paths):
 
         start = time.process_time()
         txlist = mis['TXLIST']
-        options={
-            'dump': False,
-            'dump_file': dumpf,
-            }
         textures = do_txlist(txlist, context, search_paths=search_paths, progress=progress, **options)
         textures_time = time.process_time()-start
 
@@ -421,13 +422,6 @@ def import_mission(context, filepath, search_paths):
             worldrep = mis['WRRGB']
         else:
             worldrep = mis['WR']
-        options={
-            'dump': True,
-            'dump_file': dumpf,
-            'cell_limit': 0,
-            'skip_jorge': False,
-            'skip_skyhack': False,
-            }
         obj = do_worldrep(worldrep, textures, context, name=miss_name, progress=progress, **options)
         worldrep_time = time.process_time()-start
         # Make the object active and selected
@@ -452,7 +446,7 @@ def import_mission(context, filepath, search_paths):
     return obj
 
 def do_txlist(chunk, context, search_paths=(), progress=None,
-    dump=False, dump_file=None):
+    dump=False, dump_file=None, **options):
     dumpf = dump_file or sys.stdout
     assert progress is not None
     if (chunk.header.version.major, chunk.header.version.minor) \
@@ -825,7 +819,7 @@ def poly_calculate_uvs(cell, pi, texture_size, version, lightmap_scale):
     return (tx_uv_list, lm_uv_list)
 
 def do_worldrep(chunk, textures, context, name="mission", progress=None,
-    dump=False, dump_file=None, cell_limit=0, skip_jorge=False, skip_skyhack=False):
+    dump=False, dump_file=None, cell_limit=0, skip_jorge=False, skip_skyhack=False, **options):
     dumpf = dump_file or sys.stdout
     assert (progress is not None)
     progress.enter_substeps(5, "Loading worldrep...")
@@ -1534,8 +1528,6 @@ class TTImportMISOperator(Operator, ImportHelper):
     bl_label = "Import .MIS"
     bl_options = {'PRESET', 'UNDO'}
 
-    filename : StringProperty()
-
     filter_glob: StringProperty(
             default="*.mis;*.cow;*.vbr",
             options={'HIDDEN'},
@@ -1553,10 +1545,17 @@ class TTImportMISOperator(Operator, ImportHelper):
             default=True,
             )
 
-    debug_dump: BoolProperty(
+    dump: BoolProperty(
             name="Write .dump file",
             description="Write debug info to <missname>.dump text file.",
-            default=True,
+            default=False,
+            )
+
+    cell_limit: IntProperty(
+            name="Cell limit",
+            description="Import only the first N cells of the mission.",
+            default=0,
+            min=0,
             )
 
     def invoke(self, context, event):
@@ -1578,19 +1577,25 @@ class TTImportMISOperator(Operator, ImportHelper):
 
     def execute(self, context):
         from .prefs import get_preferences, show_preferences
+        # Save the last filepath (so next time we open, we will be in the
+        # same folder.
         prefs = get_preferences(context)
         prefs.last_filepath = self.filepath
+        # Always include the mission's folder in resource search paths.
         search_paths = list(prefs.texture_paths())
         search_paths.append(os.path.dirname(self.filepath))
-        bpy.ops.object.select_all(action='DESELECT')
+
+        options = self.as_keywords(ignore=('filter_glob',))
+
+        # TODO: remove the profile option at some point.
         PROFILE = False
         if PROFILE:
             import cProfile
             o = None
-            cProfile.runctx("o = import_mission(context, self.filepath, search_paths=search_paths)",
+            cProfile.runctx("o = import_mission(context, search_paths=search_paths, **options)",
                 globals(), locals(), "e:/temp/import_mission.prof")
         else:
-            o = import_mission(context, self.filepath, search_paths=search_paths)
+            o = import_mission(context, search_paths=search_paths, **options)
         return {'FINISHED'}
 
     def draw(self, context):
@@ -1624,6 +1629,7 @@ class MIS_PT_import_debug(bpy.types.Panel):
     bl_region_type = 'TOOL_PROPS'
     bl_label = "Debug"
     bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
     def poll(cls, context):
@@ -1637,7 +1643,8 @@ class MIS_PT_import_debug(bpy.types.Panel):
         layout.use_property_decorate = False  # No animation.
         sfile = context.space_data
         operator = sfile.active_operator
-        layout.prop(operator, "debug_dump")
+        layout.prop(operator, "dump")
+        layout.prop(operator, "cell_limit")
 
 #---------------------------------------------------------------------------#
 # Menus

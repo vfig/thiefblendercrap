@@ -57,6 +57,7 @@ class TOOLS_PT_thieftools_debug(Panel):
         box.label(text="MISSION")
         row = box.row(align=True)
         op = row.operator(mission.TTImportMISOperator.bl_idname, text="Import (debug)")
+        op.dump = True
 
         row = layout.row(align=True)
         box = row.box()
