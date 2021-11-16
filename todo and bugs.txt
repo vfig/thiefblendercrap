@@ -1,30 +1,36 @@
-- skip jorge/sky_hack
-
 - bake to one texture
 
-toggle jorge, sky_hack
-    -> does this mean toggle alpha clip/0 alpha?
-    -> toggle import of them, even!
-toggle backface culling
-    -> for all the materials of the level
 support terrain_scale in .mtl
     -> i dont want to, but people are gonna want it, i reckon
-is jorge, sky_hack lightmapped? (yes)
-    -> add option to skip jorge, sky hack polys
-    -> but also, default to skipping their lightmaps, they dont need them
-       and the _biggest_ single atlas space users (in t2) are sky polys.
-support animlights
-    -> option to bake them into the atlas during import?
-    -> or option for second animlight-only atlas?
-    -> or three atlases: static, default-on-animlight, default-off-animlight?
+
 name atlas image after mission
+
 load textures from crf
-support .vbr, .cow
-jorge shader
-sky_hack shader
+
+
+MAYBE:
 
 support ancient thief .mis files?
     E:/dev/thief/T1FM/LGS/m00_036.mis: WR version 0.18
     E:/dev/thief/T1FM/LGS/playtest.mis: WR version 0.18
     E:/dev/thief/T1FM/LGS/tower48.mis: WR version 0.19
     E:/dev/thief/T1FM/LGS/woodsie_051.mis: WR version 0.18
+
+toggle jorge, sky_hack
+    -> does this mean toggle alpha clip/0 alpha?
+    -> toggle import of them, even!
+
+jorge shader?
+sky_hack shader?
+
+is jorge, sky_hack lightmapped? (yes)
+    -> default to skipping their lightmaps, they dont need them?
+       and the _biggest_ single atlas space users (in t2) are sky polys.
+
+toggle backface culling
+    -> for all the materials of the level
+
+support animlights
+    -> option to bake them into the atlas during import?
+    -> or option for second animlight-only atlas?
+    -> or three atlases: static, default-on-animlight, default-off-animlight?

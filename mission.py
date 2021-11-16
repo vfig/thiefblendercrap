@@ -331,9 +331,12 @@ class LGDBFile:
         # Read the header.
         header = f.read(LGDBFileHeader)
         if header.deadbeef != b'\xDE\xAD\xBE\xEF':
-            raise ValueError("File is not a .mis/.cow/.gam/.vbr")
+            # Note: could actually check if it is a .mis/.cow and not just a
+            #       .vbr/.gam/.sav - but no need, as none of those have
+            #       a worldrep anyway.
+            raise ValueError("File is not a .mis/.cow")
         if (header.version.major, header.version.minor) not in [(0, 1)]:
-            raise ValueError("Only version 0.1 .mis/.cow/.gam/.vbr files are supported")
+            raise ValueError("Only version 0.1 .mis/.cow files are supported")
         # Read the table of contents.
         f.seek(header.table_offset)
         toc_count = f.read(uint32)
@@ -1529,7 +1532,7 @@ class TTImportMISOperator(Operator, ImportHelper):
     bl_options = {'PRESET', 'UNDO'}
 
     filter_glob: StringProperty(
-            default="*.mis;*.cow;*.vbr",
+            default="*.mis;*.cow",
             options={'HIDDEN'},
             )
 
