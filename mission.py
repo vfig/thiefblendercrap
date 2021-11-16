@@ -399,6 +399,12 @@ def import_mission(context, filepath, search_paths):
         for i, name in enumerate(mis):
             print(f"  {i}: {name}", file=dumpf)
 
+        # Check there's a worldrep *before* we spend time loading textures.
+        if ('WR' not in mis
+        and 'WRRGB' not in mis
+        and 'WREXT' not in mis):
+            raise ValueError(f"No WR/WRRGB/WREXT worldrep chunk in {basename}.")
+
         start = time.process_time()
         txlist = mis['TXLIST']
         options={
@@ -409,14 +415,12 @@ def import_mission(context, filepath, search_paths):
         textures_time = time.process_time()-start
 
         start = time.process_time()
-        if 'WR' in mis:
-            worldrep = mis['WR']
+        if 'WREXT' in mis:
+            worldrep = mis['WREXT']
         elif 'WRRGB' in mis:
             worldrep = mis['WRRGB']
-        elif 'WREXT' in mis:
-            worldrep = mis['WREXT']
         else:
-            raise ValueError(f"No WR or WRRGB worldrep chunk in {basename}.")
+            worldrep = mis['WR']
         options={
             'dump': True,
             'dump_file': dumpf,
