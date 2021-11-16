@@ -1,3 +1,7 @@
+- skip jorge/sky_hack
+
+- bake to one texture
+
 toggle jorge, sky_hack
     -> does this mean toggle alpha clip/0 alpha?
     -> toggle import of them, even!
@@ -14,8 +18,6 @@ support animlights
     -> or option for second animlight-only atlas?
     -> or three atlases: static, default-on-animlight, default-off-animlight?
 name atlas image after mission
-delete air portal vertices
-    -> theres an operator for this, we can run it post-import?
 load textures from crf
 support .vbr, .cow
 jorge shader
