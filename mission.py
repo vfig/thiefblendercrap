@@ -1530,15 +1530,33 @@ class TTMissionSettings(PropertyGroup):
 # Operators
 
 class TTImportMISOperator(Operator, ImportHelper):
-    bl_idname = "object.tt_import_mis"
+    bl_idname = "import_scene.tt_mis"
     bl_label = "Import .MIS"
-    bl_options = {'REGISTER'}
+    bl_options = {'PRESET', 'UNDO'}
 
     filename : StringProperty()
 
     filter_glob: StringProperty(
             default="*.mis;*.cow;*.vbr",
             options={'HIDDEN'},
+            )
+
+    skip_jorge: BoolProperty(
+            name="Skip Jorge",
+            description="Don't import polys with Jorge texture.",
+            default=True,
+            )
+
+    skip_skyhack: BoolProperty(
+            name="Skip SKY HACK",
+            description="Don't import polys with SKY HACK texture.",
+            default=True,
+            )
+
+    debug_dump: BoolProperty(
+            name="Write .dump file",
+            description="Write debug info to <missname>.dump text file.",
+            default=True,
             )
 
     def invoke(self, context, event):
@@ -1574,6 +1592,52 @@ class TTImportMISOperator(Operator, ImportHelper):
         else:
             o = import_mission(context, self.filepath, search_paths=search_paths)
         return {'FINISHED'}
+
+    def draw(self, context):
+        # Don't draw any properties here; the panels below will draw the
+        # ui that we need.
+        pass
+
+class MIS_PT_import_options(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Options"
+    bl_parent_id = "FILE_PT_operator"
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+        return operator.bl_idname == "IMPORT_SCENE_OT_tt_mis"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+        sfile = context.space_data
+        operator = sfile.active_operator
+        layout.prop(operator, "skip_jorge")
+        layout.prop(operator, "skip_skyhack")
+
+class MIS_PT_import_debug(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Debug"
+    bl_parent_id = "FILE_PT_operator"
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+        return operator.bl_idname == "IMPORT_SCENE_OT_tt_mis"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+        sfile = context.space_data
+        operator = sfile.active_operator
+        layout.prop(operator, "debug_dump")
 
 #---------------------------------------------------------------------------#
 # Menus
