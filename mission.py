@@ -882,35 +882,6 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
         else:
             raise ValueError(f"Unrecognised lightmap_format {header.lightmap_format}")
 
-    # TODO: import the entire worldrep into one mesh (with options to
-    #       skip jorge & sky polys); as we read each cell, append its
-    #       vertices and indices (adjusted by a global index total) to
-    #       the list.
-    #
-    #       uv_layer 0 will be for texture coordinate; uv_layer 1 will
-    #       be for lightmap coordinates.
-    #       this means we will need to construct each lightmap material
-    #       with nodes: UV Map -> Image Texture -> BSDF.
-    #
-    #       as we read each cell, we should pack its lightmap (skipping
-    #       the animlight portions for now) into an image texture, and
-    #       write out the uv scale+offset that needed. this probably
-    #       means managing _multiple_ lightmap textures/materials, if
-    #       the lightmaps are too big to fit in a 4Kx4K texture (the max
-    #       that newdark permits; i might want to start smaller, too).
-    #       feels like this might need to be a post pass (or passes).
-    #
-    #       however, to get started more easily: begin by just creating
-    #       one material per poly (lol), uv_layer 0, and creating an
-    #       image texture for its lightmap. this will ensure i can actually
-    #       interpret the data correctly, before i try to do it efficiently.
-    #
-    #       So.... because lightmaps are unique, and (i think) aligned with
-    #       textures, we could during import merge both lightmaps and texture
-    #       samples into one big atlas? that way we end up with unique texels
-    #       for each poly, and the combined result will be ready for export
-    #       as a single model, without the blender baking shenanigans? dunno.
-
     progress.step("Loading cells...")
     cell_progress_step_size = 100
     cell_progress_step_count = (header.cell_count//cell_progress_step_size)+1
@@ -994,36 +965,6 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     progress.leave_substeps()
 
     progress.step("Building geometry...")
-    # We need to build up a single mesh. We need:
-    #
-    # - Vertex positions: (float, float, float)
-    # - Faces: (v-index, v-index, v-index, ...)
-    # - Texture UVs: (float, float) per loop (belonging to first vertex)
-    # - Lightmap UVs: (float, float) per loop (belonging to first vertex)
-    # - Materials: [texture_mat, ..., lightmap_atlas_mat, ...]
-    # - Material indices: (int) per face
-    #
-    # Note on materials:
-    #
-    #   The maximal set of texture materials is known in advance, as it is
-    #   limited to those in the TXLIST (in olddark, a maximum of 256). For
-    #   lightmaps, you'd hope they fit in a single atlas, but until you try
-    #   to pack them all in, you don't know for sure. And if we bake the
-    #   terrain textures and lightmaps together, on a whole map that would
-    #   almost certainly require multiple atlas (even though that's an approach
-    #   that only makes sense for worldrep->model workflows on not-whole-maps).
-    #
-    #   Regardless, atlassing lightmaps means we cannot know UVs as we walk
-    #   through the worldrep for the first time; instead we need to grab a
-    #   handle for the UVs, and give the atlas builder the offset:size of the
-    #   lightmap data in the view. Then once the worldrep has been walked, we
-    #   can pack the atlas(es), and get the actual material and UVs from the
-    #   builder.
-    #
-    #   And if we are baking terrain textures and lightmaps together, the same
-    #   situation applies to terrain textures. This suggests that the builder
-    #   should be responsible for collating both terrain textures and lightmaps,
-    #   and that we use handles for all UVs and for material indices.
 
     MAX_CELLS = 32678       # Imposed by Dromed
     MAX_VERTICES = 256*1024 # Imposed by Dromed
