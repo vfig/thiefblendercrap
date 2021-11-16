@@ -3,8 +3,6 @@
 support terrain_scale in .mtl
     -> i dont want to, but people are gonna want it, i reckon
 
-name atlas image after mission
-
 load textures from crf
 
 

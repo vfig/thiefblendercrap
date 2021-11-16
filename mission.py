@@ -1069,6 +1069,7 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     progress.step("Building lightmap atlas...")
     atlas_builder.finish()
     lightmap_image = atlas_builder.image
+    lightmap_image.name = f"{name}_Lightmap"
 
     # Create the mesh geometry.
     progress.step("Creating mesh...")
