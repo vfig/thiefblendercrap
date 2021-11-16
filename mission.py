@@ -1566,6 +1566,8 @@ class TTImportMISOperator(Operator, ImportHelper):
         from .prefs import get_preferences, show_preferences
         prefs = get_preferences(context)
         search_paths = prefs.texture_paths()
+        # Check that search paths has been set (e.g. to the Thief directory)
+        # and that all search paths actually exist.
         if not search_paths:
             show_preferences()
             self.report({'ERROR'}, f"Resource search paths not set.")
@@ -1575,6 +1577,8 @@ class TTImportMISOperator(Operator, ImportHelper):
                 show_preferences()
                 self.report({'ERROR'}, f"Resource search path {path} does not exist.")
                 return {'CANCELLED'}
+        # Default to the same file last opened (so the dialog will show
+        # the same directory).
         if prefs.last_filepath and not self.filepath:
             self.filepath = prefs.last_filepath
         return super().invoke(context, event)
@@ -1585,9 +1589,10 @@ class TTImportMISOperator(Operator, ImportHelper):
         # same folder.
         prefs = get_preferences(context)
         prefs.last_filepath = self.filepath
-        # Always include the mission's folder in resource search paths.
+        # Always include the mission's directory in resource search paths.
         search_paths = list(prefs.texture_paths())
-        search_paths.append(os.path.dirname(self.filepath))
+        mission_dir = os.path.dirname(self.filepath)
+        search_paths.append(mission_dir)
 
         options = self.as_keywords(ignore=('filter_glob',))
 
