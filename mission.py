@@ -426,6 +426,21 @@ def import_mission(context, filepath, search_paths):
             }
         obj = do_worldrep(worldrep, textures, context, name=miss_name, progress=progress, **options)
         worldrep_time = time.process_time()-start
+        # Make the object active and selected
+        context.view_layer.objects.active = obj
+        obj.select_set(True)
+        # Clean up loose vertices (from skipped polygons).
+        bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+        bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='VERT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.delete_loose(use_verts=True, use_edges=False, use_faces=False)
+        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+        # I was tempted to do a limited dissolve here, to clean up the
+        # mesh a little. But doing so would destroy the uvs, and to deal
+        # with that would require cross-baking textures and lightmaps from
+        # the imported mesh to the cleaned up one. That's way more
+        # complexity than I'm prepared to deal with here and now.
         progress.leave_substeps(f"Finished importing: {filepath!r}")
 
     print(f"Load textures: {textures_time:0.1f}s")
@@ -1610,11 +1625,8 @@ class TTImportMISOperator(Operator, ImportHelper):
             o = None
             cProfile.runctx("o = import_mission(context, self.filepath, search_paths=search_paths)",
                 globals(), locals(), "e:/temp/import_mission.prof")
-            o.select_set(True)
         else:
             o = import_mission(context, self.filepath, search_paths=search_paths)
-            context.view_layer.objects.active = o
-            o.select_set(True)
         return {'FINISHED'}
 
 #---------------------------------------------------------------------------#
