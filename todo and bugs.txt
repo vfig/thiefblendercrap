@@ -3,7 +3,23 @@
 support terrain_scale in .mtl
     -> i dont want to, but people are gonna want it, i reckon
 
-load textures from crf
+load *stock* textures from crf
+
+    i think what i want to do for file loading...
+    given:
+        - all stock textures are .pcx or .gif, so i can load them from bytes
+          (even out of a .crf)
+        - .png, .jpg in fms are all unzipped anyway, so i can still use
+          bpy.data.images.load() on them
+        - (.dds i still dont support, but falls into the former category)
+    i want to accept a *set of filenames*
+    and return a matching set of full filepaths or bytes/numpy arrays
+    where all the subdir searching, language subdir adding, crf loading,
+    etc. etc. is all done here in this one function. (also returned should
+    be metadata of name, format)
+
+    then the caller (i.e. do_txload) can dispatch to bpy.data.images.load()
+    or to images.load_gif()/images.load_pcx() as needed.
 
 
 MAYBE:
