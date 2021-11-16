@@ -888,11 +888,12 @@ def do_worldrep(chunk, textures, context, name="mission", progress=None,
     progress.enter_substeps(cell_progress_step_count)
     cells = np.zeros(header.cell_count, dtype=object)
     for cell_index in range(header.cell_count):
+        cell_offset = f.offset
         try:
             if cell_index%cell_progress_step_size==0: progress.step()
             cells[cell_index] = LGWRCell.read(f, cell_index, version, lightmap_format)
         except:
-            print(f"Reading cell {cell_index} at offset 0x{f.offset:08x}...", file=sys.stderr)
+            print(f"While reading cell {cell_index} at offset 0x{cell_offset:08x}:", file=sys.stderr)
             raise
 
     if dump:
