@@ -1,5 +1,3 @@
-BLENDER_2 = (bpy.app.version<(3, 0, 0))
-
 import bpy
 import gpu
 import math
@@ -8,6 +6,8 @@ import numpy as np
 import os
 import sys
 import time
+
+BLENDER_2 = (bpy.app.version<(3, 0, 0))
 if BLENDER_2:
     import bgl
 
@@ -1384,369 +1384,9 @@ class AtlasBuilder:
 #---------------------------------------------------------------------------#
 # Baking textures and lightmaps together
 
-def bake_textures_and_lightmaps(context, obj):
-    from math import ceil, floor
-    # TODO: use the lightmap scale from the mission? but we havent
-    # saved it. maybe we need to!
-    lightmap_scale = 16.0
-    mesh = obj.data
-    num_polys = len(mesh.polygons)
-    num_loops = len(mesh.loops)
-    texture_uv_layer = mesh.uv_layers['UVMap']
-    lightmap_uv_layer = mesh.uv_layers['UVLightmap']
-    # Copy relevant mesh data into numpy arrays
-    loop_starts = np.zeros(num_polys, dtype=int32)
-    loop_totals = np.zeros(num_polys, dtype=int32)
-    texture_uvs = np.zeros(2*num_loops, dtype=float32)
-    lightmap_uvs = np.zeros(2*num_loops, dtype=float32)
-    mesh.polygons.foreach_get("loop_start", loop_starts)
-    mesh.polygons.foreach_get("loop_total", loop_totals)
-    texture_uv_layer.data.foreach_get('uv', texture_uvs)
-    lightmap_uv_layer.data.foreach_get('uv', lightmap_uvs)
-    texture_uvs.shape = (-1,2)
-    lightmap_uvs.shape = (-1,2)
-
-    padding = 4
-    # TODO: use the actual atlas dimensions!
-    atlas_w = 256
-    atlas_h = 256
-    scaled_pixel_size = np.array(
-        [atlas_w*lightmap_scale, atlas_h*lightmap_scale],
-        dtype=float32)
-    inv_scaled_pixel_size = np.reciprocal(scaled_pixel_size)
-    # TODO: why do i need the _indices_ of min and max uvs, and not just the
-    #       actual values?
-    #       The _lightmap-space_ uvs of the vertices will literally be their
-    #       vertex coordinates pre- atlas-offsetting and scaling.
-    #       The _texture-space_ uvs of the vertices will be their
-    #       lightmap-space uvs transformed into texture space (lerp
-    #       from lm_min/max_uv to tx_min/max_uv).
-    tx_min_uv = np.zeros(2, dtype=float32)
-    tx_max_uv = np.zeros(2, dtype=float32)
-    lm_min_uv = np.zeros(2, dtype=float32)
-    lm_max_uv = np.zeros(2, dtype=float32)
-    # target_size will be computed from the lightmap uvs;
-    # target_pos will be output from atlassing.
-    target_pos = np.zeros((numpolys,2), dtype=float32)
-    target_size = np.zeros((numpolys,2), dtype=float32)
-    # for target_*_uvs, [:,0,:] = lower left; [:,1,:] = upper right.
-    target_tx_uvs = np.zeros((numpolys,2,2), dtype=float32)
-    target_lm_uvs = np.zeros((numpolys,2,2), dtype=float32)
-
-    for poly_idx,(loop_start,loop_total) \
-    in enumerate(zip(loop_starts,loop_totals)):
-        loop_end = loop_start+loop_total
-        tx_uvs = texture_uvs[loop_start:loop_end]
-        lm_uvs = lightmap_uvs[loop_start:loop_end]
-        # Find indices of the minimum and maximum uvs.
-        np.amin(tx_uvs, axis=0, out=tx_min_uv)
-        np.amax(tx_uvs, axis=0, out=tx_max_uv)
-        np.amin(lm_uvs, axis=0, out=lm_min_uv)
-        np.amax(lm_uvs, axis=0, out=lm_max_uv)
-        # Convert them to scaled-lightmap pixel coordinates.
-        np.multiply.at(tx_idx_min_uv, :, scaled_pixel_size)
-        np.multiply.at(tx_idx_max_uv, :, scaled_pixel_size)
-        np.multiply.at(lm_idx_min_uv, :, scaled_pixel_size)
-        np.multiply.at(lm_idx_max_uv, :, scaled_pixel_size)
-        # Compute the bounding rect size.
-        lm0 = ( # Lower left
-            floor(lm_min_uv[0]-pad),
-            floor(lm_min_uv[1]-pad))
-        lm1 = ( # Upper right
-            ceil(lm_max_uv[0]+pad),
-            ceil(lm_max_uv[1]+pad))
-        target_size[poly_idx][0] = (lm1[0]-lm0[0])
-        target_size[poly_idx][1] = (lm1[1]-lm0[1])
-        # Calculate the target lightmap uvs.
-        lm_uv0 = (
-            lm0[0]*inv_scaled_pixel_size[0],
-            lm0[1]*inv_scaled_pixel_size[1])
-        lm_uv1 = (
-            lm1[0]*inv_scaled_pixel_size[0],
-            lm1[1]*inv_scaled_pixel_size[1])
-        target_lm_uvs[poly_idx][0][0] = lm_uv0[0]
-        target_lm_uvs[poly_idx][0][1] = lm_uv0[1]
-        target_lm_uvs[poly_idx][1][0] = lm_uv1[0]
-        target_lm_uvs[poly_idx][1][1] = lm_uv1[1]
-        # Calculate the target texture uvs.
-        k = (
-            (tx_max_uv[0]-tx_min_uv[0])/(lm_max_uv[0]-lm_min_uv[0]),
-            (tx_max_uv[1]-tx_min_uv[1])/(lm_max_uv[1]-lm_min_uv[1]))
-        target_tx_uvs[poly_idx][0][0] = (lm_uv0[0]-lm_min_uv[0])*k[0]+tx_min_uv[0]
-        target_tx_uvs[poly_idx][0][1] = (lm_uv0[1]-lm_min_uv[1])*k[1]+tx_min_uv[1]
-        target_tx_uvs[poly_idx][1][0] = (lm_uv1[0]-lm_min_uv[0])*k[0]+tx_min_uv[0]
-        target_tx_uvs[poly_idx][1][1] = (lm_uv1[1]-lm_min_uv[1])*k[1]+tx_min_uv[1]
-
-    # TODO: do atlassing to fill out target_pos and convert target_size
-    #       into target atlas coordinates.
-
-    # Set the triangle vertices (in target pixel coords).
-    render_vertices = np.zeros((num_polys,6,2), dtype=float32)
-    render_tx_uvs = np.zeros((num_polys,6,2), dtype=float32)
-    render_lm_uvs = np.zeros((num_polys,6,2), dtype=float32)
-    for poly_idx,(pos0,size)
-    in enumerate(zip(target_pos,target_size)):
-        pos1 = (pos0[0]+size[0], pos0[1]+size[1])
-        vertices[poly_idx,0,0] = pos0[0]
-        vertices[poly_idx,0,1] = pos0[1]
-        vertices[poly_idx,1,0] = pos1[0]
-        vertices[poly_idx,1,1] = pos0[1]
-        vertices[poly_idx,2,0] = pos1[0]
-        vertices[poly_idx,2,1] = pos1[1]
-        vertices[poly_idx,3,0] = pos1[0]
-        vertices[poly_idx,3,1] = pos1[1]
-        vertices[poly_idx,4,0] = pos0[0]
-        vertices[poly_idx,4,1] = pos1[1]
-        vertices[poly_idx,5,0] = pos0[0]
-        vertices[poly_idx,5,1] = pos0[1]
-        uv = target_tx_uvs[poly_idx]
-        render_tx_uvs[poly_idx,0,0] = uv[0][0]
-        render_tx_uvs[poly_idx,0,1] = uv[0][1]
-        render_tx_uvs[poly_idx,1,0] = uv[1][0]
-        render_tx_uvs[poly_idx,1,1] = uv[0][1]
-        render_tx_uvs[poly_idx,2,0] = uv[1][0]
-        render_tx_uvs[poly_idx,2,1] = uv[1][1]
-        render_tx_uvs[poly_idx,3,0] = uv[1][0]
-        render_tx_uvs[poly_idx,3,1] = uv[1][1]
-        render_tx_uvs[poly_idx,4,0] = uv[0][0]
-        render_tx_uvs[poly_idx,4,1] = uv[1][1]
-        render_tx_uvs[poly_idx,5,0] = uv[0][0]
-        render_tx_uvs[poly_idx,5,1] = uv[0][1]
-        uv = target_lm_uvs[poly_idx]
-        render_lm_uvs[poly_idx,0,0] = uv[0][0]
-        render_lm_uvs[poly_idx,0,1] = uv[0][1]
-        render_lm_uvs[poly_idx,1,0] = uv[1][0]
-        render_lm_uvs[poly_idx,1,1] = uv[0][1]
-        render_lm_uvs[poly_idx,2,0] = uv[1][0]
-        render_lm_uvs[poly_idx,2,1] = uv[1][1]
-        render_lm_uvs[poly_idx,3,0] = uv[1][0]
-        render_lm_uvs[poly_idx,3,1] = uv[1][1]
-        render_lm_uvs[poly_idx,4,0] = uv[0][0]
-        render_lm_uvs[poly_idx,4,1] = uv[1][1]
-        render_lm_uvs[poly_idx,5,0] = uv[0][0]
-        render_lm_uvs[poly_idx,5,1] = uv[0][1]
-
-    # okay, now we ought to have everything ready to render!
-    # TODO: until the atlassing bit is ready, just render the one
-    #       poly target rect.
-    # TODO: also, after rendering the target rect, do a debug
-    #       rendering of the lm_uvs (change the modelview matrix and
-    #       do a TRIANGLE_FAN render)
-
-
-    '''
-    1. For each poly (LATER: sort by terrain texture!):
-        get its texture uvs
-        get its lightmap uvs
-        get the extents of both
-        calculate the target rect (with or without padding)
-            ^ we need pixel coords of that for atlassing
-        calculate the texture uvs and lightmap uvs of the target rect verts
-            ^ unchanged by atlassing
-        Store the target verts, txuvs, lmuvs for part 2.
-        LATER: Store the start and end indices of the data for each terrain tex
-            ^ so we can do one gl draw per terrain tex
-    2. Load the lightmap texture
-        For each terrain texture:
-            load its terrain texture
-            draw all its vertices
-        Free everything
-    '''
-    pass
-
-'''
-import bpy
-import bmesh
-import gpu
-import bgl
-import math
-import numpy as np
-import random
-import sys
-from dataclasses import dataclass
-from time import perf_counter
-from mathutils import Matrix, Vector
-from gpu_extras.batch import batch_for_shader
-from gpu_extras.presets import draw_circle_2d
-
-POLY = [ # vertex,     txuv,                lmuv
-    ( (8.000000,-2.500000,3.000000), (0.332409,2.924059), (0.116522,0.071079) ),
-    ( (8.000000,4.500000,3.000000), (-2.698568,1.173866), (0.069163,0.043732) ),
-    ( (8.000000,4.500000,-3.000000), (-1.198402,-1.424115), (0.092603,0.003139) ),
-    ( (8.000000,-2.500000,-3.000000), (1.832575,0.326079), (0.139962,0.030486) ),
-    ]
-
-def dump_selected_face(context):
-    o = context.active_object
-    bm = bmesh.from_edit_mesh(o.data)
-    txuv_layer = bm.loops.layers.uv[0]
-    lmuv_layer = bm.loops.layers.uv[1]
-    for face in bm.faces:
-        if not face.select: continue
-        for loop in face.loops:
-            co = loop.vert.co[:]
-            txuv = loop[txuv_layer].uv[:]
-            lmuv = loop[lmuv_layer].uv[:]
-            print("( (%f,%f,%f), (%f,%f), (%f,%f) )," % (co+txuv+lmuv))
-
-def gen_image():
-    IMAGE_NAME = "Generated Image"
-    WIDTH = 4096
-    HEIGHT = 4096
-
-    ## We don't need the polygon vertices!
-    #verts = tuple((vert[0],vert[1]) for (vert,txuv,lmuv) in POLY)
-    tx_uvs = tuple(txuv for (vert,txuv,lmuv) in POLY)
-    lm_uvs = tuple(lmuv for (vert,txuv,lmuv) in POLY)
-
-    # A 4096x4096 image does give me the necessary texture resolution for the baked atlas-and-lightmaps
-    # when the lightmap atlas is 256x256 ! But its extremely slow to get the image pixels, so for the
-    # sake of iterating on the solution, I'm going to use a smaller generated image, and scale/offset
-    # the lightmap-uvs-as-vertices
-    WIDTH = HEIGHT = 256
-    HACK_SCALE = 16.0 # When lighting_scale==1
-    # Calculate the *corner* pixel coordinates of the lightmap vertices
-    # And from that, the scaled
-    ATLAS_W = ATLAS_H = 256 # TODO - get these from the actual atlas
-
-    @dataclass
-    class Extents:
-        u_min: float = sys.float_info.max
-        v_min: float = sys.float_info.max
-        u_max: float = -sys.float_info.max
-        v_max: float = -sys.float_info.max
-        idx_u_min: int = -1
-        idx_v_min: int = -1
-        idx_u_max: int = -1
-        idx_v_max: int = -1
-
-    tx_info = Extents()
-    lm_info = Extents()
-    for idx,(vert,txuv,lmuv) in enumerate(POLY):
-        # Find the extremes in the texture coords:
-        if txuv[0]<tx_info.u_min:
-            tx_info.u_min = txuv[0]
-            tx_info.idx_u_min = idx
-        if txuv[0]>tx_info.u_max:
-            tx_info.u_max = txuv[0]
-            tx_info.idx_u_max = idx
-        if txuv[1]<tx_info.v_min:
-            tx_info.v_min = txuv[1]
-            tx_info.idx_v_min = idx
-        if txuv[1]>tx_info.v_max:
-            tx_info.v_max = txuv[1]
-            tx_info.idx_v_max = idx
-        # And for lightmap coords:
-        if lmuv[0]<lm_info.u_min:
-            lm_info.u_min = lmuv[0]
-            lm_info.idx_u_min = idx
-        if lmuv[0]>lm_info.u_max:
-            lm_info.u_max = lmuv[0]
-            lm_info.idx_u_max = idx
-        if lmuv[1]<lm_info.v_min:
-            lm_info.v_min = lmuv[1]
-            lm_info.idx_v_min = idx
-        if lmuv[1]>lm_info.v_max:
-            lm_info.v_max = lmuv[1]
-            lm_info.idx_v_max = idx
-
-    # TODO: redo the pixel calculations directly from the lm_info! lots of cleanup potential here!
-    tx_uv0 = Vector((tx_info.u_min,tx_info.v_min))
-    tx_uv1 = Vector((tx_info.u_max,tx_info.v_max))
-    lm_uv0 = Vector((lm_info.u_min,lm_info.v_min))
-    lm_uv1 = Vector((lm_info.u_max,lm_info.v_max))
-    # Calculate the lightmap corners for display:
-    px0 = lm_uv0*Vector((ATLAS_W,ATLAS_H))
-    px1 = lm_uv1*Vector((ATLAS_W,ATLAS_H))
-    px0 = Vector((math.floor(px0.x), math.floor(px0.y)))
-    px1 = Vector((math.ceil(px1.x), math.ceil(px1.y)))
-    w,h = int(px1.x-px0.x), int(px1.y-px0.y)
-    print(f"lightmap pixel coords: {px0.x},{px0.y} - {px1.x},{px1.y} ({w}x{h})")
-    # Calculate the lightmap corners in the target (the same, but scaled):
-    TIGHT_BOUNDS = True
-    EXTRA_PADDING = True
-    if TIGHT_BOUNDS:
-        px0 = lm_uv0*Vector((ATLAS_W,ATLAS_H))*HACK_SCALE
-        px1 = lm_uv1*Vector((ATLAS_W,ATLAS_H))*HACK_SCALE
-        px0 = Vector((math.floor(px0.x), math.floor(px0.y)))
-        px1 = Vector((math.ceil(px1.x), math.ceil(px1.y)))
-        if EXTRA_PADDING:
-            px0 -= Vector((4,4))
-            px1 += Vector((4,4))
-        w,h = int(px1.x-px0.x), int(px1.y-px0.y)
-    else:
-        # This doesn't include a specific amount of padding; it just does the scale-by-16
-        # before clamping to pixel coordinates.
-        px0 = lm_uv0*Vector((ATLAS_W,ATLAS_H))
-        px1 = lm_uv1*Vector((ATLAS_W,ATLAS_H))
-        px0 = Vector((math.floor(px0.x), math.floor(px0.y)))*HACK_SCALE
-        px1 = Vector((math.ceil(px1.x), math.ceil(px1.y)))*HACK_SCALE
-        w,h = int(px1.x-px0.x), int(px1.y-px0.y)
-    print(f"target pixel coords: {px0.x},{px0.y} - {px1.x},{px1.y} ({w}x{h})")
-    # Scale and offset the vertices into the generated image:
-    HACK_OFFSET = (px0.x/ATLAS_W,px0.y/ATLAS_H)
-    verts = tuple((Vector(lmuv))*HACK_SCALE-Vector(HACK_OFFSET) for (vert,txuv,lmuv) in POLY)
-
-    # Calculate texture and lightmap uvs from target atlas coords:
-    def txuv_from_targetuv(u,v):
-        x0 = verts[tx_info.idx_u_min][0]
-        y0 = verts[tx_info.idx_v_min][1]
-        x1 = verts[tx_info.idx_u_max][0]
-        y1 = verts[tx_info.idx_v_max][1]
-        u = (u-x0)/(x1-x0)*(tx_info.u_max-tx_info.u_min)+tx_info.u_min
-        v = (v-y0)/(y1-y0)*(tx_info.v_max-tx_info.v_min)+tx_info.v_min
-        return (u,v)
-    def lmuv_from_targetuv(u,v):
-        x0 = verts[lm_info.idx_u_min][0]
-        y0 = verts[lm_info.idx_v_min][1]
-        x1 = verts[lm_info.idx_u_max][0]
-        y1 = verts[lm_info.idx_v_max][1]
-        u = (u-x0)/(x1-x0)*(lm_info.u_max-lm_info.u_min)+lm_info.u_min
-        v = (v-y0)/(y1-y0)*(lm_info.v_max-lm_info.v_min)+lm_info.v_min
-        return (u,v)
-
-    area_lmuvs = (
-        lmuv_from_targetuv(0.0,0.0),
-        lmuv_from_targetuv(w/WIDTH,0.0),
-        lmuv_from_targetuv(w/WIDTH,h/HEIGHT),
-        lmuv_from_targetuv(0.0,h/HEIGHT) )
-    area_txuvs = (
-        txuv_from_targetuv(0.0,0.0),
-        txuv_from_targetuv(w/WIDTH,0.0),
-        txuv_from_targetuv(w/WIDTH,h/HEIGHT),
-        txuv_from_targetuv(0.0,h/HEIGHT) )
-
-    # so we can see the whole thing, increase the height and width
-    # and adjust the verts accordingly
-    WIDTH *= 2
-    HEIGHT *= 2
-    verts = tuple(Vector(v)*0.5 for v in verts)
-    area_verts = ( (0.0,0.0), (w/WIDTH,0.0), (w/WIDTH,h/HEIGHT), (0.0,h/HEIGHT) )
-
-    # TODO: we need to do a little more work now. ideally we blit all the relevant lightmap
-    #       pixels into the target, and fill the same area with the texture.
-    #       but to do that means recalculating new vertex coords (easy enough, the corners
-    #       of the pixel boundaries above) and also new texture uvs for those coords (*fear*)!
-    #       alternatively we could just do an expansion of the verts above by a pixel or two,
-    #       but that might be even harder to calculate!
-    #       the texture uv recalculation needs to be done by using the existing texture uvs
-    #       to get new 2d basis vectors for the texture, then using those to calculate the
-    #       coordinates of each of the corner vertices. sounds simple enough?
-
-    ## The texture UVs are already right!
-    ## Transform the texture uvs
-    #angle = 0.0
-    #transx = 0.0
-    #transy = 0.0
-    #size = 1.0
-    #rot = Matrix.Rotation(math.radians(angle), 4, 'Z')
-    #scale = Matrix.Scale(size, 4)
-    #trans1 = Matrix.Translation(Vector((transx,transy,0.0,1.0)))
-    #trans2 = trans1.inverted()
-    #mat = trans1 @ rot @ scale @ trans2
-    #transformed_uvs = [mat @ Vector((c[0],c[1],0.0,1.0)) for c in tx_uvs]
-    #tx_uvs = tuple((c[0],c[1]) for c in transformed_uvs)
-
+def _draw_stuff(verts, tx_uvs, lm_uvs, tx_image, lm_image,
+        debug_verts, debug_tx_uvs, debug_lm_uvs):
+    from time import perf_counter
     vertex_shader = """
         uniform mat4 ModelViewProjectionMatrix;
 
@@ -1802,81 +1442,87 @@ def gen_image():
         }
         """
     shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
-    batch = batch_for_shader(shader, 'TRI_FAN',
-        {"pos": verts, "texCoord": tx_uvs, "lmCoord": lm_uvs})
-    area_batch = batch_for_shader(shader, 'TRI_FAN',
-        {"pos": area_verts, "texCoord": area_txuvs, "lmCoord": area_lmuvs})
 
-    texture_image = bpy.data.images['fam_ancient_brdsml01']
-    lightmap_image = bpy.data.images['blatlas_Lightmap']
-    BLENDER_3 = False
-    if BLENDER_3:
-        texture = gpu.texture.from_image(texture_image)
-        lightmap = gpu.texture.from_image(lightmap_image)
-    else:
-        # This works in 2.92:
-        if texture_image.gl_load():
+    batch = batch_for_shader(shader, 'TRIS',
+        {"pos": verts, "texCoord": tx_uvs, "lmCoord": lm_uvs})
+    # TODO: remove debug batch when everything works
+    debug_batch = batch_for_shader(shader, 'TRI_FAN',
+        {"pos": debug_verts, "texCoord": debug_tx_uvs, "lmCoord": debug_lm_uvs})
+
+    if BLENDER_2:
+        if tx_image.gl_load():
             raise RuntimeError("Unable to load image to gpu.")
-        if lightmap_image.gl_load():
-            texture_image.gl_free()
+        if lm_image.gl_load():
+            tx_image.gl_free()
             raise RuntimeError("Unable to load lightmap image to gpu.")
+    else:
+        texture = gpu.texture.from_image(tx_image)
+        lightmap = gpu.texture.from_image(lm_image)
+
+    # TODO: these should be parameters
+    IMAGE_NAME = "Generated Image"
+    WIDTH = HEIGHT = 1024
     offscreen = gpu.types.GPUOffScreen(WIDTH, HEIGHT)
     try:
         with offscreen.bind():
             t_start = perf_counter()
-            if BLENDER_3:
-                fb = gpu.state.active_framebuffer_get()
-                fb.clear(color=(0.0,0.0,0.0,0.0))
-            else:
+            if BLENDER_2:
                 bgl.glClearColor(0.0, 0.0, 0.0, 0.0)
                 bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
+            else:
+                fb = gpu.state.active_framebuffer_get()
+                fb.clear(color=(0.0,0.0,0.0,0.0))
             with gpu.matrix.push_pop():
-                # reset matrices -> use normalized device coordinates [-1, 1]
+                # Map (0,0)-(WIDTH,HEIGHT) into NDC (-1,-1)-(1,1)
                 gpu.matrix.load_matrix(Matrix.Identity(4))
                 gpu.matrix.translate((-1.0,-1.0))
-                gpu.matrix.scale((2.0,2.0))
+                gpu.matrix.scale((2.0/WIDTH,2.0/HEIGHT))
                 gpu.matrix.load_projection_matrix(Matrix.Identity(4))
                 # use our shader
                 shader.bind()
 
                 # bind the images (for both the area _and_ the poly)
-                if BLENDER_3:
-                    shader.uniform_sampler("image", texture)
-                    shader.uniform_sampler("lightmap", lightmap)
-                else:
-                    ## For 2.92:
+                if BLENDER_2:
                     bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, texture_image.bindcode)
+                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_image.bindcode)
                     bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
                     bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
                     bgl.glActiveTexture(bgl.GL_TEXTURE1)
-                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, lightmap_image.bindcode)
+                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, lm_image.bindcode)
                     bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
                     bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
                     shader.uniform_int("image", 0)
                     shader.uniform_int("lightmap", 1)
+                else:
+                    shader.uniform_sampler("image", texture)
+                    shader.uniform_sampler("lightmap", lightmap)
 
-                # Draw the outer area
-                color = np.array([0.05,0.05,0.2,0.0], dtype=np.float32)
-                shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
-                area_batch.draw(shader)
-
-                # Draw the poly (for the final thing, we won't actually need to do this! but for now it is handy)
+                # Draw the target
                 color = np.array([0.0,0.0,0.0,0.0], dtype=np.float32)
                 shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
-                # (okay, texture/version shenanigans done, actually draw!)
                 batch.draw(shader)
+
+                # Debug only:
+                # Draw the poly (for the final thing, we won't actually need to do this! but for now it is handy)
+                # Map (0,0)-(1.0,1.0) ?? into NDC (-1,-1)-(1,1)
+                gpu.matrix.load_matrix(Matrix.Identity(4))
+                gpu.matrix.translate((-1.0,-1.0))
+                gpu.matrix.scale((2.0,2.0))
+                gpu.matrix.load_projection_matrix(Matrix.Identity(4))
+                color = np.array([0.05,0.05,0.2,0.0], dtype=np.float32)
+                shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
+                debug_batch.draw(shader)
             t_render = perf_counter()-t_start
             # Read back the offscreen buffer
             t_start = perf_counter()
             pixels = np.empty((HEIGHT,WIDTH,4), dtype=np.uint8)
-            if BLENDER_3:
-                buffer = gpu.types.Buffer('UBYTE', pixels.shape, pixels)
-                fb.read_color(0, 0, WIDTH, HEIGHT, 4, 0, 'UBYTE', data=buffer)
-            else:
+            if BLENDER_2:
                 buffer = bgl.Buffer(bgl.GL_BYTE, pixels.shape, pixels)
                 bgl.glReadBuffer(bgl.GL_BACK)
                 bgl.glReadPixels(0, 0, WIDTH, HEIGHT, bgl.GL_RGBA, bgl.GL_UNSIGNED_BYTE, buffer)
+            else:
+                buffer = gpu.types.Buffer('UBYTE', pixels.shape, pixels)
+                fb.read_color(0, 0, WIDTH, HEIGHT, 4, 0, 'UBYTE', data=buffer)
             t_readback = perf_counter()-t_start
     except:
         raise
@@ -1903,12 +1549,186 @@ def gen_image():
         return image
     finally:
         offscreen.free()
-        if not BLENDER_3:
-            ## For 2.92:
-            texture_image.gl_free()
-            lightmap_image.gl_free()
+        if BLENDER_2:
+            tx_image.gl_free()
+            lm_image.gl_free()
 
-'''
+def bake_textures_and_lightmaps(context, obj):
+    from math import ceil, floor
+    # TODO: use the lightmap scale from the mission? but we havent
+    # saved it. maybe we need to!
+    lightmap_scale = 16.0
+    mesh = obj.data
+    num_polys = len(mesh.polygons)
+    num_loops = len(mesh.loops)
+    texture_uv_layer = mesh.uv_layers['UVMap']
+    lightmap_uv_layer = mesh.uv_layers['UVLightmap']
+    # Copy relevant mesh data into numpy arrays
+    loop_starts = np.zeros(num_polys, dtype=int32)
+    loop_totals = np.zeros(num_polys, dtype=int32)
+    texture_uvs = np.zeros(2*num_loops, dtype=float32)
+    lightmap_uvs = np.zeros(2*num_loops, dtype=float32)
+    mesh.polygons.foreach_get("loop_start", loop_starts)
+    mesh.polygons.foreach_get("loop_total", loop_totals)
+    texture_uv_layer.data.foreach_get('uv', texture_uvs)
+    lightmap_uv_layer.data.foreach_get('uv', lightmap_uvs)
+    texture_uvs.shape = (-1,2)
+    lightmap_uvs.shape = (-1,2)
+
+    padding = (16,16) # TODO: only huge for easier debugging!
+    # TODO: use the actual atlas dimensions!
+    lm_atlas_w = 256
+    lm_atlas_h = 256
+    scaled_pixel_size = np.array(
+        [lm_atlas_w*lightmap_scale, lm_atlas_h*lightmap_scale],
+        dtype=float32)
+    min_vert = np.zeros(2, dtype=float32) # bake atlas pixel space
+    max_vert = np.zeros(2, dtype=float32)
+    tx_min_uv = np.zeros(2, dtype=float32) # texture UV space
+    tx_max_uv = np.zeros(2, dtype=float32)
+    lm_min_uv = np.zeros(2, dtype=float32) # lightmap atlas UV space
+    lm_max_uv = np.zeros(2, dtype=float32)
+    target_verts = np.zeros((num_polys,2,2), dtype=float32) # bake atlas pixel space
+    target_tx_uvs = np.zeros((num_polys,2,2), dtype=float32)  # texture UV space
+    target_lm_uvs = np.zeros((num_polys,2,2), dtype=float32)  # lightmap atlas UV space
+    # Conversions from bake atlas pixel space (by the origin) to
+    # texture UV space and lightmap atlas UV space:
+    tx_scale = np.zeros(2, dtype=float32)
+    tx_origin = np.zeros(2, dtype=float32)
+    lm_scale = np.zeros(2, dtype=float32)
+    lm_origin = np.zeros(2, dtype=float32)
+
+    # TODO: delete this when it all works
+    DEBUG_POLY_IDX = 12
+    debug_pos = np.zeros(2, dtype=float32)
+
+    for poly_idx,(loop_start,loop_total) \
+    in enumerate(zip(loop_starts,loop_totals)):
+        loop_end = loop_start+loop_total
+        tx_uvs = texture_uvs[loop_start:loop_end]
+        lm_uvs = lightmap_uvs[loop_start:loop_end]
+        # Find the minimum and maximum uvs.
+        np.amin(tx_uvs, axis=0, out=tx_min_uv) # texture UV space
+        np.amax(tx_uvs, axis=0, out=tx_max_uv)
+        np.amin(lm_uvs, axis=0, out=lm_min_uv) # lightmap atlas UV space
+        np.amax(lm_uvs, axis=0, out=lm_max_uv)
+        # Derive texture and lightmap scale and offset.
+        size = (lm_max_uv-lm_min_uv)*scaled_pixel_size
+        tx_scale[:] = (tx_max_uv-tx_min_uv)/size
+        tx_origin[:] = tx_min_uv
+        lm_scale[:] = (lm_max_uv-lm_min_uv)/size
+        lm_origin[:] = lm_min_uv
+        # Derive intermediate vertices by flooring/ceiling and padding.
+        min_scaled = lm_min_uv*scaled_pixel_size
+        min_floored = np.floor(min_scaled)
+        min_vert[:] = min_scaled-min_floored
+        max_vert[:] = np.ceil(lm_max_uv*scaled_pixel_size-min_scaled)
+        min_vert -= padding
+        max_vert += padding
+        # TODO: Debug poly pos
+        if poly_idx==DEBUG_POLY_IDX:
+            debug_pos[:] = lm_min_uv+min_vert/scaled_pixel_size
+        # Calculate texture and lightmap uvs for the vertices.
+        target_tx_uvs[poly_idx][0] = min_vert*tx_scale+tx_origin
+        target_tx_uvs[poly_idx][1] = max_vert*tx_scale+tx_origin
+        target_lm_uvs[poly_idx][0] = min_vert*lm_scale+lm_origin
+        target_lm_uvs[poly_idx][1] = max_vert*lm_scale+lm_origin
+        # Final vertices are back at the origin again:
+        target_verts[poly_idx][0] = 0.0
+        target_verts[poly_idx][1] = max_vert-min_vert
+
+    # TODO: do atlassing and add offsets to target_verts
+
+    # Set the triangle vertices (in target pixel coords).
+    render_vertices = np.zeros((num_polys,6,2), dtype=float32)
+    render_tx_uvs = np.zeros((num_polys,6,2), dtype=float32)
+    render_lm_uvs = np.zeros((num_polys,6,2), dtype=float32)
+    for poly_idx,pos \
+    in enumerate(target_verts):
+        render_vertices[poly_idx,0,0] = pos[0][0]
+        render_vertices[poly_idx,0,1] = pos[0][1]
+        render_vertices[poly_idx,1,0] = pos[1][0]
+        render_vertices[poly_idx,1,1] = pos[0][1]
+        render_vertices[poly_idx,2,0] = pos[1][0]
+        render_vertices[poly_idx,2,1] = pos[1][1]
+        render_vertices[poly_idx,3,0] = pos[1][0]
+        render_vertices[poly_idx,3,1] = pos[1][1]
+        render_vertices[poly_idx,4,0] = pos[0][0]
+        render_vertices[poly_idx,4,1] = pos[1][1]
+        render_vertices[poly_idx,5,0] = pos[0][0]
+        render_vertices[poly_idx,5,1] = pos[0][1]
+        uv = target_tx_uvs[poly_idx]
+        render_tx_uvs[poly_idx,0,0] = uv[0][0]
+        render_tx_uvs[poly_idx,0,1] = uv[0][1]
+        render_tx_uvs[poly_idx,1,0] = uv[1][0]
+        render_tx_uvs[poly_idx,1,1] = uv[0][1]
+        render_tx_uvs[poly_idx,2,0] = uv[1][0]
+        render_tx_uvs[poly_idx,2,1] = uv[1][1]
+        render_tx_uvs[poly_idx,3,0] = uv[1][0]
+        render_tx_uvs[poly_idx,3,1] = uv[1][1]
+        render_tx_uvs[poly_idx,4,0] = uv[0][0]
+        render_tx_uvs[poly_idx,4,1] = uv[1][1]
+        render_tx_uvs[poly_idx,5,0] = uv[0][0]
+        render_tx_uvs[poly_idx,5,1] = uv[0][1]
+        uv = target_lm_uvs[poly_idx]
+        render_lm_uvs[poly_idx,0,0] = uv[0][0]
+        render_lm_uvs[poly_idx,0,1] = uv[0][1]
+        render_lm_uvs[poly_idx,1,0] = uv[1][0]
+        render_lm_uvs[poly_idx,1,1] = uv[0][1]
+        render_lm_uvs[poly_idx,2,0] = uv[1][0]
+        render_lm_uvs[poly_idx,2,1] = uv[1][1]
+        render_lm_uvs[poly_idx,3,0] = uv[1][0]
+        render_lm_uvs[poly_idx,3,1] = uv[1][1]
+        render_lm_uvs[poly_idx,4,0] = uv[0][0]
+        render_lm_uvs[poly_idx,4,1] = uv[1][1]
+        render_lm_uvs[poly_idx,5,0] = uv[0][0]
+        render_lm_uvs[poly_idx,5,1] = uv[0][1]
+
+    # TODO: get these from the polygon!
+    txname = 'fam_ancient_walfresf' # Poly 0
+    if DEBUG_POLY_IDX==12: txname = 'fam_ancient_brdsml01' # Poly 12
+    texture_image = bpy.data.images[txname]
+    lightmap_image = bpy.data.images['blatlas_Lightmap']
+
+    # TODO: these are for debugging only!
+    pi = DEBUG_POLY_IDX
+    loop_start = loop_starts[pi]
+    loop_total = loop_totals[pi]
+    loop_end = loop_start+loop_total
+    debug_tx_uvs = texture_uvs[loop_start:loop_end]
+    debug_lm_uvs = lightmap_uvs[loop_start:loop_end]
+    debug_verts = lightmap_uvs[loop_start:loop_end].copy()
+    debug_verts = (debug_verts-debug_pos)*(1024.0/256.0)
+
+    _draw_stuff(
+        render_vertices[pi,:,:],
+        render_tx_uvs[pi,:,:],
+        render_lm_uvs[pi,:,:],
+        texture_image,
+        lightmap_image,
+        debug_verts,
+        debug_tx_uvs,
+        debug_lm_uvs)
+
+    '''
+    1. For each poly (LATER: sort by terrain texture!):
+        get its texture uvs
+        get its lightmap uvs
+        get the extents of both
+        calculate the target rect (with or without padding)
+            ^ we need pixel coords of that for atlassing
+        calculate the texture uvs and lightmap uvs of the target rect verts
+            ^ unchanged by atlassing
+        Store the target verts, txuvs, lmuvs for part 2.
+        LATER: Store the start and end indices of the data for each terrain tex
+            ^ so we can do one gl draw per terrain tex
+    2. Load the lightmap texture
+        For each terrain texture:
+            load its terrain texture
+            draw all its vertices
+        Free everything
+    '''
+    pass
 
 #---------------------------------------------------------------------------#
 # Post-import utilities
