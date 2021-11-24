@@ -1440,7 +1440,7 @@ void main()
 }
 """
 
-def bake_textures_and_lightmaps(context, obj, debug_poly_index):
+def bake_textures_and_lightmaps(context, obj):
     from math import ceil, floor
     # TODO: use the lightmap scale from the mission? but we havent
     # saved it. maybe we need to!
@@ -1463,6 +1463,7 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
     lightmap_uv_layer.data.foreach_get('uv', lightmap_uvs)
     texture_uvs.shape = (-1,2)
     lightmap_uvs.shape = (-1,2)
+    baked_uvs = lightmap_uvs.copy()
 
     padding = (16,16) # TODO: only huge for easier debugging!
     # TODO: use the actual atlas dimensions!
@@ -1487,9 +1488,6 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
     lm_scale = np.zeros(2, dtype=float32)
     lm_origin = np.zeros(2, dtype=float32)
 
-    # TODO: delete this when it all works
-    debug_pos = np.zeros((num_polys,2), dtype=float32)
-
     for poly_idx,(loop_start,loop_total) \
     in enumerate(zip(loop_starts,loop_totals)):
         loop_end = loop_start+loop_total
@@ -1513,8 +1511,10 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
         max_vert[:] = np.ceil(lm_max_uv*scaled_pixel_size-min_scaled)
         min_vert -= padding
         max_vert += padding
-        # TODO: Debug poly pos
-        debug_pos[poly_idx,:] = lm_min_uv+min_vert/scaled_pixel_size
+        # Calculate baked uvs from lightmap uvs.
+        baked_uvs[loop_start:loop_end] = (
+            (lm_uvs-lm_min_uv)*scaled_pixel_size-min_vert
+            )
         # Calculate texture and lightmap uvs for the vertices.
         target_tx_uvs[poly_idx][0] = min_vert*tx_scale+tx_origin
         target_tx_uvs[poly_idx][1] = max_vert*tx_scale+tx_origin
@@ -1536,12 +1536,14 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
         handle = atlas_builder.add(w,h)
         handles[poly_idx] = handle
     atlas_builder.finish()
-    for poly_idx, verts in enumerate(target_verts):
+    for poly_idx,(verts,loop_start,loop_total) \
+    in enumerate(zip(target_verts,loop_starts,loop_totals)):
+        loop_end = loop_start+loop_total
         handle = handles[poly_idx]
         x,y = atlas_builder.get_pos(handle)
         verts[0] += (x,y)
         verts[1] += (x,y)
-        debug_pos[poly_idx] -= (x/scaled_pixel_size[0],y/scaled_pixel_size[1])
+        baked_uvs[loop_start:loop_end] += (x,y)
 
     # Set the triangle vertices (in target pixel coords).
     render_vertices = np.zeros((num_polys,6,2), dtype=float32)
@@ -1598,33 +1600,22 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
         if mat_lightmap_image is None:
             mat_lightmap_image = nodes['LightmapTexture'].image
 
-    # TODO: these are for debugging only!
-    pi = debug_poly_index
-    loop_start = loop_starts[pi]
-    loop_total = loop_totals[pi]
-    loop_end = loop_start+loop_total
-    debug_tx_uvs = texture_uvs[loop_start:loop_end]
-    debug_lm_uvs = lightmap_uvs[loop_start:loop_end]
-    scale = (atlas_builder.size[0]/lm_atlas_w,
-             atlas_builder.size[1]/lm_atlas_h)
-    debug_verts = lightmap_uvs[loop_start:loop_end].copy()
-    # Note: using in-place operations here to prevent numpy
-    #       from promoting to float64.
-    debug_verts -= debug_pos[pi]
-    debug_verts *= scale
+    DRAW_BAKED_POLYS = True
 
     baked_image = _draw_stuff(
         num_polys,
         render_vertices,
         render_tx_uvs,
         render_lm_uvs,
-        debug_poly_index,
-        debug_verts,
-        debug_tx_uvs,
-        debug_lm_uvs,
         mat_indexes,
         mat_texture_images,
-        mat_lightmap_image)
+        mat_lightmap_image,
+        DRAW_BAKED_POLYS,
+        loop_starts,
+        loop_totals,
+        baked_uvs,
+        texture_uvs,
+        lightmap_uvs)
 
     CREATE_OBJECT = False
     if CREATE_OBJECT:
@@ -1645,8 +1636,9 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
     return obj
 
 def _draw_stuff(num_polys, verts, tx_uvs, lm_uvs,
-        debug_poly_index, debug_verts, debug_tx_uvs, debug_lm_uvs,
-        mat_indexes, mat_texture_images, mat_lightmap_image):
+        mat_indexes, mat_texture_images, mat_lightmap_image,
+        draw_baked_polys, loop_starts, loop_totals, baked_verts,
+        baked_tx_uvs, baked_lm_uvs):
     from time import perf_counter
     shader = gpu.types.GPUShader(BAKE_VERTEX_SHADER_SOURCE,
         BAKE_FRAGMENT_SHADER_SOURCE)
@@ -1726,25 +1718,30 @@ def _draw_stuff(num_polys, verts, tx_uvs, lm_uvs,
                     else:
                         shader.uniform_sampler("image", tx_textures[mat])
                     batch.draw(shader)
-            # Draw the debug poly - TODO: remove when everything works
-            color = np.array([0.05,0.05,0.2,0.0], dtype=np.float32)
-            shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
-            with gpu.matrix.push_pop():
-                # Map (0,0)-(1.0,1.0) into NDC (-1,-1)-(1,1)
-                gpu.matrix.load_matrix(Matrix.Identity(4))
-                gpu.matrix.translate((-1.0,-1.0))
-                gpu.matrix.scale((2.0,2.0))
-                gpu.matrix.load_projection_matrix(Matrix.Identity(4))
-                pi = debug_poly_index
-                mat = mat_indexes[pi]
-                batch = batch_for_shader(shader, 'TRI_FAN',
-                    {"pos": debug_verts, "texCoord": debug_tx_uvs, "lmCoord": debug_lm_uvs})
-                if BLENDER_2:
-                    bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_textures[mat])
-                else:
-                    shader.uniform_sampler("image", tx_textures[mat])
-                batch.draw(shader)
+            # Draw the debug polys on top.
+            if draw_baked_polys:
+                color = np.array([0.0,0.05,0.2,1.0], dtype=np.float32)
+                shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
+                with gpu.matrix.push_pop():
+                    # Map (0,0)-(WIDTH,HEIGHT) into NDC (-1,-1)-(1,1)
+                    gpu.matrix.load_matrix(Matrix.Identity(4))
+                    gpu.matrix.translate((-1.0,-1.0))
+                    gpu.matrix.scale((2.0/WIDTH,2.0/HEIGHT))
+                    gpu.matrix.load_projection_matrix(Matrix.Identity(4))
+                    for pi,(loop_start,loop_total) in enumerate(zip(loop_starts,loop_totals)):
+                        loop_end = loop_start+loop_total
+                        mat = mat_indexes[pi]
+                        batch = batch_for_shader(shader, 'TRI_FAN', {
+                            "pos": baked_verts[loop_start:loop_end],
+                            "texCoord": baked_tx_uvs[loop_start:loop_end],
+                            "lmCoord": baked_lm_uvs[loop_start:loop_end],
+                            })
+                        if BLENDER_2:
+                            bgl.glActiveTexture(bgl.GL_TEXTURE0)
+                            bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_textures[mat])
+                        else:
+                            shader.uniform_sampler("image", tx_textures[mat])
+                        batch.draw(shader)
             t_render = perf_counter()-t_start
             # Read back the offscreen buffer
             t_start = perf_counter()
@@ -2255,13 +2252,6 @@ class TT_bake_together(Operator):
     bl_label = "Bake together"
     bl_options = {'REGISTER', 'UNDO'}
 
-    debug_poly_index: IntProperty(
-        name="Debug poly",
-        default=0,
-        min=0,
-        max=255,
-        )
-
     @classmethod
     def poll(self, context):
         if context.mode!="OBJECT": return False
@@ -2283,7 +2273,7 @@ class TT_bake_together(Operator):
             obj_old.hide_viewport = True
         else:
             obj_new = obj_old
-        bake_textures_and_lightmaps(context, obj_new, self.debug_poly_index)
+        bake_textures_and_lightmaps(context, obj_new)
         return {'FINISHED'}
 
 #---------------------------------------------------------------------------#
