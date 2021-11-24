@@ -1545,6 +1545,8 @@ def bake_textures_and_lightmaps(context, obj):
         verts[1] += (x,y)
         baked_uvs[loop_start:loop_end] += (x,y)
 
+    baked_uvs /= atlas_builder.size
+
     # Set the triangle vertices (in target pixel coords).
     render_vertices = np.zeros((num_polys,6,2), dtype=float32)
     render_tx_uvs = np.zeros((num_polys,6,2), dtype=float32)
@@ -1600,8 +1602,7 @@ def bake_textures_and_lightmaps(context, obj):
         if mat_lightmap_image is None:
             mat_lightmap_image = nodes['LightmapTexture'].image
 
-    DRAW_BAKED_POLYS = True
-
+    DRAW_BAKED_POLYS = False
     baked_image = _draw_stuff(
         num_polys,
         render_vertices,
@@ -1617,7 +1618,13 @@ def bake_textures_and_lightmaps(context, obj):
         texture_uvs,
         lightmap_uvs)
 
-    CREATE_OBJECT = False
+    # TODO: decide if we want to duplicate first, or if we
+    #       should just copy the mesh and create a new object
+    #       (as here). right now i think the latter, because
+    #       we don't want other level-specific datablocks like
+    #       settings copied over!
+
+    CREATE_OBJECT = True
     if CREATE_OBJECT:
         # Duplicate the mesh, and put it on a new object.
         old_mesh = mesh
@@ -1625,13 +1632,22 @@ def bake_textures_and_lightmaps(context, obj):
         mesh = mesh.copy()
         name = f"{old_obj.name}.baked"
         obj = create_object(name, mesh, old_obj.location, context=context, link=True)
-
         # Create a new material with the baked atlas.
         mat = create_texture_material(name, baked_image, None, False, None)
         mesh.materials.clear()
         mesh.materials.append(mat)
         for poly in mesh.polygons:
             poly.material_index = 0
+        # Update the uv layers.
+        texture_uv_layer = mesh.uv_layers['UVMap']
+        lightmap_uv_layer = mesh.uv_layers['UVLightmap']
+        mesh.uv_layers.remove(lightmap_uv_layer)
+        baked_uvs.shape = -1
+        texture_uv_layer.data.foreach_set('uv', baked_uvs)
+        # Make it selected and active.
+        bpy.ops.object.select_all(action='DESELECT')
+        context.view_layer.objects.active = obj
+        obj.select_set(True)
 
     return obj
 
@@ -1689,13 +1705,13 @@ def _draw_stuff(num_polys, verts, tx_uvs, lm_uvs,
             shader.bind()
             if BLENDER_2:
                 bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
                 shader.uniform_int("image", 0)
                 bgl.glActiveTexture(bgl.GL_TEXTURE1)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_lightmap)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
                 shader.uniform_int("lightmap", 1)
             else:
                 shader.uniform_sampler("lightmap", tx_lightmap)
@@ -1723,10 +1739,10 @@ def _draw_stuff(num_polys, verts, tx_uvs, lm_uvs,
                 color = np.array([0.0,0.05,0.2,1.0], dtype=np.float32)
                 shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
                 with gpu.matrix.push_pop():
-                    # Map (0,0)-(WIDTH,HEIGHT) into NDC (-1,-1)-(1,1)
+                    # Map (0,0)-(1.0,1.0) into NDC (-1,-1)-(1,1)
                     gpu.matrix.load_matrix(Matrix.Identity(4))
                     gpu.matrix.translate((-1.0,-1.0))
-                    gpu.matrix.scale((2.0/WIDTH,2.0/HEIGHT))
+                    gpu.matrix.scale((2.0,2.0))
                     gpu.matrix.load_projection_matrix(Matrix.Identity(4))
                     for pi,(loop_start,loop_total) in enumerate(zip(loop_starts,loop_totals)):
                         loop_end = loop_start+loop_total

@@ -1,5 +1,9 @@
 - bake to one texture
-    -> need to reassign mesh materials, and update uvs.
+    -> baked lightmap seems a little darker than original in-game? (ambient?)
+    -> color difference!
+        -> look into using palettes from fam/*/full.pcx for .gif/.pcx in
+            that fam.
+    -> texture name "Generated Image" is very bad for .bin export
 
 support terrain_scale in .mtl
     -> i dont want to, but people are gonna want it, i reckon
