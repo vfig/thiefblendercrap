@@ -1384,176 +1384,63 @@ class AtlasBuilder:
 #---------------------------------------------------------------------------#
 # Baking textures and lightmaps together
 
-def _draw_stuff(verts, tx_uvs, lm_uvs, tx_image, lm_image,
-        debug_verts, debug_tx_uvs, debug_lm_uvs):
-    from time import perf_counter
-    vertex_shader = """
-        uniform mat4 ModelViewProjectionMatrix;
+BAKE_VERTEX_SHADER_SOURCE = """\
+uniform mat4 ModelViewProjectionMatrix;
 
-        in vec2 texCoord;
-        in vec2 lmCoord;
-        in vec2 pos;
-        out vec2 texCoord_interp;
-        out vec2 lmCoord_interp;
+in vec2 texCoord;
+in vec2 lmCoord;
+in vec2 pos;
+out vec2 texCoord_interp;
+out vec2 lmCoord_interp;
 
-        void main()
-        {
-          gl_Position = ModelViewProjectionMatrix * vec4(pos.xy, 0.0f, 1.0f);
-          gl_Position.z = 1.0;
-          texCoord_interp = texCoord;
-          lmCoord_interp = lmCoord;
-        }
-        """
+void main()
+{
+    gl_Position = ModelViewProjectionMatrix * vec4(pos.xy, 0.0f, 1.0f);
+    gl_Position.z = 1.0;
+    texCoord_interp = texCoord;
+    lmCoord_interp = lmCoord;
+}
+"""
 
-    fragment_shader = """
-        in vec2 texCoord_interp;
-        in vec2 lmCoord_interp;
-        out vec4 fragColor;
+BAKE_FRAGMENT_SHADER_SOURCE = """\
+in vec2 texCoord_interp;
+in vec2 lmCoord_interp;
+out vec4 fragColor;
 
-        uniform vec4 color;
-        uniform sampler2D image;
-        uniform sampler2D lightmap;
+uniform vec4 color;
+uniform sampler2D image;
+uniform sampler2D lightmap;
 
-        float linearrgb_to_srgb(float c)
-        {
-          if (c < 0.0031308) {
-            return (c < 0.0) ? 0.0 : c * 12.92;
-          }
-          else {
-            return 1.055 * pow(c, 1.0 / 2.4) - 0.055;
-          }
-        }
+float linearrgb_to_srgb(float c)
+{
+    if (c < 0.0031308) {
+        return (c < 0.0) ? 0.0 : c * 12.92;
+    }
+    else {
+        return 1.055 * pow(c, 1.0 / 2.4) - 0.055;
+    }
+}
 
-        vec4 linearrgb_to_srgb(vec4 col_from)
-        {
-          vec4 col_to;
-          col_to.r = linearrgb_to_srgb(col_from.r);
-          col_to.g = linearrgb_to_srgb(col_from.g);
-          col_to.b = linearrgb_to_srgb(col_from.b);
-          col_to.a = col_from.a;
-          return col_to;
-        }
+vec4 linearrgb_to_srgb(vec4 col_from)
+{
+    vec4 col_to;
+    col_to.r = linearrgb_to_srgb(col_from.r);
+    col_to.g = linearrgb_to_srgb(col_from.g);
+    col_to.b = linearrgb_to_srgb(col_from.b);
+    col_to.a = col_from.a;
+    return col_to;
+}
 
-        void main()
-        {
-          vec4 t = texture(image, texCoord_interp);
-          vec4 l = texture(lightmap, lmCoord_interp);
-          fragColor = linearrgb_to_srgb(color+t*l); // just random maths
-        }
-        """
-    shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
+void main()
+{
+    vec4 t = texture(image, texCoord_interp);
+    vec4 l = texture(lightmap, lmCoord_interp);
+    vec4 c = color+t*l; // just random maths
+    fragColor = linearrgb_to_srgb(c);
+}
+"""
 
-    batch = batch_for_shader(shader, 'TRIS',
-        {"pos": verts, "texCoord": tx_uvs, "lmCoord": lm_uvs})
-    # TODO: remove debug batch when everything works
-    debug_batch = batch_for_shader(shader, 'TRI_FAN',
-        {"pos": debug_verts, "texCoord": debug_tx_uvs, "lmCoord": debug_lm_uvs})
-
-    if BLENDER_2:
-        if tx_image.gl_load():
-            raise RuntimeError("Unable to load image to gpu.")
-        if lm_image.gl_load():
-            tx_image.gl_free()
-            raise RuntimeError("Unable to load lightmap image to gpu.")
-    else:
-        texture = gpu.texture.from_image(tx_image)
-        lightmap = gpu.texture.from_image(lm_image)
-
-    # TODO: these should be parameters
-    IMAGE_NAME = "Generated Image"
-    WIDTH = HEIGHT = 1024
-    offscreen = gpu.types.GPUOffScreen(WIDTH, HEIGHT)
-    try:
-        with offscreen.bind():
-            t_start = perf_counter()
-            if BLENDER_2:
-                bgl.glClearColor(0.0, 0.0, 0.0, 0.0)
-                bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
-            else:
-                fb = gpu.state.active_framebuffer_get()
-                fb.clear(color=(0.0,0.0,0.0,0.0))
-            with gpu.matrix.push_pop():
-                # Map (0,0)-(WIDTH,HEIGHT) into NDC (-1,-1)-(1,1)
-                gpu.matrix.load_matrix(Matrix.Identity(4))
-                gpu.matrix.translate((-1.0,-1.0))
-                gpu.matrix.scale((2.0/WIDTH,2.0/HEIGHT))
-                gpu.matrix.load_projection_matrix(Matrix.Identity(4))
-                # use our shader
-                shader.bind()
-
-                # bind the images (for both the area _and_ the poly)
-                if BLENDER_2:
-                    bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_image.bindcode)
-                    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
-                    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
-                    bgl.glActiveTexture(bgl.GL_TEXTURE1)
-                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, lm_image.bindcode)
-                    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
-                    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
-                    shader.uniform_int("image", 0)
-                    shader.uniform_int("lightmap", 1)
-                else:
-                    shader.uniform_sampler("image", texture)
-                    shader.uniform_sampler("lightmap", lightmap)
-
-                # Draw the target
-                color = np.array([0.0,0.0,0.0,0.0], dtype=np.float32)
-                shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
-                batch.draw(shader)
-
-                # Debug only:
-                # Draw the poly (for the final thing, we won't actually need to do this! but for now it is handy)
-                # Map (0,0)-(1.0,1.0) ?? into NDC (-1,-1)-(1,1)
-                gpu.matrix.load_matrix(Matrix.Identity(4))
-                gpu.matrix.translate((-1.0,-1.0))
-                gpu.matrix.scale((2.0,2.0))
-                gpu.matrix.load_projection_matrix(Matrix.Identity(4))
-                color = np.array([0.05,0.05,0.2,0.0], dtype=np.float32)
-                shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
-                debug_batch.draw(shader)
-            t_render = perf_counter()-t_start
-            # Read back the offscreen buffer
-            t_start = perf_counter()
-            pixels = np.empty((HEIGHT,WIDTH,4), dtype=np.uint8)
-            if BLENDER_2:
-                buffer = bgl.Buffer(bgl.GL_BYTE, pixels.shape, pixels)
-                bgl.glReadBuffer(bgl.GL_BACK)
-                bgl.glReadPixels(0, 0, WIDTH, HEIGHT, bgl.GL_RGBA, bgl.GL_UNSIGNED_BYTE, buffer)
-            else:
-                buffer = gpu.types.Buffer('UBYTE', pixels.shape, pixels)
-                fb.read_color(0, 0, WIDTH, HEIGHT, 4, 0, 'UBYTE', data=buffer)
-            t_readback = perf_counter()-t_start
-    except:
-        raise
-    else:
-        # Create an image from it
-        t_start = perf_counter()
-        if not IMAGE_NAME in bpy.data.images:
-            bpy.data.images.new(IMAGE_NAME, WIDTH, HEIGHT)
-        image = bpy.data.images[IMAGE_NAME]
-        image.scale(WIDTH, HEIGHT)
-        t_create_image = perf_counter()-t_start
-        t_start = perf_counter()
-        pixels = pixels/255.0
-        pixels.shape = -1
-        t_tofloat = perf_counter()-t_start
-        t_start = perf_counter()
-        image.pixels[:] = pixels
-        t_setpixels = perf_counter()-t_start
-        print(f"render: {t_render:0.3f}\n"
-              f"readback: {t_readback:0.3f}\n"
-              f"create_image: {t_create_image:0.3f}\n"
-              f"tofloat: {t_tofloat:0.3f}\n"
-              f"setpixels: {t_setpixels:0.3f}\n")
-        return image
-    finally:
-        offscreen.free()
-        if BLENDER_2:
-            tx_image.gl_free()
-            lm_image.gl_free()
-
-def bake_textures_and_lightmaps(context, obj):
+def bake_textures_and_lightmaps(context, obj, debug_poly_index):
     from math import ceil, floor
     # TODO: use the lightmap scale from the mission? but we havent
     # saved it. maybe we need to!
@@ -1566,10 +1453,12 @@ def bake_textures_and_lightmaps(context, obj):
     # Copy relevant mesh data into numpy arrays
     loop_starts = np.zeros(num_polys, dtype=int32)
     loop_totals = np.zeros(num_polys, dtype=int32)
+    mat_indexes = np.zeros(num_polys, dtype=int32)
     texture_uvs = np.zeros(2*num_loops, dtype=float32)
     lightmap_uvs = np.zeros(2*num_loops, dtype=float32)
     mesh.polygons.foreach_get("loop_start", loop_starts)
     mesh.polygons.foreach_get("loop_total", loop_totals)
+    mesh.polygons.foreach_get("material_index", mat_indexes)
     texture_uv_layer.data.foreach_get('uv', texture_uvs)
     lightmap_uv_layer.data.foreach_get('uv', lightmap_uvs)
     texture_uvs.shape = (-1,2)
@@ -1599,8 +1488,7 @@ def bake_textures_and_lightmaps(context, obj):
     lm_origin = np.zeros(2, dtype=float32)
 
     # TODO: delete this when it all works
-    DEBUG_POLY_IDX = 12
-    debug_pos = np.zeros(2, dtype=float32)
+    debug_pos = np.zeros((num_polys,2), dtype=float32)
 
     for poly_idx,(loop_start,loop_total) \
     in enumerate(zip(loop_starts,loop_totals)):
@@ -1626,8 +1514,7 @@ def bake_textures_and_lightmaps(context, obj):
         min_vert -= padding
         max_vert += padding
         # TODO: Debug poly pos
-        if poly_idx==DEBUG_POLY_IDX:
-            debug_pos[:] = lm_min_uv+min_vert/scaled_pixel_size
+        debug_pos[poly_idx,:] = lm_min_uv+min_vert/scaled_pixel_size
         # Calculate texture and lightmap uvs for the vertices.
         target_tx_uvs[poly_idx][0] = min_vert*tx_scale+tx_origin
         target_tx_uvs[poly_idx][1] = max_vert*tx_scale+tx_origin
@@ -1635,9 +1522,26 @@ def bake_textures_and_lightmaps(context, obj):
         target_lm_uvs[poly_idx][1] = max_vert*lm_scale+lm_origin
         # Final vertices are back at the origin again:
         target_verts[poly_idx][0] = 0.0
+        # TODO: how come these coords aren't integers??
         target_verts[poly_idx][1] = max_vert-min_vert
 
     # TODO: do atlassing and add offsets to target_verts
+    atlas_builder = BakeAtlasBuilder()
+    handles = np.zeros(num_polys, dtype=int32)
+    for poly_idx, verts in enumerate(target_verts):
+        # TODO: these should have been integers, but for now they are not,
+        #       so i ceil() them
+        w = ceil(verts[1][0])
+        h = ceil(verts[1][1])
+        handle = atlas_builder.add(w,h)
+        handles[poly_idx] = handle
+    atlas_builder.finish()
+    for poly_idx, verts in enumerate(target_verts):
+        handle = handles[poly_idx]
+        x,y = atlas_builder.get_pos(handle)
+        verts[0] += (x,y)
+        verts[1] += (x,y)
+        debug_pos[poly_idx] -= (x/scaled_pixel_size[0],y/scaled_pixel_size[1])
 
     # Set the triangle vertices (in target pixel coords).
     render_vertices = np.zeros((num_polys,6,2), dtype=float32)
@@ -1684,51 +1588,368 @@ def bake_textures_and_lightmaps(context, obj):
         render_lm_uvs[poly_idx,5,0] = uv[0][0]
         render_lm_uvs[poly_idx,5,1] = uv[0][1]
 
-    # TODO: get these from the polygon!
-    txname = 'fam_ancient_walfresf' # Poly 0
-    if DEBUG_POLY_IDX==12: txname = 'fam_ancient_brdsml01' # Poly 12
-    texture_image = bpy.data.images[txname]
-    lightmap_image = bpy.data.images['blatlas_Lightmap']
+    mat_texture_images = [None]*len(mesh.materials)
+    mat_lightmap_image = None
+    for mat_index,mat in enumerate(mesh.materials):
+        # TODO: what if the materials and/or shaders have been changed, or were
+        #       imported without both TerrainTexture and LightmapTexture nodes?
+        nodes = mat.node_tree.nodes
+        mat_texture_images[mat_index] = nodes['TerrainTexture'].image
+        if mat_lightmap_image is None:
+            mat_lightmap_image = nodes['LightmapTexture'].image
 
     # TODO: these are for debugging only!
-    pi = DEBUG_POLY_IDX
+    pi = debug_poly_index
     loop_start = loop_starts[pi]
     loop_total = loop_totals[pi]
     loop_end = loop_start+loop_total
     debug_tx_uvs = texture_uvs[loop_start:loop_end]
     debug_lm_uvs = lightmap_uvs[loop_start:loop_end]
+    scale = (atlas_builder.size[0]/lm_atlas_w,
+             atlas_builder.size[1]/lm_atlas_h)
     debug_verts = lightmap_uvs[loop_start:loop_end].copy()
-    debug_verts = (debug_verts-debug_pos)*(1024.0/256.0)
+    # Note: using in-place operations here to prevent numpy
+    #       from promoting to float64.
+    debug_verts -= debug_pos[pi]
+    debug_verts *= scale
 
     _draw_stuff(
-        render_vertices[pi,:,:],
-        render_tx_uvs[pi,:,:],
-        render_lm_uvs[pi,:,:],
-        texture_image,
-        lightmap_image,
+        num_polys,
+        render_vertices,
+        render_tx_uvs,
+        render_lm_uvs,
+        debug_poly_index,
         debug_verts,
         debug_tx_uvs,
-        debug_lm_uvs)
+        debug_lm_uvs,
+        mat_indexes,
+        mat_texture_images,
+        mat_lightmap_image)
 
-    '''
-    1. For each poly (LATER: sort by terrain texture!):
-        get its texture uvs
-        get its lightmap uvs
-        get the extents of both
-        calculate the target rect (with or without padding)
-            ^ we need pixel coords of that for atlassing
-        calculate the texture uvs and lightmap uvs of the target rect verts
-            ^ unchanged by atlassing
-        Store the target verts, txuvs, lmuvs for part 2.
-        LATER: Store the start and end indices of the data for each terrain tex
-            ^ so we can do one gl draw per terrain tex
-    2. Load the lightmap texture
-        For each terrain texture:
-            load its terrain texture
-            draw all its vertices
-        Free everything
-    '''
-    pass
+def _draw_stuff(num_polys, verts, tx_uvs, lm_uvs,
+        debug_poly_index, debug_verts, debug_tx_uvs, debug_lm_uvs,
+        mat_indexes, mat_texture_images, mat_lightmap_image):
+    from time import perf_counter
+    shader = gpu.types.GPUShader(BAKE_VERTEX_SHADER_SOURCE,
+        BAKE_FRAGMENT_SHADER_SOURCE)
+
+    # TODO: these should be parameters
+    IMAGE_NAME = "Generated Image"
+    WIDTH = HEIGHT = 1024
+    offscreen = gpu.types.GPUOffScreen(WIDTH, HEIGHT)
+
+    if BLENDER_2:
+        images_to_free = []
+
+    def cleanup():
+        offscreen.free()
+        if BLENDER_2:
+            for image in images_to_free:
+                image.gl_free()
+
+    try:
+        # Get all these damn images on the damn gpu:
+        tx_textures = [None] * len(mat_texture_images)
+        tx_lightmap = None
+        if BLENDER_2:
+            if mat_lightmap_image.gl_load():
+                raise RuntimeError("Unable to load lightmap image to gpu.")
+            images_to_free.append(mat_lightmap_image)
+            tx_lightmap = mat_lightmap_image.bindcode
+            for i,image in enumerate(mat_texture_images):
+                if image.gl_load():
+                    raise RuntimeError("Unable to load image to gpu.")
+                images_to_free.append(image)
+                tx_textures[i] = image.bindcode
+        else:
+            tx_lightmap = gpu.texture.from_image(mat_lightmap_image)
+            for i,image in enumerate(mat_texture_images):
+                tx_textures[i] = gpu.texture.from_image(image)
+
+        with offscreen.bind():
+            # Clear the render target
+            if BLENDER_2:
+                bgl.glClearColor(0.0, 0.0, 0.0, 0.0)
+                bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
+            else:
+                fb = gpu.state.active_framebuffer_get()
+                fb.clear(color=(0.0,0.0,0.0,0.0))
+            # Set up the shader and uniforms
+            t_start = perf_counter()
+            shader.bind()
+            if BLENDER_2:
+                bgl.glActiveTexture(bgl.GL_TEXTURE0)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
+                shader.uniform_int("image", 0)
+                bgl.glActiveTexture(bgl.GL_TEXTURE1)
+                bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_lightmap)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_NEAREST)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_NEAREST)
+                shader.uniform_int("lightmap", 1)
+            else:
+                shader.uniform_sampler("lightmap", tx_lightmap)
+            # Draw the rects
+            color = np.array([0.0,0.0,0.0,0.0], dtype=np.float32)
+            shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
+            with gpu.matrix.push_pop():
+                # Map (0,0)-(WIDTH,HEIGHT) into NDC (-1,-1)-(1,1)
+                gpu.matrix.load_matrix(Matrix.Identity(4))
+                gpu.matrix.translate((-1.0,-1.0))
+                gpu.matrix.scale((2.0/WIDTH,2.0/HEIGHT))
+                gpu.matrix.load_projection_matrix(Matrix.Identity(4))
+                for pi in range(num_polys):
+                    mat = mat_indexes[pi]
+                    batch = batch_for_shader(shader, 'TRIS',
+                        {"pos": verts[pi], "texCoord": tx_uvs[pi], "lmCoord": lm_uvs[pi]})
+                    if BLENDER_2:
+                        bgl.glActiveTexture(bgl.GL_TEXTURE0)
+                        bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_textures[mat])
+                    else:
+                        shader.uniform_sampler("image", tx_textures[mat])
+                    batch.draw(shader)
+            # Draw the debug poly - TODO: remove when everything works
+            color = np.array([0.05,0.05,0.2,0.0], dtype=np.float32)
+            shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
+            with gpu.matrix.push_pop():
+                # Map (0,0)-(1.0,1.0) into NDC (-1,-1)-(1,1)
+                gpu.matrix.load_matrix(Matrix.Identity(4))
+                gpu.matrix.translate((-1.0,-1.0))
+                gpu.matrix.scale((2.0,2.0))
+                gpu.matrix.load_projection_matrix(Matrix.Identity(4))
+                pi = debug_poly_index
+                mat = mat_indexes[pi]
+                batch = batch_for_shader(shader, 'TRI_FAN',
+                    {"pos": debug_verts, "texCoord": debug_tx_uvs, "lmCoord": debug_lm_uvs})
+                if BLENDER_2:
+                    bgl.glActiveTexture(bgl.GL_TEXTURE0)
+                    bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_textures[mat])
+                else:
+                    shader.uniform_sampler("image", tx_textures[mat])
+                batch.draw(shader)
+            t_render = perf_counter()-t_start
+            # Read back the offscreen buffer
+            t_start = perf_counter()
+            pixels = np.empty((HEIGHT,WIDTH,4), dtype=np.uint8)
+            if BLENDER_2:
+                buffer = bgl.Buffer(bgl.GL_BYTE, pixels.shape, pixels)
+                bgl.glReadBuffer(bgl.GL_BACK)
+                bgl.glReadPixels(0, 0, WIDTH, HEIGHT, bgl.GL_RGBA, bgl.GL_UNSIGNED_BYTE, buffer)
+            else:
+                buffer = gpu.types.Buffer('UBYTE', pixels.shape, pixels)
+                fb.read_color(0, 0, WIDTH, HEIGHT, 4, 0, 'UBYTE', data=buffer)
+            t_readback = perf_counter()-t_start
+    except:
+        raise
+    else:
+        # Create an image from it
+        t_start = perf_counter()
+        if not IMAGE_NAME in bpy.data.images:
+            bpy.data.images.new(IMAGE_NAME, WIDTH, HEIGHT)
+        image = bpy.data.images[IMAGE_NAME]
+        image.scale(WIDTH, HEIGHT)
+        t_create_image = perf_counter()-t_start
+        t_start = perf_counter()
+        pixels = pixels/255.0
+        pixels.shape = -1
+        t_tofloat = perf_counter()-t_start
+        t_start = perf_counter()
+        image.pixels[:] = pixels
+        t_setpixels = perf_counter()-t_start
+        print(f"render: {t_render:0.3f}\n"
+              f"readback: {t_readback:0.3f}\n"
+              f"create_image: {t_create_image:0.3f}\n"
+              f"tofloat: {t_tofloat:0.3f}\n"
+              f"setpixels: {t_setpixels:0.3f}\n")
+        return image
+    finally:
+        cleanup()
+
+class BakeAtlasBuilder:
+    def __init__(self):
+        self.rects = []
+        # After close, these will be set:
+        self.placements = None
+
+    def add(self, width, height):
+        handle = len(self.rects)
+        self.rects.append((width, height, handle))
+        return handle
+
+    def finish(self):
+        # Build the atlas
+        # TODO: these should probably be parameters!
+        atlas_w, atlas_h = (1024,1024)
+        atlas_max_w, atlas_max_h = (8192, 8192)
+        quadrant_w, quadrant_h = (atlas_w, atlas_h)
+        quadrant_index = 0
+        # x, y are abs coords of the placement cursor
+        x = y = 0
+        # quadrant_x, quadrant_y are abs coords of the current quadrant
+        quadrant_x = quadrant_y = 0
+        overflow = 0
+        row_height = 0
+        placements = [None]*len(self.rects)
+        texels_filled = 0
+        DUMP = False
+        CONTINUE_ON_OVERFLOW = False
+        #
+        # To fit the rects into the atlas, we place it at the cursor, if it
+        # will fit. If not, we reset the cursor to the left edge, and move it
+        # up by the row height; then reset the row height to zero. The row
+        # height is the max height of the rects placed on that row.
+        #
+        # The placements are the (x,y,w,h) tuples of the anchor where the
+        # corresponding rect was placed.
+        #
+        # 1. Start with a small atlas
+        #     +-----+
+        #     |     |
+        #     |     |
+        #     +-----+
+        #
+        # 2. Expand it when needed:
+        #
+        #     +-----------+
+        #     ^           |
+        #     |           |
+        #     +.....+     |
+        #     |     .     |
+        #     |     .     |
+        #     +-----+---->+
+        #
+        # 2. Expand again if needed:
+        #
+        #     +-----------------------+
+        #     |                       |
+        #     |                       |
+        #     |                       |
+        #     |                       |
+        #     |                       |
+        #     +-----------+           |
+        #     ^           |           |
+        #     |           |           |
+        #     + . . .     |           |
+        #     |     .     |           |
+        #     |     .     |           |
+        #     +-----+-----+---------->+
+
+        if CONTINUE_ON_OVERFLOW:
+            # Start with a debug color at 0,0, for atlas overflows
+            x,y,w,h = 0,0,16,16
+            x,y = 16,0
+            row_height = 16
+            overflow = False
+
+        if DUMP:
+            dumpf = open('e:/dev/thief/blender/thieftools/atlas.dump', 'w')
+            print(f"Placing {len(self.rects)} rects...", file=dumpf)
+
+        # We get much better packing, even without rotation, if we sort
+        # by height first.
+        def by_height(entry): return entry[1]
+        self.rects.sort(key=by_height, reverse=True)
+
+        for rect_index, (w, h, handle) in enumerate(self.rects):
+            # Find a place for the rect.
+            if w>quadrant_w or h>quadrant_h:
+                raise ValueError(f"No space to fit rect {handle} of {w}x{h}")
+            while True: # TODO: break if the atlas is now too big
+                if overflow:
+                    x = 0
+                    y = 0
+                    break
+                # quadrant's right edge:
+                if (x+w)>(quadrant_x+quadrant_w):
+                    # Wrap the cursor to the next row up:
+                    x = quadrant_x
+                    y += row_height
+                    row_height = 0
+                    if DUMP: print(f"Cursor row-wrapped to {x},{y}", file=dumpf)
+                if (y+h)>(quadrant_y+quadrant_h):
+                    # Wrap the cursor to the next quadrant across:
+                    quadrant_x += quadrant_w
+                    quadrant_index += 1
+                    x = quadrant_x
+                    y = quadrant_y
+                    row_height = 0
+                    if DUMP: print(f"Cursor quadrant-wrapped right to {x},{y}", file=dumpf)
+                if quadrant_x>=atlas_w:
+                    # Wrap the cursor to the next quadrant above left:
+                    quadrant_x = 0
+                    quadrant_y += quadrant_h
+                    x = quadrant_x
+                    y = quadrant_y
+                    row_height = 0
+                    if DUMP: print(f"Cursor quadrant-wrapped up-left to {x},{y}", file=dumpf)
+                if quadrant_y>=atlas_h:
+                    # Expand the atlas (and quadrant) size:
+                    quadrant_w = atlas_w
+                    quadrant_h = atlas_h
+                    atlas_w *= 2
+                    atlas_h *= 2
+                    quadrant_x = quadrant_w
+                    quadrant_y = 0
+                    x = quadrant_x
+                    y = quadrant_y
+                    row_height = 0
+                    if DUMP: print(f"Atlas expanded to {atlas_w}x{atlas_h}", file=dumpf)
+                    if atlas_w>atlas_max_w or atlas_h>atlas_max_h:
+                        # Newdark doesn't support >4k textures, so if we
+                        # don't have enough space now, someone (me) is gonna
+                        # have to write more code to do multiple atlases! D:
+                        if CONTINUE_ON_OVERFLOW:
+                            print("\nATLAS OVERFLOW\n", file=sys.stderr)
+                            if DUMP: print(f"OVERFLOW", file=dumpf)
+                            atlas_w = atlas_max_w
+                            atlas_h = atlas_max_h
+                            overflow = True
+                            x = 0
+                            y = 0
+                            break
+                        else:
+                            raise ValueError(f"No space to fit rect {handle} of {w}x{h} in 4k atlas")
+                # We have a valid cursor position
+                break
+            # Place the rect.
+            if DUMP: print(f"{rect_index} (handle handle): {x},{y} - {w}x{h}", file=dumpf)
+            placements[handle] = (x,y,w,h) # TODO: id??
+            if not overflow:
+                # w and h are uint8, so we need to promote them before
+                # multiplying:
+                texels_filled += (int(w)*int(h))
+            # Move the cursor along.
+            x += w
+            row_height = max(row_height, h)
+
+        # Calculate how much space is available--not in the entire atlas,
+        # but in the area of the atlas walked by the cursor so far:
+        available_texels = (
+            quadrant_y*2*quadrant_w                 # quadrants below
+            + quadrant_x*quadrant_h                 # quadrant to the left
+            + (y+row_height-quadrant_y)*quadrant_w  # portion of current quadrant
+            )
+        # If we have no lightmaps (maybe lighting was never built, or all
+        # the polys were Jorge and we skipped Jorge polys), then
+        # available_texels will be zero.
+        if available_texels==0:
+            efficiency = 0.0
+        else:
+            efficiency = (texels_filled/available_texels)*100.0
+        percent_filled = (texels_filled/(atlas_w*atlas_h))*100.0
+        if DUMP: print(f"Atlas efficiency: {efficiency:0.1f}% (atlas space filled: {percent_filled:0.1f}% of {atlas_w}x{atlas_h})", file=dumpf)
+        if DUMP: dumpf.close()
+        print(f"Atlas efficiency: {efficiency:0.1f}% (atlas space filled: {percent_filled:0.1f}% of {atlas_w}x{atlas_h})")
+
+        self.rects = None # Done with the rects now.
+        self.size = (atlas_w,atlas_h)
+        self.placements = placements
+
+    def get_pos(self, handle):
+        """return (x, y)"""
+        x,y,w,h = self.placements[handle]
+        return (x,y)
+
 
 #---------------------------------------------------------------------------#
 # Post-import utilities
@@ -2016,6 +2237,13 @@ class TT_bake_together(Operator):
     bl_label = "Bake together"
     bl_options = {'REGISTER', 'UNDO'}
 
+    debug_poly_index: IntProperty(
+        name="Debug poly",
+        default=0,
+        min=0,
+        max=255,
+        )
+
     @classmethod
     def poll(self, context):
         if context.mode!="OBJECT": return False
@@ -2037,7 +2265,7 @@ class TT_bake_together(Operator):
             obj_old.hide_viewport = True
         else:
             obj_new = obj_old
-        bake_textures_and_lightmaps(context, obj_new)
+        bake_textures_and_lightmaps(context, obj_new, self.debug_poly_index)
         return {'FINISHED'}
 
 #---------------------------------------------------------------------------#
