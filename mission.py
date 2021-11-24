@@ -1525,7 +1525,7 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
         # TODO: how come these coords aren't integers??
         target_verts[poly_idx][1] = max_vert-min_vert
 
-    # TODO: do atlassing and add offsets to target_verts
+    # Atlas all the rects.
     atlas_builder = BakeAtlasBuilder()
     handles = np.zeros(num_polys, dtype=int32)
     for poly_idx, verts in enumerate(target_verts):
@@ -1613,7 +1613,7 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
     debug_verts -= debug_pos[pi]
     debug_verts *= scale
 
-    _draw_stuff(
+    baked_image = _draw_stuff(
         num_polys,
         render_vertices,
         render_tx_uvs,
@@ -1625,6 +1625,24 @@ def bake_textures_and_lightmaps(context, obj, debug_poly_index):
         mat_indexes,
         mat_texture_images,
         mat_lightmap_image)
+
+    CREATE_OBJECT = False
+    if CREATE_OBJECT:
+        # Duplicate the mesh, and put it on a new object.
+        old_mesh = mesh
+        old_obj = obj
+        mesh = mesh.copy()
+        name = f"{old_obj.name}.baked"
+        obj = create_object(name, mesh, old_obj.location, context=context, link=True)
+
+        # Create a new material with the baked atlas.
+        mat = create_texture_material(name, baked_image, None, False, None)
+        mesh.materials.clear()
+        mesh.materials.append(mat)
+        for poly in mesh.polygons:
+            poly.material_index = 0
+
+    return obj
 
 def _draw_stuff(num_polys, verts, tx_uvs, lm_uvs,
         debug_poly_index, debug_verts, debug_tx_uvs, debug_lm_uvs,

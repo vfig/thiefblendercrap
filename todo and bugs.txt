@@ -1,6 +1,5 @@
 - bake to one texture
-
-    maybe the fuckabout.blend can help. i should create a new copy of it now specifically for actual textures vs lightmap, and import a test mission (the one for alignment testing might be good?). then i can see how it goes with actual texture and lightmap uvs.
+    -> need to reassign mesh materials, and update uvs.
 
 support terrain_scale in .mtl
     -> i dont want to, but people are gonna want it, i reckon
