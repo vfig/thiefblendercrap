@@ -1,0 +1,55 @@
+# ThiefTools blender plugin
+Version 0.0.1 (alpha)
+
+For Blender 2.90 or later.
+
+## Installing:
+
+1. Download the code as a zip from github.
+
+2. In Blender, go to `Edit > Preferences > Addons`. Click `Install...` and select the zip file. Make sure the checkbox beside the addon is ticked.
+
+3. Click the small triangle beside the checkbox to open the addon preferences. In `Resource Path 0` and `Resource Path 1`, put the paths to your Thief Gold and Thief II resource folders.
+
+**Note: v0.0.1 (alpha) does not yet support loading terrain textures from fam.crf**. To use the mission importer, you must extract fam.crf yourself (with Windows Explorer or any unzip tool); the paths you provide in step 3 should be to the parent folder, that contains the extracted subfolder `fam`.
+
+## Importing a mission
+
+Go to `File > Import > Thief Mission (.mis)`. Select your mission and click `Import .MIS`.
+
+Options:
+
+  * Skip Jorge: don't create geometry for brush faces with Jorge texture.
+  * Skip SKY HACK: don't create geometry for brush faces with SKY HACK texture.
+
+You should use Material Preview or Rendered mode to see textures and lightmaps in the 3D viewport. In Solid mode you can see unlit textures only, if you set the `Color` option to `Texture`.
+
+Textures that are in .PCX or .GIF format will be packed into the .blend file; textures that are in .PNG, .JPG, or .TGA format will not. Textures in .DDS format are not yet supported.
+
+### Post-import settings
+
+In the Object Properties tab, scroll down to find `Thief: Mission Settings`.
+
+  * Textures: toggle muting of terrain texture material nodes.
+  * Lightmaps: toggle muting of lightmap material nodes.
+  * Texture Filtering: toggle Linear/Closest filtering in terrain texture material nodes.
+  * Lightmap Filtering: toggle Linear/Closest filtering in lightmap material nodes.
+  * Brightness: a hack to make lightmaps brighter so the level is more visible in the viewport/render.
+
+## Baking textures and lightmaps together
+
+This feature is intended for creating objects from imported level geometry. For example, you might want to replace distant, unreachable buildings with a single object to improve render performance.
+
+You should first create the geometry with lighting that you want in Dromed, then import the .MIS into Blender.
+
+1. In the 3D Viewport, press `N` to show the context panel, and select the `Thief` tab.
+
+2. Select your imported mission object.
+
+3. Click `Bake together`.
+
+This will create a copy of the object (suffixed '.baked') with a single material that has terrain textures and lightmaps baked into a single texture.
+
+You can then use Blender Newdark Toolkit to export this object as a .bin for use in Dromed. You should set the `Renderer > Render Type` property in Dromed to `Unlit` so that the model appears lit with the baked lightmaps.
+
+Note: because this allocates unique texture space to every brush face, lots of geometry or higher lightmap resolutions may exceed the space available for baking in a 4K texture. This addon does not yet support making multiple textures when baking, so you will have to edit the geometry into smaller sections yourself if needed before baking.
