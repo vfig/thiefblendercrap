@@ -1450,6 +1450,23 @@ def bake_textures_and_lightmaps(context, obj):
     num_loops = len(mesh.loops)
     texture_uv_layer = mesh.uv_layers['UVMap']
     lightmap_uv_layer = mesh.uv_layers['UVLightmap']
+    # Find the texture and lightmap images.
+    mat_texture_images = [None]*len(mesh.materials)
+    mat_lightmap_image = None
+    for mat_index,mat in enumerate(mesh.materials):
+        # TODO: what if the materials and/or shaders have been changed, or were
+        #       imported without both TerrainTexture and LightmapTexture nodes?
+        nodes = mat.node_tree.nodes
+        mat_texture_images[mat_index] = nodes['TerrainTexture'].image
+        if mat_lightmap_image is None:
+            mat_lightmap_image = nodes['LightmapTexture'].image
+    # Parameters that control the size.
+    padding = (1,1) # TODO: decide on what this needs to be.
+    lm_atlas_w = mat_lightmap_image.size[0]
+    lm_atlas_h = mat_lightmap_image.size[1]
+    scaled_pixel_size = np.array(
+        [lm_atlas_w*lightmap_scale, lm_atlas_h*lightmap_scale],
+        dtype=float32)
     # Copy relevant mesh data into numpy arrays
     loop_starts = np.zeros(num_polys, dtype=int32)
     loop_totals = np.zeros(num_polys, dtype=int32)
@@ -1464,14 +1481,7 @@ def bake_textures_and_lightmaps(context, obj):
     texture_uvs.shape = (-1,2)
     lightmap_uvs.shape = (-1,2)
     baked_uvs = lightmap_uvs.copy()
-
-    padding = (16,16) # TODO: only huge for easier debugging!
-    # TODO: use the actual atlas dimensions!
-    lm_atlas_w = 256
-    lm_atlas_h = 256
-    scaled_pixel_size = np.array(
-        [lm_atlas_w*lightmap_scale, lm_atlas_h*lightmap_scale],
-        dtype=float32)
+    # Allocate arrays for new data.
     min_vert = np.zeros(2, dtype=float32) # bake atlas pixel space
     max_vert = np.zeros(2, dtype=float32)
     tx_min_uv = np.zeros(2, dtype=float32) # texture UV space
@@ -1592,18 +1602,10 @@ def bake_textures_and_lightmaps(context, obj):
         render_lm_uvs[poly_idx,5,0] = uv[0][0]
         render_lm_uvs[poly_idx,5,1] = uv[0][1]
 
-    mat_texture_images = [None]*len(mesh.materials)
-    mat_lightmap_image = None
-    for mat_index,mat in enumerate(mesh.materials):
-        # TODO: what if the materials and/or shaders have been changed, or were
-        #       imported without both TerrainTexture and LightmapTexture nodes?
-        nodes = mat.node_tree.nodes
-        mat_texture_images[mat_index] = nodes['TerrainTexture'].image
-        if mat_lightmap_image is None:
-            mat_lightmap_image = nodes['LightmapTexture'].image
-
     DRAW_BAKED_POLYS = False
-    baked_image = _draw_stuff(
+    baked_image = _bake_together(
+        f"{obj.name}.baked",
+        atlas_builder.size,
         num_polys,
         render_vertices,
         render_tx_uvs,
@@ -1651,7 +1653,7 @@ def bake_textures_and_lightmaps(context, obj):
 
     return obj
 
-def _draw_stuff(num_polys, verts, tx_uvs, lm_uvs,
+def _bake_together(name, size, num_polys, verts, tx_uvs, lm_uvs,
         mat_indexes, mat_texture_images, mat_lightmap_image,
         draw_baked_polys, loop_starts, loop_totals, baked_verts,
         baked_tx_uvs, baked_lm_uvs):
@@ -1660,8 +1662,9 @@ def _draw_stuff(num_polys, verts, tx_uvs, lm_uvs,
         BAKE_FRAGMENT_SHADER_SOURCE)
 
     # TODO: these should be parameters
-    IMAGE_NAME = "Generated Image"
-    WIDTH = HEIGHT = 1024
+    IMAGE_NAME = name
+    WIDTH = size[0]
+    HEIGHT = size[1]
     offscreen = gpu.types.GPUOffScreen(WIDTH, HEIGHT)
 
     if BLENDER_2:
