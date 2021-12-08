@@ -8,6 +8,11 @@
 support terrain_scale in .mtl
     -> i dont want to, but people are gonna want it, i reckon
 
+support dds
+    -> seems bpy.data.images.load("foo.dds") works just fine
+
+load palette from fam/X/full.pcx (or failing that, fam/full.pcx ?) for pcx images. because the baked in palettes are not what the game uses.
+
 load *stock* textures from crf
 
     i think what i want to do for file loading...
@@ -28,6 +33,10 @@ load *stock* textures from crf
 
 
 MAYBE:
+
+nemyax: I hadn't unpacked the textures, so I got the "MISSING" material in all of the slots. May I suggest creating a material called "MISSING: " + texture_name for each missing texture instead of sharing a single "MISSING" material?
+
+    me: one material per texture even if the image is missing is a good idea. would then allow me to unify both the "this texture cant be found" and "i cant load this type of texture" (e.g. dds)  cases, and the user could then manually fix up the affected materials.
 
 support ancient thief .mis files?
     E:/dev/thief/T1FM/LGS/m00_036.mis: WR version 0.18
@@ -53,3 +62,5 @@ support animlights
     -> option to bake them into the atlas during import?
     -> or option for second animlight-only atlas?
     -> or three atlases: static, default-on-animlight, default-off-animlight?
+
+progress goes up to 200%?
