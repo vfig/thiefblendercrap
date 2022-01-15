@@ -12,6 +12,8 @@ __all__ = (
     'LGCALLimb',
     'LGCALFooter',
     'LGCALFile',
+    'pack_normal',
+    'unpack_normal',
     )
 
 import sys
