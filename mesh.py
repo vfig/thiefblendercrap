@@ -1114,7 +1114,7 @@ def do_export_mesh(context, mesh_obj, bin_filename):
         print(f"  {pi}: vertex_ids {vertex_ids}; material_id {material_id}; normal {normal}; distance {distance}")
     print()
 
-    raise NotImplementedError("stop here")
+    #raise NotImplementedError("stop here")
 
     # okay, this is not good enough. we need to sort the vertices [by material,
     # once we stop hardcoding the material, then] by group, so that each
