@@ -1,0 +1,20 @@
+e:/dev/thief/TMA1.27/__unpacked/res/fam/ancient/stuchorz.pcx:
+  tag: 10
+  version: 5
+  compression: 1
+  bpp: 8
+  x_min: 0
+  y_min: 0
+  x_max: 255
+  y_max: 255
+  x_dpi: 480
+  y_dpi: 480
+  palette: <ArrayInstance of 48 x uint8>
+  reserved0: 0
+  planes: 1
+  bytes_per_row: 256
+  palette_mode: 0
+  x_dpi_src: 0
+  y_dpi_src: 0
+  reserved1: <ArrayInstance of 54 x uint8>
+

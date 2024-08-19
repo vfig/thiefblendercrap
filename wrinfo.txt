@@ -1,0 +1,204 @@
+./1434_TheSinkingDemoV1/miss21.mis:	WRRGB version 0.24
+./1MIL_AMNH1_0/miss20.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:4)
+./1mil_CinderNotes/miss21.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:2,	e:4)
+./2480_VC_ladymossy/miss20.mis:	WRRGB version 0.24
+./3MagesTomb/miss34.mis:	WRRGB version 0.24
+./akhenatenstomb/miss70.mis:	WRRGB version 0.24
+./akhenatenstomb/miss70orig.mis:	WRRGB version 0.24
+./A_Tough_Night_Final5/miss20.mis:	WRRGB version 0.24
+./Bad_Debts/miss20.mis:	WRRGB version 0.24
+./CalLegacy/miss20.mis:	WRRGB version 0.24
+./CalLegacy/miss21.mis:	WRRGB version 0.24
+./CalLegacy/miss22.mis:	WRRGB version 0.24
+./Core02NV/temp.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Cracks1/miss17.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:2,	e:0)
+./Cracks2/miss17.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:2,	e:0)
+./DCE/miss17.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./DCE/miss18.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./DCE/miss19.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./DCE/miss20.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:1,	e:0)
+./DCE/miss21.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./DCE/miss22.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./DCE/miss23.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./DCE/miss24.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./DCE/miss25.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./DCE/miss26.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:1,	e:0)
+./Dielya_v1_21/miss21.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:0)
+./Dielya_v1_21/temp.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:0)
+./Disorientation/miss20.mis:	WRRGB version 0.24
+./Dual/blockout_caves.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/blockout_face.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/blockout_island.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/blockout_landscape.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/blockout_monastery.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/blockout_ocularium.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/blockout_promontory.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/blockout_promontory_flooded.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/blockout_skull.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/export_face.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/headtop.mis: No worldrep chunk
+./Dual/puzzle_ascend.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/size_comparison.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/temp.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/test_doorstone.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/test_faceout.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/test_sailboat.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Dual/test_wispturb.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./EAX: Error, [Errno 2] No such file or directory: './EAX'
+Test/miss22.mis: Error, [Errno 2] No such file or directory: 'Test/miss22.mis'
+./Equil/Miss20.mis:	WRRGB version 0.24
+./Experiments/demo_morsefrob.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Experiments/demo_pointat.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Experiments/demo_sameorientation.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Experiments/miss1.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Experiments/test_configmanip.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Experiments/test_mines.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Experiments/x.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Fables_Nov8Fin/Miss20.mis:	WRRGB version 0.24
+./Fables_Nov8Fin/miss21.mis:	WRRGB version 0.24
+./face/face.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./face/face2.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./face/face3.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./face/face4.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./face/face5.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./face/face6.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./firemage_fakewater/Test_Moving_Water.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./foo.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./Forest2_0/miss20.mis:	WRRGB version 0.24
+./KingsStory/miss24.mis:	WRRGB version 0.24
+./KingsStory/miss25.mis:	WRRGB version 0.24
+./KingsStory/Miss26.mis: Error, unpack_from requires a buffer of at least 4 bytes
+./KotP/Miss17.mis:	WRRGB version 0.24
+./KotP/miss18.mis:	WRRGB version 0.24
+./KotP/miss19.mis:	WRRGB version 0.24
+./KotP/miss20.mis:	WRRGB version 0.24
+./KotP/miss21.mis:	WRRGB version 0.24
+./KotP/miss22.mis:	WRRGB version 0.24
+./KotP/miss23.mis:	WRRGB version 0.24
+./KotP/miss24.mis:	WRRGB version 0.24
+./KotP/miss25.mis:	WRRGB version 0.24
+./KotP/miss26.mis:	WRRGB version 0.24
+./KotP/miss27.mis:	WRRGB version 0.24
+./KotP/miss28.mis: No worldrep chunk
+./lol.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./maelstrom/miss22.mis:	WRRGB version 0.24
+./MalazarsTower_v11/miss17.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:2,	e:0)
+./MetalAge/MISS1TL.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./MetalAge/MISS7cutaway.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./MetalAge/temp.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./MotionTagDemo/MotTagDemo.mis:	WRRGB version 0.24
+./nvscriptstuff/book_onscreentext.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./OffRec_v10/miss20.mis:	WRRGB version 0.24
+./PlantDemo2/Miss20.mis:	WRRGB version 0.24
+./PrequelEN04/MISS22.mis:	WRRGB version 0.24
+./PrequelEN05/coleman.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./PrequelEN05/MISS22.mis:	WRRGB version 0.24
+./PrequelEN05/temp.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./PrequelEN05/test.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./PrequelEN05/test2.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./PrequelEN05/test3.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./PrequelEN05/test_roomcensus.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./RowenasCurse/miss20.mis:	WRRGB version 0.24
+./SinisterNight/miss22.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:0)
+./sperry_sr/temp.mis:	WREXT version 0.30	(a:20,	b:5,	c:1,	d:1,	e:0)
+./sperry_sr/testmapNEWDEL_v.mis:	WREXT version 0.30	(a:20,	b:5,	c:1,	d:1,	e:0)
+./t2alpha/miss11.mis:	WRRGB version 0.24
+./T2Gold/college_0224.mis:	WRRGB version 0.24
+./T2Gold/miss4.mis:	WRRGB version 0.24
+./T2Gold/slums.mis:	WRRGB version 0.24
+./t2x/miss18.mis:	WRRGB version 0.24
+./t2x/miss19.mis:	WRRGB version 0.24
+./t2x/miss20.mis:	WRRGB version 0.24
+./t2x/miss21.mis:	WRRGB version 0.24
+./t2x/miss22.mis:	WRRGB version 0.24
+./t2x/miss23.mis:	WRRGB version 0.24
+./t2x/miss24.mis:	WRRGB version 0.24
+./t2x/miss25.mis:	WRRGB version 0.24
+./t2x/miss26.mis:	WRRGB version 0.24
+./t2x/miss27.mis:	WRRGB version 0.24
+./t2x/miss28.mis:	WRRGB version 0.24
+./t2x/miss29.mis:	WRRGB version 0.24
+./t2x/miss30.mis:	WRRGB version 0.24
+./t2x/mtest.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_aipathing/test_aipathing.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_aquaburricks/the_river.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_arachnorig/test_arachnorig.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_arachnorig/test_facelook.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_autogravshaft/test_autogravshaft.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_climbing/test_ladder.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_compass3/test_compass3.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_crossfade/test_crossfade.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_delve/test_delve.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_dromedscript/test_dromedscript.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_dualproto/proto.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_dualroom/test_dualroom.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_elevators/test_elevators.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_fastwalker/test_fastwalker.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_files/test_dir.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_frobwater/test_frobwater.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_frogloot/test_frogloot.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_gravity/test_gravity.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_headless/test_headless.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_headsound/headsound.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_hiddencorridor/test_hiddencorridor.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_hlsky/hlsky.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_hlsky/hlsky_weather.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_hotkey/miss1.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_hotkey/test_hotkey.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_illusions/test_fakefloor.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_impostor/impostor.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_inventoryanim/test_inventoryanim.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_lightgem/lightgem.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_loudroom/test_loudroom.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_lugged/veryheavy.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_magicmirror/test_magicmirror.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_mesh/test_rails1.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_moneytree/test_moneytree.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_newsky/test_newsky.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_offsetteleport/test_offsetteleport.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_osm/miss1.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_osm/test_osm.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_overlaydemo/Demo_CamOvlBmWorld.mis:	WREXT version 0.30	(a:20,	b:4,	c:0,	d:2,	e:0)
+./test_overlaydemo/Demo_OverlaySampleOsm.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_pathdb/test_pathdb.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_physplane/test_physplane.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_raycast/test_raycasting.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_rotate/test_rotate.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_shader/test_shader.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_smokegrenade/test_smokegrenade.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_smootherspiral.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_stun/miss1.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_stun/test_stun.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_swapsky/test_swapsky.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_syncmtl/test_syncmtl.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_tablet/test_tablet.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_thief/test_thief.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_torches/test_torches.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_voidwater/test_voidwater.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_waves/test_waves.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./test_witcheshead/miss1.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./the7sisters/Intrface/miss25.mis: No worldrep chunk
+./the7sisters/miss21.mis:	WRRGB version 0.24
+./the7sisters/miss22.mis:	WRRGB version 0.24
+./the7sisters/miss23.mis:	WRRGB version 0.24
+./the7sisters/miss24.mis:	WRRGB version 0.24
+./the7sisters/miss25.mis: No worldrep chunk
+./The_Mirror_of_Return_v1a/miss22.mis:	WRRGB version 0.24
+./The_Mirror_of_Return_v1a/miss23.mis:	WRRGB version 0.24
+./The_Mirror_of_Return_v1a/miss24.mis:	WRRGB version 0.24
+./tiesbind/miss20.mis:	WRRGB version 0.24
+./TMA20AC_Feast_of_Pilgrims_v1_1/miss17.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:1,	e:0)
+./TMA20AC_Into_The_Odd_v1_1/Miss17.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:0)
+./TMA20AC_Ten_Little_Taffers/miss20.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:1,	e:0)
+./TMA20AC_TheBuildersParadise_EN/miss17.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:0)
+./TMA20AC_TPOAIR_v1_2/miss20.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:2,	e:4)
+./TMA20AC_TPOAIR_v1_2/Miss21.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:4)
+./TMA20AC_TPOAIR_v1_2/Miss22.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:4)
+./TMA20AC_TPOAIR_v1_2/Miss23.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:4)
+./TMA20AC_TPOAIR_v1_2/Miss24.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:2,	e:4)
+./TMA20AC_TPOAIR_v1_2/Miss25.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:4)
+./TMA20AC_TPOAIR_v1_2/Miss26.mis:	WREXT version 0.30	(a:20,	b:5,	c:2,	d:2,	e:4)
+./TNVOMO/miss20.mis:	WRRGB version 0.24
+./zoo/zoo_models.mis:	WREXT version 0.30	(a:20,	b:5,	c:0,	d:0,	e:0)
+./zoo/zoo_models_original.mis: No worldrep chunk
+./zoo/zoo_models_replaced.mis: No worldrep chunk

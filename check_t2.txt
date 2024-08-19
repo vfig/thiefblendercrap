@@ -1,0 +1,7 @@
+Reading e:\dev\thief\TMA1.27\__unpacked\res\mesh\carry5.bin:
+Traceback (most recent call last):
+  File "check_mesh.py", line 638, in main
+    read_mesh(filename)
+  File "check_mesh.py", line 445, in read_mesh
+    with open(cal_filename, 'rb') as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'e:\\dev\\thief\\TMA1.27\\__unpacked\\res\\mesh\\carry5.cal'

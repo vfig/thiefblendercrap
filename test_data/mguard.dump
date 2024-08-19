@@ -1,0 +1,1661 @@
+magic: b'LGMM'
+version: <PrimitiveType uint32>
+radius: 0.000000
+flags: 0000
+app_data: 0000
+layout: <PrimitiveType uint8>
+segs: <PrimitiveType uint8>
+smatrs: <PrimitiveType uint8>
+smatsegs: <PrimitiveType uint8>
+pgons: <PrimitiveType uint16>
+verts: <PrimitiveType uint16>
+weights: <PrimitiveType uint16>
+map_off: 00000048
+seg_off: 00000078
+smatr_off: 000002bc
+smatseg_off: 000002e4
+pgon_off: 00000464
+norm_off: 00001404
+vert_vec_off: 00001fbc
+vert_uvn_off: 00002808
+weight_off: 00003054
+
+maps: 48
+BIN:
+Segments
+  Seg 0:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 1:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 2:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 3:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 4:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 5:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 6:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 7:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 8:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 9:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 10:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 11:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 12:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 13:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 14:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 15:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 16:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 17:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 18:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 19:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 20:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 21:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 22:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 23:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 24:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 25:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 26:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 27:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+  Seg 28:
+    bbox: <PrimitiveType uint32>
+    joint_id: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+Smatrs
+  Smatr 0:
+    name: b'Newguard.gif\x00\x00\x00\x00'
+    caps: <PrimitiveType uint32>
+    alpha: <PrimitiveType float32>
+    self_illum: <PrimitiveType float32>
+    for_rent: <PrimitiveType uint32>
+    handle: <PrimitiveType uint32>
+    uv: <PrimitiveType float32>
+    mat_type: <PrimitiveType uint8>
+    smatsegs: <PrimitiveType uint8>
+    map_start: <PrimitiveType uint8>
+    flags: <PrimitiveType uint8>
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+SmatSegs
+  Smatseg 0:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 1:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 2:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 3:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 4:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 5:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 6:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 7:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 8:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 9:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 10:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 11:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 12:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 13:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 14:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 15:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 16:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 17:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 18:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 19:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 20:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 21:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 22:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+  Smatseg 23:
+    pgons: <PrimitiveType uint16>
+    pgon_start: <PrimitiveType uint16>
+    verts: <PrimitiveType uint16>
+    vert_start: <PrimitiveType uint16>
+    weight_start: <PrimitiveType uint16>
+    pad: <PrimitiveType uint16>
+    smatr_id: <PrimitiveType uint16>
+    seg_id: <PrimitiveType uint16>
+
+Maps:
+  0: <PrimitiveType uint8>
+  1: <PrimitiveType uint8>
+  2: <PrimitiveType uint8>
+  3: <PrimitiveType uint8>
+  4: <PrimitiveType uint8>
+  5: <PrimitiveType uint8>
+  6: <PrimitiveType uint8>
+  7: <PrimitiveType uint8>
+  8: <PrimitiveType uint8>
+  9: <PrimitiveType uint8>
+  10: <PrimitiveType uint8>
+  11: <PrimitiveType uint8>
+  12: <PrimitiveType uint8>
+  13: <PrimitiveType uint8>
+  14: <PrimitiveType uint8>
+  15: <PrimitiveType uint8>
+  16: <PrimitiveType uint8>
+  17: <PrimitiveType uint8>
+  18: <PrimitiveType uint8>
+  19: <PrimitiveType uint8>
+  20: <PrimitiveType uint8>
+  21: <PrimitiveType uint8>
+  22: <PrimitiveType uint8>
+  23: <PrimitiveType uint8>
+  24: <PrimitiveType uint8>
+  25: <PrimitiveType uint8>
+  26: <PrimitiveType uint8>
+  27: <PrimitiveType uint8>
+  28: <PrimitiveType uint8>
+  29: <PrimitiveType uint8>
+  30: <PrimitiveType uint8>
+  31: <PrimitiveType uint8>
+  32: <PrimitiveType uint8>
+  33: <PrimitiveType uint8>
+  34: <PrimitiveType uint8>
+  35: <PrimitiveType uint8>
+  36: <PrimitiveType uint8>
+  37: <PrimitiveType uint8>
+  38: <PrimitiveType uint8>
+  39: <PrimitiveType uint8>
+  40: <PrimitiveType uint8>
+  41: <PrimitiveType uint8>
+  42: <PrimitiveType uint8>
+  43: <PrimitiveType uint8>
+  44: <PrimitiveType uint8>
+  45: <PrimitiveType uint8>
+  46: <PrimitiveType uint8>
+  47: <PrimitiveType uint8>
+Pgons:
+  0: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  1: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  2: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  3: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  4: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  5: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  6: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  7: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  8: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  9: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  10: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  11: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  12: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  13: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  14: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  15: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  16: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  17: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  18: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  19: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  20: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  21: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  22: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  23: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  24: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  25: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  26: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  27: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  28: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  29: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  30: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  31: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  32: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  33: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  34: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  35: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  36: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  37: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  38: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  39: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  40: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  41: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  42: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  43: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  44: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  45: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  46: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  47: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  48: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  49: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  50: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  51: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  52: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  53: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  54: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  55: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  56: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  57: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  58: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  59: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  60: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  61: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  62: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  63: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  64: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  65: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  66: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  67: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  68: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  69: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  70: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  71: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  72: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  73: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  74: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  75: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  76: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  77: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  78: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  79: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  80: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  81: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  82: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  83: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  84: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  85: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  86: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  87: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  88: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  89: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  90: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  91: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  92: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  93: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  94: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  95: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  96: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  97: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  98: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  99: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  100: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  101: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  102: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  103: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  104: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  105: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  106: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  107: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  108: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  109: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  110: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  111: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  112: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  113: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  114: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  115: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  116: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  117: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  118: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  119: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  120: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  121: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  122: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  123: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  124: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  125: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  126: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  127: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  128: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  129: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  130: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  131: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  132: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  133: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  134: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  135: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  136: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  137: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  138: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  139: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  140: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  141: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  142: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  143: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  144: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  145: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  146: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  147: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  148: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  149: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  150: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  151: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  152: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  153: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  154: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  155: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  156: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  157: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  158: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  159: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  160: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  161: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  162: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  163: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  164: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  165: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  166: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  167: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  168: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  169: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  170: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  171: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  172: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  173: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  174: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  175: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  176: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  177: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  178: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  179: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  180: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  181: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  182: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  183: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  184: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  185: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  186: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  187: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  188: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  189: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  190: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  191: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  192: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  193: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  194: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  195: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  196: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  197: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  198: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  199: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  200: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  201: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  202: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  203: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  204: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  205: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  206: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  207: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  208: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  209: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  210: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  211: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  212: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  213: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  214: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  215: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  216: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  217: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  218: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  219: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  220: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  221: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  222: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  223: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  224: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  225: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  226: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  227: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  228: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  229: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  230: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  231: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  232: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  233: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  234: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  235: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  236: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  237: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  238: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  239: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  240: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  241: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  242: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  243: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  244: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  245: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  246: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  247: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  248: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+  249: verts <PrimitiveType uint16>,<PrimitiveType uint16>,<PrimitiveType uint16>; smatr <PrimitiveType uint16>; norm: <PrimitiveType uint16>, d: <PrimitiveType float32>
+Verts:
+  0: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  1: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  2: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  3: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  4: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  5: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  6: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  7: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  8: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  9: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  10: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  11: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  12: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  13: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  14: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  15: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  16: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  17: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  18: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  19: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  20: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  21: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  22: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  23: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  24: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  25: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  26: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  27: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  28: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  29: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  30: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  31: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  32: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  33: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  34: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  35: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  36: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  37: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  38: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  39: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  40: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  41: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  42: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  43: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  44: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  45: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  46: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  47: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  48: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  49: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  50: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  51: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  52: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  53: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  54: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  55: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  56: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  57: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  58: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  59: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  60: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  61: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  62: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  63: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  64: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  65: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  66: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  67: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  68: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  69: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  70: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  71: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  72: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  73: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  74: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  75: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  76: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  77: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  78: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  79: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  80: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  81: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  82: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  83: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  84: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  85: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  86: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  87: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  88: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  89: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  90: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  91: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  92: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  93: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  94: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  95: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  96: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  97: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  98: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  99: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  100: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  101: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  102: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  103: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  104: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  105: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  106: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  107: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  108: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  109: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  110: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  111: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  112: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  113: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  114: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  115: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  116: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  117: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  118: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  119: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  120: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  121: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  122: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  123: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  124: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  125: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  126: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  127: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  128: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  129: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  130: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  131: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  132: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  133: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  134: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  135: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  136: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  137: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  138: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  139: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  140: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  141: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  142: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  143: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  144: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  145: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  146: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  147: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  148: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  149: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  150: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  151: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  152: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  153: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  154: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  155: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  156: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  157: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  158: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  159: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  160: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  161: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  162: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  163: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  164: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  165: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  166: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  167: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  168: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  169: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  170: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  171: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  172: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  173: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  174: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  175: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  176: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+Norms:
+  0: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  1: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  2: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  3: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  4: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  5: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  6: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  7: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  8: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  9: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  10: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  11: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  12: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  13: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  14: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  15: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  16: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  17: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  18: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  19: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  20: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  21: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  22: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  23: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  24: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  25: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  26: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  27: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  28: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  29: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  30: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  31: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  32: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  33: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  34: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  35: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  36: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  37: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  38: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  39: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  40: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  41: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  42: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  43: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  44: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  45: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  46: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  47: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  48: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  49: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  50: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  51: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  52: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  53: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  54: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  55: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  56: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  57: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  58: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  59: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  60: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  61: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  62: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  63: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  64: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  65: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  66: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  67: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  68: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  69: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  70: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  71: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  72: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  73: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  74: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  75: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  76: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  77: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  78: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  79: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  80: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  81: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  82: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  83: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  84: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  85: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  86: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  87: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  88: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  89: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  90: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  91: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  92: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  93: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  94: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  95: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  96: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  97: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  98: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  99: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  100: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  101: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  102: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  103: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  104: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  105: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  106: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  107: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  108: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  109: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  110: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  111: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  112: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  113: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  114: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  115: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  116: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  117: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  118: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  119: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  120: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  121: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  122: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  123: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  124: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  125: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  126: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  127: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  128: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  129: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  130: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  131: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  132: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  133: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  134: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  135: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  136: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  137: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  138: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  139: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  140: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  141: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  142: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  143: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  144: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  145: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  146: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  147: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  148: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  149: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  150: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  151: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  152: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  153: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  154: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  155: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  156: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  157: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  158: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  159: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  160: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  161: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  162: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  163: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  164: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  165: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  166: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  167: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  168: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  169: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  170: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  171: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  172: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  173: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  174: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  175: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  176: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  177: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  178: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  179: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  180: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  181: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  182: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  183: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  184: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  185: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  186: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  187: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  188: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  189: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  190: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  191: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  192: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  193: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  194: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  195: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  196: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  197: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  198: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  199: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  200: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  201: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  202: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  203: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  204: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  205: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  206: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  207: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  208: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  209: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  210: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  211: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  212: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  213: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  214: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  215: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  216: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  217: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  218: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  219: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  220: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  221: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  222: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  223: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  224: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  225: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  226: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  227: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  228: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  229: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  230: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  231: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  232: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  233: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  234: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  235: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  236: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  237: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  238: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  239: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  240: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  241: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  242: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  243: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  244: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  245: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  246: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  247: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  248: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+  249: <PrimitiveType float32>,<PrimitiveType float32>,<PrimitiveType float32>
+UVNorms:
+  0: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  1: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  2: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  3: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  4: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  5: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  6: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  7: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  8: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  9: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  10: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  11: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  12: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  13: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  14: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  15: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  16: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  17: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  18: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  19: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  20: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  21: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  22: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  23: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  24: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  25: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  26: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  27: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  28: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  29: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  30: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  31: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  32: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  33: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  34: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  35: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  36: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  37: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  38: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  39: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  40: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  41: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  42: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  43: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  44: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  45: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  46: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  47: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  48: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  49: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  50: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  51: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  52: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  53: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  54: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  55: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  56: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  57: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  58: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  59: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  60: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  61: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  62: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  63: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  64: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  65: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  66: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  67: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  68: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  69: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  70: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  71: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  72: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  73: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  74: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  75: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  76: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  77: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  78: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  79: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  80: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  81: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  82: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  83: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  84: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  85: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  86: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  87: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  88: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  89: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  90: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  91: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  92: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  93: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  94: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  95: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  96: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  97: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  98: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  99: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  100: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  101: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  102: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  103: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  104: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  105: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  106: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  107: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  108: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  109: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  110: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  111: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  112: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  113: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  114: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  115: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  116: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  117: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  118: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  119: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  120: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  121: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  122: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  123: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  124: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  125: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  126: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  127: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  128: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  129: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  130: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  131: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  132: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  133: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  134: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  135: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  136: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  137: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  138: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  139: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  140: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  141: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  142: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  143: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  144: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  145: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  146: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  147: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  148: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  149: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  150: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  151: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  152: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  153: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  154: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  155: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  156: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  157: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  158: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  159: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  160: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  161: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  162: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  163: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  164: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  165: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  166: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  167: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  168: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  169: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  170: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  171: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  172: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  173: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  174: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  175: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+  176: <PrimitiveType float32>,<PrimitiveType float32>; norm <PrimitiveType uint32>
+Weights:
+  0: <PrimitiveType float32>
+  1: <PrimitiveType float32>
+  2: <PrimitiveType float32>
+  3: <PrimitiveType float32>
+  4: <PrimitiveType float32>
+  5: <PrimitiveType float32>
+  6: <PrimitiveType float32>
+  7: <PrimitiveType float32>
+  8: <PrimitiveType float32>
+  9: <PrimitiveType float32>
+  10: <PrimitiveType float32>
+  11: <PrimitiveType float32>
+  12: <PrimitiveType float32>
+  13: <PrimitiveType float32>
+  14: <PrimitiveType float32>
+  15: <PrimitiveType float32>
+  16: <PrimitiveType float32>
+  17: <PrimitiveType float32>
+  18: <PrimitiveType float32>
+  19: <PrimitiveType float32>
+  20: <PrimitiveType float32>
+  21: <PrimitiveType float32>
+  22: <PrimitiveType float32>
+  23: <PrimitiveType float32>
+  24: <PrimitiveType float32>
+  25: <PrimitiveType float32>
+  26: <PrimitiveType float32>
+  27: <PrimitiveType float32>
+  28: <PrimitiveType float32>
+  29: <PrimitiveType float32>
+  30: <PrimitiveType float32>
+  31: <PrimitiveType float32>
+  32: <PrimitiveType float32>
+  33: <PrimitiveType float32>
+  34: <PrimitiveType float32>
+  35: <PrimitiveType float32>
+  36: <PrimitiveType float32>
+  37: <PrimitiveType float32>
+  38: <PrimitiveType float32>
+  39: <PrimitiveType float32>
+  40: <PrimitiveType float32>
+  41: <PrimitiveType float32>
+  42: <PrimitiveType float32>
+  43: <PrimitiveType float32>
+  44: <PrimitiveType float32>
+  45: <PrimitiveType float32>
+  46: <PrimitiveType float32>
+  47: <PrimitiveType float32>
+  48: <PrimitiveType float32>
+  49: <PrimitiveType float32>
+  50: <PrimitiveType float32>
+  51: <PrimitiveType float32>
+  52: <PrimitiveType float32>
+  53: <PrimitiveType float32>
+  54: <PrimitiveType float32>
+  55: <PrimitiveType float32>
+  56: <PrimitiveType float32>
+  57: <PrimitiveType float32>
+  58: <PrimitiveType float32>
+  59: <PrimitiveType float32>
+  60: <PrimitiveType float32>
+  61: <PrimitiveType float32>
+  62: <PrimitiveType float32>
+  63: <PrimitiveType float32>
+  64: <PrimitiveType float32>
+  65: <PrimitiveType float32>
+  66: <PrimitiveType float32>
+  67: <PrimitiveType float32>
+  68: <PrimitiveType float32>
+  69: <PrimitiveType float32>
+  70: <PrimitiveType float32>
+  71: <PrimitiveType float32>
+  72: <PrimitiveType float32>
+  73: <PrimitiveType float32>
+  74: <PrimitiveType float32>
+  75: <PrimitiveType float32>
+CAL:
+  version: <PrimitiveType uint32>
+  torsos: <PrimitiveType uint32>
+  limbs: <PrimitiveType uint32>
+torso 0:
+  joint: <PrimitiveType int32>
+  parent: <PrimitiveType int32>
+  fixed_points: <PrimitiveType int32>
+  joint_id:
+    <PrimitiveType int32>
+    <PrimitiveType int32>
+    <PrimitiveType int32>
+  pts:
+    <PrimitiveType float32>, <PrimitiveType float32>, <PrimitiveType float32>
+    <PrimitiveType float32>, <PrimitiveType float32>, <PrimitiveType float32>
+    <PrimitiveType float32>, <PrimitiveType float32>, <PrimitiveType float32>
+torso 1:
+  joint: <PrimitiveType int32>
+  parent: <PrimitiveType int32>
+  fixed_points: <PrimitiveType int32>
+  joint_id:
+    <PrimitiveType int32>
+    <PrimitiveType int32>
+    <PrimitiveType int32>
+  pts:
+    <PrimitiveType float32>, <PrimitiveType float32>, <PrimitiveType float32>
+    <PrimitiveType float32>, <PrimitiveType float32>, <PrimitiveType float32>
+    <PrimitiveType float32>, <PrimitiveType float32>, <PrimitiveType float32>
+limb 0:
+  torso_id: <PrimitiveType int32>
+  bend: <PrimitiveType int32>
+  segments: <PrimitiveType int32>
+  joint_id:
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+  seg:
+  seg_len:
+    <PrimitiveType float32>
+    <PrimitiveType float32>
+    <PrimitiveType float32>
+limb 1:
+  torso_id: <PrimitiveType int32>
+  bend: <PrimitiveType int32>
+  segments: <PrimitiveType int32>
+  joint_id:
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+  seg:
+  seg_len:
+    <PrimitiveType float32>
+    <PrimitiveType float32>
+    <PrimitiveType float32>
+limb 2:
+  torso_id: <PrimitiveType int32>
+  bend: <PrimitiveType int32>
+  segments: <PrimitiveType int32>
+  joint_id:
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+  seg:
+  seg_len:
+    <PrimitiveType float32>
+    <PrimitiveType float32>
+    <PrimitiveType float32>
+limb 3:
+  torso_id: <PrimitiveType int32>
+  bend: <PrimitiveType int32>
+  segments: <PrimitiveType int32>
+  joint_id:
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+  seg:
+  seg_len:
+    <PrimitiveType float32>
+    <PrimitiveType float32>
+    <PrimitiveType float32>
+limb 4:
+  torso_id: <PrimitiveType int32>
+  bend: <PrimitiveType int32>
+  segments: <PrimitiveType int32>
+  joint_id:
+    <PrimitiveType int16>
+    <PrimitiveType int16>
+  seg:
+  seg_len:
+    <PrimitiveType float32>
+scale: <PrimitiveType float32>
+

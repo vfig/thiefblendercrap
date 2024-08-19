@@ -1,0 +1,18 @@
+Reading e:\dev\thief\TG1.26\__unpacked\res\mesh\BADTRAY.BIN:
+Traceback (most recent call last):
+  File "check_mesh.py", line 638, in main
+    read_mesh(filename)
+  File "check_mesh.py", line 445, in read_mesh
+    with open(cal_filename, 'rb') as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'e:\\dev\\thief\\TG1.26\\__unpacked\\res\\mesh\\BADTRAY.cal'
+Reading e:\dev\thief\TG1.26\__unpacked\res\mesh\carry5.bin:
+Traceback (most recent call last):
+  File "check_mesh.py", line 638, in main
+    read_mesh(filename)
+  File "check_mesh.py", line 445, in read_mesh
+    with open(cal_filename, 'rb') as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'e:\\dev\\thief\\TG1.26\\__unpacked\\res\\mesh\\carry5.cal'
+(FAIL) smatr 3 has mat_type 0  -  e:\dev\thief\TG1.26\__unpacked\res\mesh\expservt.bin
+(FAIL) mappings (47) = 2x smatseg count (24)  -  e:\dev\thief\TG1.26\__unpacked\res\mesh\expzom.bin
+(FAIL) smatr 1 has mat_type 0  -  e:\dev\thief\TG1.26\__unpacked\res\mesh\MAGSWGU.BIN
+(FAIL) smatr 3 has mat_type 0  -  e:\dev\thief\TG1.26\__unpacked\res\mesh\servtest.bin

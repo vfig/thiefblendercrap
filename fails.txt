@@ -1,0 +1,41 @@
+(FAIL) mappings = 2x smatseg count
+(FAIL) non-stretchy smatseg 0 has zero pgons
+(FAIL) non-stretchy smatseg 1 has zero pgons
+(FAIL) non-stretchy smatseg 10 has zero pgons
+(FAIL) non-stretchy smatseg 11 has zero pgons
+(FAIL) non-stretchy smatseg 12 has zero pgons
+(FAIL) non-stretchy smatseg 13 has zero pgons
+(FAIL) non-stretchy smatseg 14 has zero pgons
+(FAIL) non-stretchy smatseg 15 has zero pgons
+(FAIL) non-stretchy smatseg 16 has zero pgons
+(FAIL) non-stretchy smatseg 17 has zero pgons
+(FAIL) non-stretchy smatseg 18 has zero pgons
+(FAIL) non-stretchy smatseg 19 has zero pgons
+(FAIL) non-stretchy smatseg 2 has zero pgons
+(FAIL) non-stretchy smatseg 20 has zero pgons
+(FAIL) non-stretchy smatseg 21 has zero pgons
+(FAIL) non-stretchy smatseg 22 has zero pgons
+(FAIL) non-stretchy smatseg 23 has zero pgons
+(FAIL) non-stretchy smatseg 24 has zero pgons
+(FAIL) non-stretchy smatseg 25 has zero pgons
+(FAIL) non-stretchy smatseg 26 has zero pgons
+(FAIL) non-stretchy smatseg 27 has zero pgons
+(FAIL) non-stretchy smatseg 28 has zero pgons
+(FAIL) non-stretchy smatseg 29 has zero pgons
+(FAIL) non-stretchy smatseg 3 has zero pgons
+(FAIL) non-stretchy smatseg 30 has zero pgons
+(FAIL) non-stretchy smatseg 31 has zero pgons
+(FAIL) non-stretchy smatseg 32 has zero pgons
+(FAIL) non-stretchy smatseg 33 has zero pgons
+(FAIL) non-stretchy smatseg 4 has zero pgons
+(FAIL) non-stretchy smatseg 5 has zero pgons
+(FAIL) non-stretchy smatseg 6 has zero pgons
+(FAIL) non-stretchy smatseg 7 has zero pgons
+(FAIL) non-stretchy smatseg 8 has zero pgons
+(FAIL) non-stretchy smatseg 9 has zero pgons
+(FAIL) smatr 0 has zero verts
+(FAIL) smatr 1 has zero caps
+(FAIL) smatr 1 has zero verts
+(FAIL) smatr 2 has zero verts
+(FAIL) smatr 3 has zero caps
+(FAIL) smatr 3 has zero verts
