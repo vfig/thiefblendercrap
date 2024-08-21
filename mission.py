@@ -1440,12 +1440,47 @@ vec4 linearrgb_to_srgb(vec4 col_from)
     return col_to;
 }
 
+float linearrgb_to_srgb_hacked(float c)
+{
+    // This looks almost identical, except in the very darkest
+    // greys, where it is too light:
+    return pow(c, 1.0/2.15);
+}
+
+vec4 linearrgb_to_srgb_hacked(vec4 col_from)
+{
+    vec4 col_to;
+    col_to.r = linearrgb_to_srgb_hacked(col_from.r);
+    col_to.g = linearrgb_to_srgb_hacked(col_from.g);
+    col_to.b = linearrgb_to_srgb_hacked(col_from.b);
+    col_to.a = col_from.a;
+    return col_to;
+}
+
 void main()
 {
     vec4 t = texture(image, texCoord_interp);
     vec4 l = texture(lightmap, lmCoord_interp);
     vec4 c = color+t*l; // just random maths
+#if 0
+    // BUG: this ends up appearing slightly too dark. i think it is all due
+    //      to sRGB<->Linear conversion that is happening in Blender and/or
+    //      the gpu drivers, and that being a bit different than the curve
+    //      that gets used when the game loads textures.
+    //
+    //      i think a correct fix would be to ensure we don't do such
+    //      conversions at all in the baking pipeline. i think to do that i
+    //      would either have to look into the gpu module's offscreen stuff
+    //      or just do the texture sampling and multiply all with numpy.
+    //
     fragColor = linearrgb_to_srgb(c);
+#else
+    // WORKAROUND: use a hacked sRGB conversion curve that looks almost right
+    //      in my test level on my machine. it is probably wronger than i
+    //      think, e.g. might be tuned to the ambient setting i had in the
+    //      test level.
+    fragColor = linearrgb_to_srgb_hacked(c);
+#endif
 }
 """
 
