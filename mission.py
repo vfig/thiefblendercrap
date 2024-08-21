@@ -294,7 +294,16 @@ class LGWRCell:
                 rgbaf.shape = (count, height, width, 4)
                 rgbaf = np.flip(rgbaf, axis=1)
             elif lightmap_format is LGWRRGBLightmap32Bit:
-                rgba = raw.view(dtype=uint8)
+                bgra = raw.view(dtype=uint8)
+                # Swap channels to convert to RGBA. There might be a more
+                # efficient way to do this in numpy, but hey, this works.
+                bgra.shape = (-1, 4)
+                rgba = np.zeros(bgra.shape, dtype=uint8)
+                rgba[:,0] = bgra[:,2]
+                rgba[:,1] = bgra[:,1]
+                rgba[:,2] = bgra[:,0]
+                rgba[:,3] = bgra[:,3]
+                # Then flip Y etc. as usual.
                 rgba.shape = (count, height, width, 4)
                 rgba = np.flip(rgba, axis=1)
                 rgbaf = np.array(rgba, dtype=float)/255.0
