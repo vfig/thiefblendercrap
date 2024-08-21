@@ -1604,7 +1604,7 @@ def bake_textures_and_lightmaps(context, obj):
 
     DRAW_BAKED_POLYS = False
     baked_image = _bake_together(
-        f"{obj.name}.baked",
+        f"{obj.name}_b",
         atlas_builder.size,
         num_polys,
         render_vertices,
@@ -1632,7 +1632,7 @@ def bake_textures_and_lightmaps(context, obj):
         old_mesh = mesh
         old_obj = obj
         mesh = mesh.copy()
-        name = f"{old_obj.name}.baked"
+        name = f"{old_obj.name}_b"
         obj = create_object(name, mesh, old_obj.location, context=context, link=True)
         # Create a new material with the baked atlas.
         mat = create_texture_material(name, baked_image, None, False, None)
