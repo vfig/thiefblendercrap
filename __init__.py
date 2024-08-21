@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'Thieftools',
     'author': 'vfig',
-    'version': (0, 0, 1),
+    'version': (0, 0, 2),
     'blender': (2, 90, 0),
     'category': '(Development)',
     'description': '(in development)'
