@@ -1420,67 +1420,11 @@ uniform vec4 color;
 uniform sampler2D image;
 uniform sampler2D lightmap;
 
-float linearrgb_to_srgb(float c)
-{
-    if (c < 0.0031308) {
-        return (c < 0.0) ? 0.0 : c * 12.92;
-    }
-    else {
-        return 1.055 * pow(c, 1.0 / 2.4) - 0.055;
-    }
-}
-
-vec4 linearrgb_to_srgb(vec4 col_from)
-{
-    vec4 col_to;
-    col_to.r = linearrgb_to_srgb(col_from.r);
-    col_to.g = linearrgb_to_srgb(col_from.g);
-    col_to.b = linearrgb_to_srgb(col_from.b);
-    col_to.a = col_from.a;
-    return col_to;
-}
-
-float linearrgb_to_srgb_hacked(float c)
-{
-    // This looks almost identical, except in the very darkest
-    // greys, where it is too light:
-    return pow(c, 1.0/2.15);
-}
-
-vec4 linearrgb_to_srgb_hacked(vec4 col_from)
-{
-    vec4 col_to;
-    col_to.r = linearrgb_to_srgb_hacked(col_from.r);
-    col_to.g = linearrgb_to_srgb_hacked(col_from.g);
-    col_to.b = linearrgb_to_srgb_hacked(col_from.b);
-    col_to.a = col_from.a;
-    return col_to;
-}
-
 void main()
 {
     vec4 t = texture(image, texCoord_interp);
     vec4 l = texture(lightmap, lmCoord_interp);
-    vec4 c = color+t*l; // just random maths
-#if 0
-    // BUG: this ends up appearing slightly too dark. i think it is all due
-    //      to sRGB<->Linear conversion that is happening in Blender and/or
-    //      the gpu drivers, and that being a bit different than the curve
-    //      that gets used when the game loads textures.
-    //
-    //      i think a correct fix would be to ensure we don't do such
-    //      conversions at all in the baking pipeline. i think to do that i
-    //      would either have to look into the gpu module's offscreen stuff
-    //      or just do the texture sampling and multiply all with numpy.
-    //
-    fragColor = linearrgb_to_srgb(c);
-#else
-    // WORKAROUND: use a hacked sRGB conversion curve that looks almost right
-    //      in my test level on my machine. it is probably wronger than i
-    //      think, e.g. might be tuned to the ambient setting i had in the
-    //      test level.
-    fragColor = linearrgb_to_srgb_hacked(c);
-#endif
+    fragColor = color+t*l; // just random maths
 }
 """
 
@@ -1711,6 +1655,19 @@ def _bake_together(name, size, num_polys, verts, tx_uvs, lm_uvs,
     HEIGHT = size[1]
     offscreen = gpu.types.GPUOffScreen(WIDTH, HEIGHT)
 
+    # Force images to use linear colorspace while we blend (because texture
+    # creation doesn't have a parameter for this).
+    texture_colorspaces = []
+    lightmap_colorspace = mat_lightmap_image.colorspace_settings.name
+    for image in mat_texture_images:
+        texture_colorspaces.append(image.colorspace_settings.name)
+        image.colorspace_settings.name = 'Linear'
+    mat_lightmap_image.colorspace_settings.name = 'Linear'
+    def restore_colorspaces():
+        for image, name in zip(mat_texture_images, texture_colorspaces):
+            image.colorspace_settings.name = name
+        mat_lightmap_image.colorspace_settings.name = lightmap_colorspace
+
     if BLENDER_2:
         images_to_free = []
 
@@ -1719,6 +1676,7 @@ def _bake_together(name, size, num_polys, verts, tx_uvs, lm_uvs,
         if BLENDER_2:
             for image in images_to_free:
                 image.gl_free()
+        restore_colorspaces()
 
     try:
         # Get all these damn images on the damn gpu:
