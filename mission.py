@@ -1679,13 +1679,13 @@ def _bake_together(name, size, num_polys, verts, tx_uvs, lm_uvs,
         with offscreen.bind():
             # Clear the render target
             fb = gpu.state.active_framebuffer_get()
-            fb.clear(color=(0.0,0.0,0.0,0.0))
+            fb.clear(color=(0.0,0.0,0.0,1.0))
             # Set up the shader and uniforms
             t_start = perf_counter()
             shader.bind()
             shader.uniform_sampler("lightmap", tx_lightmap)
             # Draw the rects
-            color = np.array([0.0,0.0,0.0,0.0], dtype=np.float32)
+            color = np.array([0.0,0.0,0.0,1.0], dtype=np.float32)
             shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
             with gpu.matrix.push_pop():
                 # Map (0,0)-(WIDTH,HEIGHT) into NDC (-1,-1)-(1,1)
