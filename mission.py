@@ -7,10 +7,6 @@ import os
 import sys
 import time
 
-BLENDER_2 = (bpy.app.version<(3, 0, 0))
-if BLENDER_2:
-    import bgl
-
 from bpy.props import BoolProperty, FloatProperty, IntProperty, StringProperty
 from bpy.types import Object, Operator, Panel, PropertyGroup
 from bpy_extras.image_utils import load_image
@@ -1668,58 +1664,26 @@ def _bake_together(name, size, num_polys, verts, tx_uvs, lm_uvs,
             image.colorspace_settings.name = name
         mat_lightmap_image.colorspace_settings.name = lightmap_colorspace
 
-    if BLENDER_2:
-        images_to_free = []
-
     def cleanup():
         offscreen.free()
-        if BLENDER_2:
-            for image in images_to_free:
-                image.gl_free()
         restore_colorspaces()
 
     try:
         # Get all these damn images on the damn gpu:
         tx_textures = [None] * len(mat_texture_images)
         tx_lightmap = None
-        if BLENDER_2:
-            if mat_lightmap_image.gl_load():
-                raise RuntimeError("Unable to load lightmap image to gpu.")
-            images_to_free.append(mat_lightmap_image)
-            tx_lightmap = mat_lightmap_image.bindcode
-            for i,image in enumerate(mat_texture_images):
-                if image.gl_load():
-                    raise RuntimeError("Unable to load image to gpu.")
-                images_to_free.append(image)
-                tx_textures[i] = image.bindcode
-        else:
-            tx_lightmap = gpu.texture.from_image(mat_lightmap_image)
-            for i,image in enumerate(mat_texture_images):
-                tx_textures[i] = gpu.texture.from_image(image)
+        tx_lightmap = gpu.texture.from_image(mat_lightmap_image)
+        for i,image in enumerate(mat_texture_images):
+            tx_textures[i] = gpu.texture.from_image(image)
 
         with offscreen.bind():
             # Clear the render target
-            if BLENDER_2:
-                bgl.glClearColor(0.0, 0.0, 0.0, 0.0)
-                bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
-            else:
-                fb = gpu.state.active_framebuffer_get()
-                fb.clear(color=(0.0,0.0,0.0,0.0))
+            fb = gpu.state.active_framebuffer_get()
+            fb.clear(color=(0.0,0.0,0.0,0.0))
             # Set up the shader and uniforms
             t_start = perf_counter()
             shader.bind()
-            if BLENDER_2:
-                bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-                shader.uniform_int("image", 0)
-                bgl.glActiveTexture(bgl.GL_TEXTURE1)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_lightmap)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-                shader.uniform_int("lightmap", 1)
-            else:
-                shader.uniform_sampler("lightmap", tx_lightmap)
+            shader.uniform_sampler("lightmap", tx_lightmap)
             # Draw the rects
             color = np.array([0.0,0.0,0.0,0.0], dtype=np.float32)
             shader.uniform_vector_float(shader.uniform_from_name("color"), color, 4, 1)
@@ -1733,11 +1697,7 @@ def _bake_together(name, size, num_polys, verts, tx_uvs, lm_uvs,
                     mat = mat_indexes[pi]
                     batch = batch_for_shader(shader, 'TRIS',
                         {"pos": verts[pi], "texCoord": tx_uvs[pi], "lmCoord": lm_uvs[pi]})
-                    if BLENDER_2:
-                        bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                        bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_textures[mat])
-                    else:
-                        shader.uniform_sampler("image", tx_textures[mat])
+                    shader.uniform_sampler("image", tx_textures[mat])
                     batch.draw(shader)
             # Draw the debug polys on top.
             if draw_baked_polys:
@@ -1757,23 +1717,14 @@ def _bake_together(name, size, num_polys, verts, tx_uvs, lm_uvs,
                             "texCoord": baked_tx_uvs[loop_start:loop_end],
                             "lmCoord": baked_lm_uvs[loop_start:loop_end],
                             })
-                        if BLENDER_2:
-                            bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                            bgl.glBindTexture(bgl.GL_TEXTURE_2D, tx_textures[mat])
-                        else:
-                            shader.uniform_sampler("image", tx_textures[mat])
+                        shader.uniform_sampler("image", tx_textures[mat])
                         batch.draw(shader)
             t_render = perf_counter()-t_start
             # Read back the offscreen buffer
             t_start = perf_counter()
             pixels = np.empty((HEIGHT,WIDTH,4), dtype=np.uint8)
-            if BLENDER_2:
-                buffer = bgl.Buffer(bgl.GL_BYTE, pixels.shape, pixels)
-                bgl.glReadBuffer(bgl.GL_BACK)
-                bgl.glReadPixels(0, 0, WIDTH, HEIGHT, bgl.GL_RGBA, bgl.GL_UNSIGNED_BYTE, buffer)
-            else:
-                buffer = gpu.types.Buffer('UBYTE', pixels.shape, pixels)
-                fb.read_color(0, 0, WIDTH, HEIGHT, 4, 0, 'UBYTE', data=buffer)
+            buffer = gpu.types.Buffer('UBYTE', pixels.shape, pixels)
+            fb.read_color(0, 0, WIDTH, HEIGHT, 4, 0, 'UBYTE', data=buffer)
             t_readback = perf_counter()-t_start
     except:
         raise
