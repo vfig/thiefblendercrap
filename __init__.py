@@ -59,6 +59,7 @@ class TOOLS_PT_thieftools_debug(Panel):
         op = row.operator(mission.TTImportMISOperator.bl_idname, text="Import (debug)")
         op.dump = True
         op = box.operator(mission.TT_bake_together.bl_idname)
+        op = box.operator(mission.TT_remove_lightmaps.bl_idname)
 
         row = layout.row(align=True)
         box = row.box()
@@ -103,6 +104,7 @@ CLASSES = [
     mission.MIS_PT_import_options,
     mission.MIS_PT_import_debug,
     mission.TT_bake_together,
+    mission.TT_remove_lightmaps,
     mesh.TTDebugImportMeshOperator,
     mesh.TTDebugExportMeshOperator,
     TOOLS_PT_thieftools_debug,

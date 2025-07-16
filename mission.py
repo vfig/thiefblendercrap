@@ -21,6 +21,7 @@ from typing import Mapping, Sequence, Tuple
 from .images import load_gif, load_pcx
 from .lgtypes import *
 
+
 def create_object(name, mesh, location, context=None, link=True):
     o = bpy.data.objects.new(name, mesh)
     o.location = location
@@ -488,13 +489,19 @@ def do_txlist(chunk, context, search_paths=(), progress=None,
     ##       load them yet.
     tex_extensions = ['.png', '.tga', '.bmp', '.pcx', '.gif', '.cel']
     ext_sort_order = {ext: i for (i, ext) in enumerate(tex_extensions)}
+    # This image cache is keyed by unique name (fam_foo_bar), not by Image name.
+    # We keep the Image name the same as the filename (as far as we can) so
+    # that NewDark exporter (when exporting unbaked objects) gets the right
+    # name for images whenever possible.
+    image_cache = {}
     def load_tex(fam_name, tex_name):
         fam_name = fam_name.lower()
         tex_name = tex_name.lower()
         # Don't load the image if it has already been loaded.
-        image_name = f"fam_{fam_name}_{tex_name}"
-        image = bpy.data.images.get(image_name, None)
+        cache_name = f"fam_{fam_name}_{tex_name}"
+        image = image_cache.get(cache_name, None)
         if image: return image
+        image_name = f"{tex_name}.png"
         # Find the candidate files (all matching types in all search paths)
         if dump:
             print(f"Searching for fam/{fam_name}/{tex_name}...", file=dumpf)
@@ -539,6 +546,7 @@ def do_txlist(chunk, context, search_paths=(), progress=None,
         else:
             raise NotImplementedError(f"{ext} images not yet supported!")
         image.name = image_name
+        image_cache[cache_name] = image
         return image
 
     tex_count = len(p_texs)
@@ -1938,6 +1946,69 @@ class BakeAtlasBuilder:
         return (x,y)
 
 
+# --------------------------------------------------------------------------#
+# Removing lightmaps (for unbaked Blender NewDark Toolkit compatibility)
+
+def remove_lightmaps(context, obj):
+    # Remove lightmap (and supporting) nodes in all the mesh's materials (if present).
+    def remove_lightmap_nodes(node_tree):
+        tex_node = node_tree.nodes.get('TerrainTexture')
+        if tex_node is None: return
+        def is_bsdf(n):
+            return n.type.startswith('BSDF')
+        dead_nodes = []
+        node = tex_node
+        left_socket = None
+        right_socket = None
+        while (node is not None) and (not is_bsdf(node)):
+            if len(node.outputs) == 0: break
+            if node is not tex_node:
+                dead_nodes.append(node)
+            from_socket = node.outputs[0]
+            if left_socket is None:
+                left_socket = from_socket
+            if len(from_socket.links) == 0: break
+            to_socket = from_socket.links[0].to_socket
+            right_socket = to_socket
+            node = to_socket.node
+        if not is_bsdf(node):
+            return
+        bsdf_node = node
+
+        # Unlink everything in between        
+        for link in list(left_socket.links):
+            node_tree.links.remove(link)
+        for link in list(right_socket.links):
+            node_tree.links.remove(link)
+
+        # Link texture directly to bsdf
+        node_tree.links.new(left_socket, right_socket)
+
+        # TODO: clean up dead nodes (barely matters ofc)
+
+    mesh = obj.data
+    for mat in mesh.materials:
+        if not mat.use_nodes: continue
+        remove_lightmap_nodes(mat.node_tree)
+        # lm_node = mat.node_tree.nodes.get('LightmapTexture')
+        # # Trace first output from LightmapTexture to the BSDF. Keep track of the
+        # #
+        # if lm_node is None: continue
+        #     # mix_node = lm_node.outputs[0].links[0].to_node
+
+    BSDF_NODE_TYPES = (
+        bpy.types.ShaderNodeBsdfDiffuse,
+        bpy.types.ShaderNodeBsdfGlass,
+        bpy.types.ShaderNodeBsdfGlossy,
+        bpy.types.ShaderNodeBsdfPrincipled,
+        bpy.types.ShaderNodeBsdfToon,
+        bpy.types.ShaderNodeBsdfTranslucent,
+        bpy.types.ShaderNodeBsdfTransparent,
+        )
+
+
+
+
 #---------------------------------------------------------------------------#
 # Post-import utilities
 
@@ -2246,6 +2317,26 @@ class TT_bake_together(Operator):
         else:
             obj_new = obj_old
         bake_textures_and_lightmaps(context, obj_new)
+        return {'FINISHED'}
+
+class TT_remove_lightmaps(Operator):
+    bl_idname = "object.tt_remove_lightmaps"
+    bl_label = "Remove lightmaps"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(self, context):
+        if context.mode!="OBJECT": return False
+        # Only run this operator for missions
+        o = context.active_object
+        if o is None: return False
+        return o.tt_mission.is_mission
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+    def execute(self, context):
+        remove_lightmaps(context, context.active_object)
         return {'FINISHED'}
 
 #---------------------------------------------------------------------------#
